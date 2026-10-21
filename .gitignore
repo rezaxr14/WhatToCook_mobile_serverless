@@ -1,0 +1,37 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+dist-ssr/
+coverage/
+*.tsbuildinfo
+
+# generated native projects
+android/
+ios/
+
+# expo
+.expo/
+.expo-shared/
+
+# local env / secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# optional local clone of the read-only reference repo
+reference/
+
+# tooling
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.log

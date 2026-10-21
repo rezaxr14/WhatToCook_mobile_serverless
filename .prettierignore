@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+reference
+supabase/.temp
+implementation_plan.md
