@@ -16,10 +16,12 @@
 - [x] TypeScript strict base config, ESLint flat config, Prettier, EditorConfig
 - [x] Placeholder web app builds (`@whattocook/web`)
 - [x] Shared package with locale constants + tests
-- [ ] `docs/porting-notes.md` (reference analysis in progress)
+- [x] `docs/porting-notes.md` — backend, data model, matcher, seed, API and frontend analysis
 - [x] `docs/DECISIONS.md`
 - [x] CI skeleton + gitleaks
-- [ ] First green CI run on a PR (needs GitHub remote)
+- [x] GitHub repo created (public), `main` pushed, CI green on `main`
+- [x] Branch protection on `main` + Dependabot
+- [ ] First green CI run on a PR (Dependabot PRs pending)
 - [ ] `CLAUDE.md` (written, review pending)
 
 ## Environment notes
@@ -38,7 +40,7 @@
 
 ## Blocked / waiting on human
 
-- H7: final Android application ID (currently placeholder `com.whattocook.app`, not published).
-- H2: GitHub repo creation/branch protection/Dependabot (agent can create the repo on request).
+- H2: resolved — repo is public and branch protection is available.
+- H7: resolved — Android application ID is `com.whattocook.app`.
 - H3: Supabase staging project (needed for M1).
 - H1: Play Console account (needed later).

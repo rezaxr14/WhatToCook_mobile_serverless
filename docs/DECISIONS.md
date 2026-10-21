@@ -46,13 +46,14 @@ React 19, Vitest 5, ESLint 10 flat config, Prettier 3. Expo SDK is recorded late
 
 **Consequences:** revisit on each Expo SDK upgrade. CI pins Node 22 LTS.
 
-## ADR-005 — Placeholder application ID
+## ADR-005 — Android application ID
 
 **Context:** H7 (permanent Android application ID) is a human decision.
 
-**Decision:** use `com.whattocook.app` as a placeholder in docs only; nothing is published.
+**Decision:** `com.whattocook.app`, confirmed by the user on 2026-10-21 before any Play submission.
 
-**Consequences:** must be replaced before M2/M7; changing it after Play publication is impossible.
+**Consequences:** treat it as permanent from M2 onward; changing it after Play publication is
+impossible.
 
 ## ADR-006 — Docker is optional locally
 
