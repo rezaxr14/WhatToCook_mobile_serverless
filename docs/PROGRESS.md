@@ -27,7 +27,10 @@
 - `pnpm` was installed globally with `npm i -g pnpm` because `corepack enable` hit EPERM
   on `C:\Program Files\nodejs` (no admin). Node is 23.7.0 locally while `.nvmrc`/engines target 22 LTS.
 - Supabase CLI 2.121.0 is installed as a root dev dependency (`pnpm exec supabase`).
-- **Docker Desktop is installed but its daemon is not running** — start it before M1 (`supabase start`).
+- **Docker Desktop is installed but its daemon is not running** and is optional locally
+  (ADR-006). Start it only when the local Supabase stack is needed; otherwise rely on CI/staging.
+- Supabase CLI is installed but **not logged in** (H3): `pnpm exec supabase login` or provide
+  `SUPABASE_ACCESS_TOKEN`, plus a staging project ref.
 - Deno, JDK, Android SDK and Maestro are **not installed yet**. Needed by
   M4 (Deno), M7 (JDK/Android). Install before those milestones.
 - Reference repo lives at `../WhatToCook-AI-Powered-Recipe-Generator` (commit `2e8fa3f` on `main`)

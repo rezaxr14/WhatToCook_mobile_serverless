@@ -53,3 +53,15 @@ React 19, Vitest 5, ESLint 10 flat config, Prettier 3. Expo SDK is recorded late
 **Decision:** use `com.whattocook.app` as a placeholder in docs only; nothing is published.
 
 **Consequences:** must be replaced before M2/M7; changing it after Play publication is impossible.
+
+## ADR-006 — Docker is optional locally
+
+**Context:** Docker Desktop runs a heavy VM and the user prefers not to keep it running.
+
+**Decision:** the local Supabase stack (`supabase start`) is **not** required for day-to-day
+frontend/shared work. Docker is started only when we need local Postgres/Edge Functions, and
+stopped afterwards. Database migrations and pgTAP tests are also verified in GitHub Actions,
+whose runners provide Docker, so CI remains the source of truth.
+
+**Consequences:** M1's `supabase db reset` acceptance runs either locally (Docker on demand) or in
+the CI `supabase` job. Integration testing against staging needs a hosted project (H3).
