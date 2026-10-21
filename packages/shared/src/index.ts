@@ -1,3 +1,5 @@
+export * from './database.types';
+
 export const APP_NAME = 'WhatToCook' as const;
 
 /**

@@ -1,0 +1,12 @@
+-- Local-only seed hook.
+--
+-- The canonical catalog (plans, app_config, 80 ingredients, 12 recipes, and
+-- 65 recipe-ingredient rows) lives in
+-- supabase/migrations/20261021200630_catalog_seed.sql so the same data is
+-- applied to staging by `supabase db push`.
+--
+-- The demo pantry is user-scoped and is created by the `seed_demo_data()` RPC
+-- after anonymous sign-in; it is not global seed data.
+--
+-- Add local-only fixtures below if needed. Do not put production catalog data
+-- here, because this file is not run by `supabase db push`.
