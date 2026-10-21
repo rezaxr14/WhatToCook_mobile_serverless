@@ -50,6 +50,8 @@
 - [x] Staging anonymous sign-ins enabled; demo flow verified
 - [x] `.github/workflows/supabase.yml`: local schema/pgTAP on PRs; gated staging
       `db push` + image upload on `main`
+- [x] `.env.example` and `apps/web/.env.example`; deploy secrets in the GitHub `staging`
+      environment and mirrored in the gitignored root `.env.local`
 
 ## Staging verification (2026-10-22)
 
@@ -75,23 +77,23 @@
 - `dblink` concurrency tests connect via `host=db port=5432` so password auth is used;
   loopback connections match the local trust rule and are rejected by dblink for
   non-superusers.
-- Supabase MCP was used for the first staging migration apply because no remote DB password
-  is stored locally. MCP creates its own migration versions; staging history was then aligned
-  to the four local versions plus the hardening migration. Future applies should use
-  `supabase db push` (CI) or the GitHub integration, not MCP, unless history is aligned again.
+- Supabase MCP was used for the first staging migration apply. MCP creates its own migration
+  versions; staging history was then aligned to the local versions. The database password is
+  now stored in the gitignored root `.env.local` and in the GitHub `staging` environment, and
+  `supabase db push --dry-run` reports `Remote database is up to date`. Future applies use the
+  CI push or a local `db push`, not MCP, unless history is aligned again.
+- Deploy-path decision: `.github/workflows/supabase.yml` owns staging/production migrations.
+  The Supabase GitHub integration stays connected for preview branches only; `Supabase Preview`
+  currently skips, and its production deploy must remain off.
 - Project skills live in `.agents/skills` (14 official Expo/Supabase skills, ADR-007).
 - Reference repo lives at `../WhatToCook-AI-Powered-Recipe-Generator` (commit `2e8fa3f`)
   and is strictly read-only.
 
 ## Blocked / waiting on human
 
-- Add GitHub repository (or `staging` environment) secrets: `SUPABASE_ACCESS_TOKEN`,
-  `SUPABASE_PROJECT_ID`, `SUPABASE_DB_PASSWORD`. Without them the deploy job warns and skips.
-- The Supabase GitHub integration is connected: PR #7 shows a `Supabase Preview` check that
-  currently skips. Confirm in the dashboard whether the integration also deploys to production
-  on `main`; if it does, choose either it or `.github/workflows/supabase.yml` as the deploy path
-  to avoid duplicate pushes. Preview-branch deployments can coexist.
-- PR #7 checks: `Typecheck, lint, test, build`, `Secret scan`, and `Local schema and pgTAP`
-  pass. The staging deploy job skips on pull requests and also skips without secrets.
 - H1: Play Console account (needed later, M7+).
+- M8: create the production Supabase project and a protected production GitHub environment.
+- PR #7 checks: `Typecheck, lint, test, build`, `Secret scan`, and `Local schema and pgTAP`
+  pass. The staging deploy job skips on pull requests by design; after merge, verify the first
+  `main` run uses the `staging` environment secrets.
 - M0 blockers H2, H3 and H7 are resolved.

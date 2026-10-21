@@ -25,6 +25,34 @@ Seeded catalog: 80 ingredients, 12 recipes, 65 recipe-ingredient rows, 3 plans. 
 `supabase/seed-images/recipes/` are uploaded by the local stack to
 `recipe-images/recipes/<file>` when `objects_path` is configured in `supabase/config.toml`.
 
+## Environment and secrets
+
+The committed templates are:
+
+- `.env.example` - full environment contract: Supabase CLI/CI, web, mobile, and
+  server-only Edge Function values.
+- `apps/web/.env.example` - the public Vite values only.
+
+For local CLI/CI work, copy `.env.example` to `.env.local` and fill in
+`SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_ID`, and `SUPABASE_DB_PASSWORD`. `.env.local` is
+gitignored. The same three names are stored in the GitHub `staging` environment, which the
+deploy job references:
+
+```bash
+gh secret list --env staging
+```
+
+The project database password was rotated on 2026-10-22 so CI can link and push without a
+human. If it is rotated again, update both `.env.local` and the `SUPABASE_DB_PASSWORD`
+environment secret. `supabase link --project-ref lderdvhteofqemiivosz` followed by
+`supabase db push --dry-run` verifies the new password; the dry run should report
+`Remote database is up to date`.
+
+The web client reads `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_APP_ENV` from
+`apps/web/.env.local`. The mobile client (M2+) reads `EXPO_PUBLIC_SUPABASE_URL` and
+`EXPO_PUBLIC_SUPABASE_ANON_KEY` from `apps/mobile/.env.local`. These are public by design;
+never put a service-role or provider key in either prefix.
+
 ## Schema and tests
 
 Migrations, in order:
@@ -52,7 +80,7 @@ pnpm exec supabase db lint --local --schema public --level warning --fail-on err
 ## Staging
 
 `.github/workflows/supabase.yml` runs the local schema/pgTAP checks on pull requests and, on
-`main`, deploys when these repository or `staging` environment secrets exist:
+`main`, deploys when these `staging` environment secrets exist:
 
 - `SUPABASE_ACCESS_TOKEN`
 - `SUPABASE_PROJECT_ID` (`lderdvhteofqemiivosz`)
@@ -62,16 +90,23 @@ It runs `supabase link`, `supabase db push --yes`, then uploads each catalog ima
 `recipe-images`. Storage uploads remove the object first because `storage cp` is experimental
 and does not upsert. Missing secrets produce a warning and skip the deploy.
 
+**Deploy-path decision:** this workflow is the single owner of staging and production
+migrations. The Supabase GitHub integration is connected (`Supabase Preview` appears on pull
+requests and currently skips) but is allowed only for preview branches; its production deploy
+must remain off so it cannot race the workflow. If preview branching is enabled later, preview
+branches may deploy independently.
+
 Use `supabase gen types typescript --project-id lderdvhteofqemiivosz --schema public` when the
 committed types must match staging exactly.
 
 ### One-off remote changes
 
-Prefer the CI push or the Supabase GitHub integration. The Supabase MCP is a fallback when no
-remote DB password is available. MCP creates its own timestamped version in
+Prefer the CI push, or a local `supabase db push` using the password in `.env.local`. The
+Supabase MCP is now a last-resort fallback. MCP creates its own timestamped version in
 `supabase_migrations.schema_migrations`; after applying with MCP, align the remote history to
 the local migration versions (delete the MCP version and insert the local version) or the next
-`db push` will try to reapply the migration.
+`db push` will try to reapply the migration. For M1 the history is already aligned and the dry
+run reports up to date.
 
 ### Storage
 

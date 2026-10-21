@@ -16,6 +16,20 @@ supabase/           migrations, seed, tests, catalog images
 docs/               PROGRESS, DECISIONS, porting notes, Supabase runbook
 ```
 
+## Environment
+
+- Root `.env.example` is the full environment contract. Copy it to `.env.local`
+  for Supabase CLI/CI and server-side secrets. `.env.local` is gitignored.
+- Web: copy `apps/web/.env.example` to `apps/web/.env.local`. Only the public
+  `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_APP_ENV` values are
+  needed.
+- Mobile (M2+): use the `EXPO_PUBLIC_*` block from the root example in
+  `apps/mobile/.env.local`.
+- The GitHub Actions `staging` environment needs `SUPABASE_ACCESS_TOKEN`,
+  `SUPABASE_PROJECT_ID`, and `SUPABASE_DB_PASSWORD`.
+- Never put a service-role key or AI provider key in `VITE_*` or
+  `EXPO_PUBLIC_*`; those values are public.
+
 ## Commands
 
 ```bash
@@ -31,6 +45,11 @@ pnpm supabase:start
 pnpm supabase:reset
 pnpm supabase:test
 pnpm gen:types
+
+# staging types / deploy verification (requires .env.local credentials)
+pnpm gen:types:remote
+pnpm exec supabase link --project-ref <project-ref>
+pnpm exec supabase db push --dry-run
 ```
 
 ## Status

@@ -92,7 +92,7 @@ labels the Supabase skill medium risk, and manual review found only guidance and
 
 **Context:** M1 needs a real hosted project for staging verification. Local Docker is optional
 (ADR-006), the Supabase GitHub integration status is not machine-verifiable, and the remote
-database password is not stored on the workstation.
+database password was not stored on the workstation.
 
 **Decision:** staging is the Supabase project `WhatToCook` (`lderdvhteofqemiivosz`, `eu-west-1`).
 Migrations are the source of truth. The catalog seed is a migration, not only `seed.sql`, so
@@ -101,21 +101,35 @@ staging receives the same 80 ingredients / 12 recipes / 65 joins through `supaba
 
 Local verification is `supabase db reset` plus `supabase test db` plus `supabase db lint`.
 `.github/workflows/supabase.yml` repeats those checks on pull requests. On `main`, after the
-checks and when the three deploy secrets exist, it runs `supabase link` + `supabase db push`
-and re-uploads the 12 catalog images. The repository `staging` environment can hold those
-secrets and require approval. Without secrets the deploy job warns and skips instead of failing.
+checks, it runs `supabase link` + `supabase db push` and re-uploads the 12 catalog images. The
+three credentials are stored in the GitHub `staging` environment and mirrored in the ignored
+root `.env.local`:
 
-The Supabase MCP is a fallback for one-off remote DDL when no DB password is available. MCP
-records its own timestamped migration versions, so after an MCP apply the staging
+- `SUPABASE_ACCESS_TOKEN`
+- `SUPABASE_PROJECT_ID`
+- `SUPABASE_DB_PASSWORD`
+
+The database password was rotated on 2026-10-22 so `supabase link` and `db push` can run without
+a human. A `db push --dry-run` with the new password reports `Remote database is up to date`.
+The committed `.env.example` documents the full environment contract, and
+`apps/web/.env.example` documents the public Vite values. Mobile public values use
+`EXPO_PUBLIC_*` when M2 lands.
+
+**Deploy-path decision:** the GitHub Actions workflow is the single owner of staging and
+production migrations. The Supabase GitHub integration stays connected for preview branches
+only; its `Supabase Preview` check currently skips, and its production deploy must remain off to
+avoid racing the workflow.
+
+The Supabase MCP is now a last-resort fallback for one-off remote DDL. MCP records its own
+timestamped migration versions, so after an MCP apply the staging
 `supabase_migrations.schema_migrations` history must be aligned to the local file versions.
-Normal changes after M1 should use the CI push or the GitHub integration, not MCP.
+Normal changes use the CI push or a local `db push`, not MCP.
 
 **Consequences:** `supabase db push` sees the local versions as already applied. The workflow's
 image upload is idempotent by removing each object before `storage cp` (the command is
-experimental and does not upsert). If the Supabase GitHub integration is configured to deploy
-to production on `main`, either disable that behaviour or remove the workflow deploy job to
-avoid two deploy paths; preview-branch deployments can coexist. The workstation can verify
-staging through SQL/MCP and the REST API without ever storing the DB password.
+experimental and does not upsert). The workstation can verify staging through SQL/MCP and the
+REST API, and CI can deploy without a human-held password. Rotating the database password again
+requires updating both `.env.local` and the `staging` environment secret.
 
 ## ADR-009 - Matcher and quota semantics live in Postgres
 
