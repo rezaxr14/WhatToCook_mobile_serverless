@@ -66,3 +66,24 @@ whose runners provide Docker, so CI remains the source of truth.
 
 **Consequences:** M1's `supabase db reset` acceptance runs either locally (Docker on demand) or in
 the CI `supabase` job. Integration testing against staging needs a hosted project (H3).
+
+## ADR-007 — Project-scoped agent skills
+
+**Context:** M0 requires reviewed Expo and Supabase guidance for the agent. OpenCode discovers
+project skills under `.agents/skills`.
+
+**Decision:** installed 14 official, MIT-licensed skills with
+`npx skills add <repo> --agent opencode --copy`, pinned in `skills-lock.json`:
+
+- Expo (12): `expo-overview`, `expo-project-structure`, `expo-router`, `expo-native-ui`,
+  `expo-design-system`, `expo-data-fetching`, `expo-dev-client`, `expo-module`, `expo-upgrade`,
+  `eas-app-stores`, `eas-update`, `eas-workflows`.
+- Supabase (2): `supabase`, `supabase-postgres-best-practices`.
+
+No third-party React Native performance or web/Vite skill was added: the official Expo set covers
+design/data guidance and Vite/React docs are authoritative. No MCP server is configured (the client
+reports no resources); Expo MCP needs EAS, and Supabase MCP needs a project, so both wait for M1+.
+
+**Consequences:** skills are committed so every agent gets the same reviewed instructions; refresh
+with `npx skills update` after reviewing the diff. The installer reported 0 Socket alerts; Snyk
+labels the Supabase skill medium risk, and manual review found only guidance and doc links.
