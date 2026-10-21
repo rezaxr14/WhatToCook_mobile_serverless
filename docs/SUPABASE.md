@@ -35,8 +35,10 @@ The committed templates are:
 
 For local CLI/CI work, copy `.env.example` to `.env.local` and fill in
 `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_ID`, and `SUPABASE_DB_PASSWORD`. `.env.local` is
-gitignored. The same three names are stored in the GitHub `staging` environment, which the
-deploy job references:
+gitignored and is not loaded automatically by the Supabase CLI. Load it in the shell
+(`set -a; source .env.local; set +a` on bash, or the PowerShell loop in `.env.example`) or pass
+`--password` explicitly. The same three names are stored in the GitHub `staging` environment,
+which the deploy job references:
 
 ```bash
 gh secret list --env staging
