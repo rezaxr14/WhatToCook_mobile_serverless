@@ -11,13 +11,14 @@ concurrency:
 
 permissions:
   contents: read
+  security-events: write
 
 jobs:
   quality:
     name: Typecheck, lint, test, build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v4
         with:
@@ -47,7 +48,7 @@ jobs:
     name: Secret scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
