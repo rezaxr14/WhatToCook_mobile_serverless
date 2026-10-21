@@ -1,11 +1,16 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-
-import App from './App';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { App } from './App';
+import './i18n';
 import './index.css';
+import { activateAsyncStyles } from './utils/asyncStyles';
+import { reloadOnceOnChunkError } from './utils/chunkReload';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+activateAsyncStyles();
+reloadOnceOnChunkError();
+
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+  <React.StrictMode>
     <App />
-  </StrictMode>,
+  </React.StrictMode>
 );

@@ -1,69 +1,186 @@
-:root {
-  color-scheme: light dark;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
-  line-height: 1.5;
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-brand-50: #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-200: #fed7aa;
+  --color-brand-300: #fdba74;
+  --color-brand-400: #fb923c;
+  --color-brand-500: #f97316;
+  --color-brand-600: #ea580c;
+  --color-brand-700: #c2410c;
+  --color-brand-800: #9a3412;
+  --color-brand-900: #7c2d12;
+
+  --color-sage-50: #f0fdf9;
+  --color-sage-100: #ccfbf1;
+  --color-sage-200: #99f6e4;
+  --color-sage-300: #5eead4;
+  --color-sage-400: #2dd4bf;
+  --color-sage-500: #14b8a6;
+  --color-sage-600: #0d9488;
+  --color-sage-700: #0f766e;
+
+  --color-warmgray-50: #fafaf9;
+  --color-warmgray-100: #f5f5f4;
+  --color-warmgray-200: #e7e5e4;
+  --color-warmgray-800: #292524;
+  --color-warmgray-900: #1c1917;
+  --color-warmgray-950: #0c0a09;
+
+  --font-sans: Plus Jakarta Sans, Inter, system-ui, sans-serif;
+  --font-display: Plus Jakarta Sans, sans-serif;
+
+  --shadow-glow: 0 0 25px -5px rgba(249, 115, 22, 0.35);
+  --shadow-glow-sage: 0 0 25px -5px rgba(20, 184, 166, 0.35);
+  --shadow-soft: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+  --shadow-card:
+    0 4px 20px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+
+  --radius-3xl: 1.75rem;
+
+  --animate-float: float 3s ease-in-out infinite;
+  --animate-pulse-subtle: pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-shimmer: shimmer 2s infinite linear;
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+  @keyframes pulseSubtle {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.75;
+    }
+  }
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
 }
 
-* {
-  box-sizing: border-box;
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  background: #f7f5f0;
-  color: #1b1a17;
-}
+@layer base {
+  :root {
+    --brand-primary: #f97316;
+    --brand-secondary: #14b8a6;
+    --bg-main: #fafaf9;
+    --card-bg: rgba(255, 255, 255, 0.85);
+    --border-light: rgba(229, 231, 235, 0.8);
+  }
 
-.shell {
-  max-width: 40rem;
-  padding: 3rem 1.5rem;
-  text-align: center;
-}
-
-.eyebrow {
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  opacity: 0.6;
-}
-
-h1 {
-  font-size: clamp(2.5rem, 8vw, 4rem);
-  margin: 0.25rem 0 1rem;
-}
-
-.lede {
-  font-size: 1.125rem;
-  opacity: 0.75;
-}
-
-.locales {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
-  padding: 0;
-  margin-top: 2rem;
-}
-
-.locales li {
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.875rem;
-}
-
-@media (prefers-color-scheme: dark) {
   body {
-    background: #14130f;
-    color: #f4f1ea;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #fafaf9;
+    color: #1c1917;
+    overflow-x: hidden;
+  }
+}
+
+/* Glassmorphism Styles */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.glass-panel-dark {
+  background: rgba(28, 25, 23, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Custom modern scrollbar — neutral on both the light app & dark film */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 113, 108, 0.45);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(251, 146, 60, 0.65);
+}
+html {
+  scrollbar-color: rgba(120, 113, 108, 0.45) transparent;
+}
+
+/* Subtle Shimmer for AI loading */
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ===== Internationalization: RTL typography ===== */
+html[lang='fa'] body,
+html[dir='rtl'][lang='fa'] body {
+  font-family: 'Vazirmatn', 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+html[lang='ar'] body,
+html[dir='rtl'][lang='ar'] body {
+  font-family: 'Noto Sans Arabic', 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* Keep code/mono + latin brand text LTR inside RTL pages */
+html[dir='rtl'] code,
+html[dir='rtl'] .font-mono {
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/*
+  Tailwind v4 preflight differences that would change how this app looked under v3.
+  Kept as base-layer rules so utilities still override them.
+*/
+@layer base {
+  /* v3 gave every button a pointer cursor; v4 uses the default arrow. */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+
+  /* v3 placeholders were gray-400; v4 uses the current text colour at reduced opacity. */
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
   }
 }

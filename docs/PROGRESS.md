@@ -5,7 +5,7 @@
 
 ## Current
 
-**Milestone:** M1 - backend foundation complete, awaiting review before M2
+**Milestone:** WM1 - reference web UI ported to the static Supabase client (PR pending)
 
 ## M0 checklist
 
@@ -53,6 +53,20 @@
 - [x] `.env.example` and `apps/web/.env.example`; deploy secrets in the GitHub `staging`
       environment and mirrored in the gitignored root `.env.local`
 
+## WM1 checklist (web parity)
+
+- [x] Reference React/Vite UI copied from the read-only reference repo
+- [x] Supabase client + generated `Database` types
+- [x] Auth: email/password, sign-up, anonymous guest demo with `seed_demo_data()`
+- [x] Catalog: recipes, ingredients, recipe detail, Storage image URLs
+- [x] Pantry: `pantry_items` CRUD under RLS
+- [x] Matcher: `can_cook()` RPC with real totals on Recipes and Can Cook
+- [x] Grocery list: `grocery_items` sync, localStorage fallback, source recipe
+- [x] AI pages ported with a graceful `ai_not_ready` state until M4
+- [x] Telegram modal shows M10 status instead of calling a removed endpoint
+- [x] Typecheck, lint, tests and production build green
+- [x] Headless browser smoke: catalog, guest demo, matcher, pantry, grocery sync
+
 ## Staging verification (2026-10-22)
 
 - Catalog counts: 80 ingredients / 12 recipes / 65 recipe-ingredient rows / 3 plans.
@@ -63,6 +77,9 @@
   - Tuscan Chicken 80%, Fried Rice 71%, Shrimp 67%, Pancakes 67%, Crepes 57%,
     Grilled Cheese 50%, Omelette 50%, Avocado Toast 50%, Affogato 0%.
   - Carbonara, Penne and Shakshuka excluded.
+- Web smoke: 12 recipe cards loaded from staging, Storage images returned 200,
+  guest demo produced 11 pantry ingredients / 0 full / 9 partial matches, and
+  "Add Missing" created 4 grocery items that persisted after a page reload.
 - Test anonymous user deleted after verification; staging domain tables are empty again.
 - Security advisors remaining are intentional: authenticated `seed_demo_data()` and
   `delete_my_account_data()` RPCs, and anonymous-sign-in policy notices.
@@ -92,6 +109,8 @@
 ## Blocked / waiting on human
 
 - H1: Play Console account (needed later, M7+).
+- M4: AI Edge Functions and the Gemini secret are not deployed yet; AI Chef,
+  fridge scanning and sous-chef show the intentional `ai_not_ready` state.
 - M8: create the production Supabase project and a protected production GitHub environment.
 - PR #7 checks: `Typecheck, lint, test, build`, `Secret scan`, and `Local schema and pgTAP`
   pass. The staging deploy job skips on pull requests by design; after merge, verify the first

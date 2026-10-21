@@ -1,0 +1,16 @@
+{
+  "name": "WhatToCook - AI Recipe Studio & Pantry",
+  "short_name": "WhatToCook",
+  "description": "Zero food waste AI recipe generator, visual kitchen scanner, and pantry assistant.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafaf9",
+  "theme_color": "#ea580c",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
