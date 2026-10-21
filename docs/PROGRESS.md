@@ -87,8 +87,11 @@
 
 - Add GitHub repository (or `staging` environment) secrets: `SUPABASE_ACCESS_TOKEN`,
   `SUPABASE_PROJECT_ID`, `SUPABASE_DB_PASSWORD`. Without them the deploy job warns and skips.
-- Confirm the Supabase GitHub integration setting. If it deploys to production on `main`,
-  choose either it or `.github/workflows/supabase.yml` as the deploy path to avoid duplicate
-  pushes; preview-branch deployments can coexist.
+- The Supabase GitHub integration is connected: PR #7 shows a `Supabase Preview` check that
+  currently skips. Confirm in the dashboard whether the integration also deploys to production
+  on `main`; if it does, choose either it or `.github/workflows/supabase.yml` as the deploy path
+  to avoid duplicate pushes. Preview-branch deployments can coexist.
+- PR #7 checks: `Typecheck, lint, test, build`, `Secret scan`, and `Local schema and pgTAP`
+  pass. The staging deploy job skips on pull requests and also skips without secrets.
 - H1: Play Console account (needed later, M7+).
 - M0 blockers H2, H3 and H7 are resolved.
