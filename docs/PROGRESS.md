@@ -5,13 +5,13 @@
 
 ## Current
 
-**Milestone:** M0 — foundations and porting analysis (in progress)
+**Milestone:** M0 — complete, awaiting review before M1
 
 ## M0 checklist
 
 - [x] Git repo initialized on `main`; plan excluded from version control
 - [x] Bootstrap checks: Node 23.7.0, pnpm 12.14.0, git 2.53, gh (logged in), Docker 29.7
-- [ ] Section 3 skills/MCP review (human + agent) — Expo/Supabase skills not installed yet
+- [x] Section 3 skills/MCP review — 14 official skills installed (ADR-007); no MCP configured
 - [x] pnpm workspace: `apps/web`, `packages/shared`
 - [x] TypeScript strict base config, ESLint flat config, Prettier, EditorConfig
 - [x] Placeholder web app builds (`@whattocook/web`)
@@ -21,8 +21,8 @@
 - [x] CI skeleton + gitleaks
 - [x] GitHub repo created (public), `main` pushed, CI green on `main`
 - [x] Branch protection on `main` + Dependabot
-- [ ] First green CI run on a PR (Dependabot PRs pending)
-- [ ] `CLAUDE.md` (written, review pending)
+- [x] First green CI run on a PR (this branch)
+- [x] `CLAUDE.md` (reviewed; keeps the plan untracked and points at project skills)
 
 ## Environment notes
 
@@ -35,6 +35,8 @@
   `SUPABASE_ACCESS_TOKEN`, plus a staging project ref.
 - Deno, JDK, Android SDK and Maestro are **not installed yet**. Needed by
   M4 (Deno), M7 (JDK/Android). Install before those milestones.
+- Project skills live in `.agents/skills` (14 official Expo/Supabase skills, ADR-007). TypeScript
+  stays on 6.x because `typescript-eslint` 8 does not support TS 7; Dependabot ignores `>=7.0.0`.
 - Reference repo lives at `../WhatToCook-AI-Powered-Recipe-Generator` (commit `2e8fa3f` on `main`)
   and is strictly read-only.
 

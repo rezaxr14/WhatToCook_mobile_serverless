@@ -6,6 +6,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # TypeScript 7 breaks typescript-eslint 8.x; revisit when it supports TS 7.
+    ignore:
+      - dependency-name: 'typescript'
+        versions: ['>=7.0.0']
     groups:
       dev-dependencies:
         dependency-type: development

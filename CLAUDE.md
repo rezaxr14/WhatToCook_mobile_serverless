@@ -16,6 +16,7 @@ The authoritative plan is `implementation_plan.md` at the repo root. It is **unt
 - `packages/shared` — types, zod, i18n, match engine, data/API layer
 - `supabase/` — migrations, seed, edge functions (M1+)
 - `docs/` — PROGRESS.md, DECISIONS.md, porting-notes.md, api.md, runbook.md, web-hosting.md
+- `.agents/skills/` — reviewed project skills (Expo + Supabase), pinned by `skills-lock.json`
 
 ## Commands
 
