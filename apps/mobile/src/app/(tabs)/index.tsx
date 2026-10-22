@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
@@ -28,6 +30,7 @@ export default function PantryScreen() {
   const { locale } = useLocale();
   const { user } = useAuth();
   const theme = useTheme();
+  const router = useRouter();
   const [query, setQuery] = useState('');
 
   const pantry = usePantry(user?.id, locale);
@@ -71,14 +74,22 @@ export default function PantryScreen() {
         title={t('mobile.pantry.title')}
         subtitle={t('mobile.pantry.subtitle', { count: items.length })}
         right={
-          items.length > 0 ? (
+          <View style={styles.headerActions}>
             <IconButton
-              icon="trash-outline"
-              tone="danger"
-              accessibilityLabel={t('mobile.pantry.clearAll')}
-              onPress={handleClear}
+              icon="scan-outline"
+              tone="brand"
+              accessibilityLabel={t('mobile.scan.title')}
+              onPress={() => router.push('/scan-pantry')}
             />
-          ) : undefined
+            {items.length > 0 ? (
+              <IconButton
+                icon="trash-outline"
+                tone="danger"
+                accessibilityLabel={t('mobile.pantry.clearAll')}
+                onPress={handleClear}
+              />
+            ) : null}
+          </View>
         }
       />
 
@@ -144,6 +155,11 @@ export default function PantryScreen() {
           icon="basket-outline"
           title={t('mobile.pantry.empty')}
           subtitle={t('mobile.pantry.emptySub')}
+          action={
+            <Button variant="secondary" icon="scan-outline" onPress={() => router.push('/scan-pantry')}>
+              {t('mobile.scan.title')}
+            </Button>
+          }
         />
       ) : (
         <View style={styles.list}>
@@ -211,5 +227,10 @@ const styles = StyleSheet.create({
   itemCopy: {
     flex: 1,
     gap: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
 });

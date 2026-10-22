@@ -274,13 +274,17 @@ NativeWind, but the current Expo default template already ships a token-based St
 Adding NativeWind would introduce Babel/Metro configuration and a second styling idiom.
 
 **Decision:** keep the SDK 58 `expo-template-default` layout (`src/app`, `@/*` alias) and use
-StyleSheet design tokens in `apps/mobile/src/constants/theme.ts`. The four-tab shell uses Expo
-Router's JS `Tabs` with `@expo/vector-icons/Ionicons`; `NativeTabs` needs per-tab image assets
-that the starter does not provide. Locale JSON moved to `packages/shared/src/locales` and is
-exported as `translations`, so web and mobile share one copy; mobile-only strings live under
-`mobile.*` in all five locales. Auth and language preference use `expo-secure-store`;
-`react-native-url-polyfill` backs `supabase-js`, and `AppState` suspends token refresh while the
-app is backgrounded. The application ID remains `com.whattocook.app` (ADR-005).
+StyleSheet design tokens in `apps/mobile/src/constants/theme.ts`. The tab shell uses Expo
+Router's JS `Tabs` with `@expo/vector-icons/Ionicons` (M2 had four tabs; M5 adds an AI Chef
+tab); `NativeTabs` needs per-tab image assets that the starter does not provide. Locale JSON
+moved to `packages/shared/src/locales` and is exported as `translations`, so web and mobile
+share one copy; mobile-only strings live under `mobile.*` in all five locales. Auth and
+language preference use `expo-secure-store`; `react-native-url-polyfill` backs `supabase-js`,
+and `AppState` suspends token refresh while the app is backgrounded. The application ID
+remains `com.whattocook.app` (ADR-005). Mobile AI screens call the same Edge Functions as web
+through `supabase.functions.invoke`, so no provider key is bundled; the optional `ai-models`
+catalog falls back to the shared free-model list. `expo-image-picker` supplies the pantry
+scanner, with images compressed client-side and sent as base64 JSON.
 
 The web app is still React 18 while mobile is React 19. pnpm's hidden hoist resolves
 `@types/react@19` for `react-router` during the web typecheck, so `apps/web/tsconfig.json` maps

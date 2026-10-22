@@ -51,6 +51,24 @@ export async function addGroceryItem(
   if (error) throw new Error(error.message);
 }
 
+export async function addGroceryItems(
+  userId: string,
+  items: Array<{ name: string; quantity?: string }>,
+): Promise<void> {
+  const rows = items
+    .map((item) => ({
+      user_id: userId,
+      name: item.name.trim(),
+      quantity: item.quantity?.trim() || '1',
+      category: 'Recipe',
+    }))
+    .filter((row) => row.name.length > 0);
+  if (rows.length === 0) return;
+
+  const { error } = await supabase.from('grocery_items').insert(rows as never);
+  if (error) throw new Error(error.message);
+}
+
 export async function toggleGroceryItem(id: string, checked: boolean): Promise<void> {
   const { error } = await supabase.from('grocery_items').update({ checked } as never).eq('id', id);
   if (error) throw new Error(error.message);
@@ -88,6 +106,15 @@ export function useAddGroceryItem(userId: string | undefined) {
   return useMutation({
     mutationFn: (input: { name: string; quantity?: string }) =>
       addGroceryItem(userId as string, input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useAddGroceryItems(userId: string | undefined) {
+  const invalidate = useInvalidateGrocery();
+  return useMutation({
+    mutationFn: (items: Array<{ name: string; quantity?: string }>) =>
+      addGroceryItems(userId as string, items),
     onSuccess: invalidate,
   });
 }

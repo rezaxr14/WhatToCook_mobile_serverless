@@ -53,6 +53,19 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="ai-chef"
+        options={{
+          title: t('mobile.tabs.aiChef'),
+          tabBarIcon: ({ focused, size }) => (
+            <Ionicons
+              name="sparkles-outline"
+              color={focused ? theme.brandDark : theme.textMuted}
+              size={size}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="grocery"
         options={{
           title: t('mobile.tabs.grocery'),

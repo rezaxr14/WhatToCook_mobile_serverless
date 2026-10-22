@@ -5,7 +5,7 @@
 
 ## Current
 
-**Milestone:** M2 - mobile shell, auth and i18n (implemented and bundled for Android; on-device dev-client build pending Android SDK/EAS tooling). M4 - AI gateway (implemented and deployed to staging with the fake provider; real Gemini smoke blocked on H5).
+**Milestone:** M2 - mobile shell, auth and i18n (implemented and bundled for Android; on-device dev-client build pending Android SDK/EAS tooling). M5 - mobile AI Chef, recipe detail/chat, substitutions and pantry scanner (implemented; on-device testing pending a dev-client build). M4 - AI gateway (implemented and deployed to staging with the fake provider; real Gemini smoke blocked on H5).
 
 **Provider addendum (2026-10-22):** added a server-side OpenRouter adapter (text, structured JSON,
 streaming, vision) with `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL`
@@ -89,7 +89,7 @@ into the local env files.
       email/password sign-in and sign-up, sign-out, friendly auth errors
 - [x] Shared translations moved to `packages/shared/src/locales`; five locales, device-language
       detection, persisted language choice, RTL direction flag and restart hint
-- [x] Four-tab shell (Pantry, Cook, Grocery, Settings) with Ionicons and brand styling
+- [x] Tab shell (Pantry, Cook, Grocery, Settings at M2; AI Chef added in M5) with Ionicons and brand styling
 - [x] Pantry screen: ingredient search, add, remove, clear, pull-to-refresh
 - [x] Cook screen: `can_cook()` full/partial matches, match %, missing ingredients, images
 - [x] Grocery screen: add, check, delete, clear-checked, pull-to-refresh
@@ -100,6 +100,35 @@ into the local env files.
 - [ ] On-device/emulator dev-client build (`expo run:android` or EAS) - needs the Android SDK
       or an EAS login on this machine
 - [ ] Jest/RNTL component tests and a Maestro smoke flow - follow-up to M2
+
+## M5 checklist (mobile AI Chef, recipe detail, scanner)
+
+- [x] Mobile AI client (`apps/mobile/src/features/ai/api.ts`) invokes the deployed Edge
+      Functions directly; provider keys stay server-side, 404/501 becomes a translated
+      "not connected" state, 429 surfaces the quota message, and response shapes are
+      normalised for RN
+- [x] Dish photography helper ported from web (`src/lib/dish-images.ts`) with unique fallbacks
+- [x] AI Chef tab: pantry-seeded ingredient chips, custom ingredients, dietary chips, servings,
+      surprise level 0-3, free-model selector from `ai-models` with static fallback, remaining
+      quota badge
+- [x] AI recipe detail: hero/meta, nutrition, ingredient checklist, step completion, chef tips,
+      grocery-list export, inline substitutions, and recipe chat
+- [x] Pantry scanner: `expo-image-picker` camera/library, 6 MB guard, base64 JSON to
+      `scan-pantry`, review of matched items, add matched IDs to the pantry; unmatched items
+      are shown but disabled
+- [x] Scanner entry points in the Pantry header and empty state; new routes registered in the
+      root Stack
+- [x] New copy under `mobile.ai`, `mobile.recipe`, `mobile.scan`, `mobile.tabs.aiChef` in all
+      five locales; shared locale parity test still passes
+- [x] `expo-image-picker` plugin configured with camera/photo permission strings and Android
+      `RECORD_AUDIO` disabled
+- [x] Staging API smoke from a native-shaped client: suggestions (5), detail (3 ingredients /
+      2 steps), chat, scan (5 detected / 4 matched), substitution (2), and `get_my_usage`
+- [x] Mobile typecheck, `expo lint`, shared tests (12), mobile helper tests (5) and Android
+      Metro export green
+- [ ] On-device AI Chef / scanner walkthrough - needs a dev-client build
+- [ ] Jest/RNTL component tests and a Maestro flow - helper tests exist, component/E2E tests
+      do not
 
 ## M4 checklist (AI gateway)
 
@@ -213,6 +242,21 @@ into the local env files.
   validated on the first attempt. Docker was stopped first to free RAM.
 - Deno suite passes 70 tests across 9 files; `deno check`, `deno lint`, and the
   workspace `typecheck`/`lint`/`test`/`build:web` are re-run after this change.
+
+## M5 mobile AI verification (2026-10-22)
+
+- Staging was called with the same request bodies the app sends: anonymous session ->
+  `generate-recipe` suggestions (5 recipes), detail (3 ingredients / 2 steps / nutrition /
+  chef tips), chat, `scan-pantry` (5 detections / 4 catalog matches), and
+  `suggest-substitution` (2 substitutes). All returned 200 with the expected keys.
+- `get_my_usage` returned `daily.suggestions.remaining`, `daily.scan.remaining`, and the
+  monthly budget object, matching the mobile quota badge.
+- `ai-models` returned the fake demo catalog (1 model / 1 provider). The mobile selector
+  hides itself for a single model and falls back to the shared free OpenRouter catalog when
+  the function is missing.
+- Android Metro export succeeded (6.4 MB HBC bundle). Mobile helper tests for dish photography
+  pass (5 tests). On-device camera, keyboard, RTL and chat behaviour still need a dev-client
+  build.
 
 ## Environment notes
 

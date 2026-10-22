@@ -39,6 +39,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-localization',
     ['expo-secure-store', { configureAndroidBackup: true }],
     [
+      'expo-image-picker',
+      {
+        photosPermission: 'WhatToCook uses your photos to detect ingredients in your pantry.',
+        cameraPermission: 'WhatToCook uses your camera to scan ingredients in your pantry.',
+        microphonePermission: false,
+      },
+    ],
+    [
       'expo-splash-screen',
       {
         backgroundColor: '#f97316',
