@@ -55,7 +55,7 @@ Deno.test('suggest-substitution: cache hit avoids the provider and charge', asyn
 Deno.test('suggest-substitution: idempotent retry does not double charge', async () => {
   const harness = createHarness();
   const request = () =>
-    jsonRequest(substitutionBody, { idempotencyKey: 'substitution-idem-key-1' });
+    jsonRequest(substitutionBody, { idempotencyKey: 'sub-idem-1' });
   await handleSuggestSubstitution(request(), harness.deps);
   const second = await handleSuggestSubstitution(request(), harness.deps);
 
@@ -93,7 +93,7 @@ Deno.test('suggest-substitution: force_refresh bypasses a warm cache', async () 
 Deno.test('suggest-substitution: provider failure refunds the reservation', async () => {
   const harness = createHarness({ provider: { failFeatures: ['substitution'] } });
   const response = await handleSuggestSubstitution(
-    jsonRequest(substitutionBody, { idempotencyKey: 'substitution-fail-key-1' }),
+    jsonRequest(substitutionBody, { idempotencyKey: 'sub-fail-1' }),
     harness.deps,
   );
 
@@ -109,7 +109,7 @@ Deno.test('suggest-substitution: malformed request returns 400', async () => {
   const response = await handleSuggestSubstitution(
     jsonRequest(
       { recipe_name: 'Lemon Pasta' },
-      { idempotencyKey: 'substitution-bad-key-1' },
+      { idempotencyKey: 'sub-bad-1' },
     ),
     harness.deps,
   );

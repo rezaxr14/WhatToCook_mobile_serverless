@@ -125,7 +125,7 @@ Deno.test('generate-recipe: normal cache hit does not call the provider or charg
 Deno.test('generate-recipe: idempotent retry returns the same response without double charging', async () => {
   const harness = createHarness();
   const request = () =>
-    jsonRequest(suggestionsBody, { idempotencyKey: 'same-key-12345' });
+    jsonRequest(suggestionsBody, { idempotencyKey: 'same-key-1' });
   const first = await handleGenerateRecipe(request(), harness.deps);
   const second = await handleGenerateRecipe(request(), harness.deps);
 
