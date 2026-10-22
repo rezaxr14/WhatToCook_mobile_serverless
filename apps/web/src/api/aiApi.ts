@@ -1,3 +1,4 @@
+import { DEFAULT_OPENROUTER_MODEL, OPENROUTER_FREE_MODELS } from '@whattocook/shared';
 import i18n from '../i18n';
 import { ApiError, toApiError } from './client';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
@@ -59,52 +60,92 @@ async function invokeAi<T>(name: string, body: Record<string, unknown>, fallback
   return data as T;
 }
 
+interface AICatalogResponse extends AIProvidersResponse, AIModelsResponse {}
+
 /**
- * The reference app exposed Django AI endpoints. The serverless port uses
- * three Edge Functions (`generate-recipe`, `scan-pantry`,
- * `suggest-substitution`). The UI is ported now; these calls will stay in a
- * friendly not-connected state until M4 deploys the gateway.
+ * Static fallback used when the `ai-models` function is not deployed. The
+ * gateway owns provider/model routing; the selector only offers free OpenRouter
+ * models, so a client choice can never increase the AI budget.
  */
-export const aiApi = {
-  getProviders: async (): Promise<AIProvidersResponse> => ({
-    default_provider: 'gemini',
-    has_gemini: true,
-    gemini_model: 'gemini-3.5-flash-lite',
+function staticCatalog(): AICatalogResponse {
+  return {
+    default_provider: 'openrouter',
+    has_gemini: false,
+    gemini_model: '',
+    has_openrouter: true,
+    openrouter_model: DEFAULT_OPENROUTER_MODEL,
     has_lmstudio: false,
     lmstudio_online: false,
     lmstudio_model: '',
     providers: [
       {
-        id: 'gemini',
-        name: 'Google Gemini',
+        id: 'openrouter',
+        name: 'OpenRouter',
         active: true,
         online: true,
         badge: 'Cloud AI',
       },
     ],
-  }),
-
-  getModels: async (): Promise<AIModelsResponse> => ({
-    models: [
-      {
-        id: 'gemini-3.5-flash-lite',
-        displayName: 'Gemini 3.5 Flash Lite',
-        description: 'Fast, economical suggestions',
-      },
-      {
-        id: 'gemini-3.5-flash',
-        displayName: 'Gemini 3.5 Flash',
-        description: 'Balanced quality and speed',
-      },
-      {
-        id: 'gemini-3.1-pro',
-        displayName: 'Gemini 3.1 Pro',
-        description: 'Best for detailed recipes',
-      },
-    ],
-    current_model: 'gemini-3.5-flash-lite',
+    models: OPENROUTER_FREE_MODELS.map((model) => ({
+      id: model.id,
+      displayName: model.displayName,
+      description: model.description,
+    })),
+    current_model: DEFAULT_OPENROUTER_MODEL,
     is_live: true,
-  }),
+    provider: 'openrouter',
+  };
+}
+
+let catalogPromise: Promise<AICatalogResponse | null> | null = null;
+
+/**
+ * Fetch the server-owned provider/model catalog once per session. Provider API
+ * keys stay server-side; the response only reports the active provider, the
+ * local LM Studio state, and the models the client may request.
+ */
+async function fetchCatalog(): Promise<AICatalogResponse> {
+  if (!isSupabaseConfigured) return staticCatalog();
+  if (!catalogPromise) {
+    catalogPromise = (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('ai-models', { method: 'POST' });
+        if (error) return null;
+        const catalog = data as Partial<AICatalogResponse> | null;
+        if (!catalog?.default_provider || !Array.isArray(catalog.models)) return null;
+        return catalog as AICatalogResponse;
+      } catch {
+        return null;
+      }
+    })();
+  }
+  return (await catalogPromise) ?? staticCatalog();
+}
+
+/**
+ * Catalog metadata for the model selector, served by the `ai-models` function.
+ */
+export const aiApi = {
+  getProviders: async (): Promise<AIProvidersResponse> => {
+    const {
+      models: _models,
+      current_model: _currentModel,
+      is_live: _isLive,
+      provider: _provider,
+      ...providers
+    } = await fetchCatalog();
+    return providers;
+  },
+
+  getModels: async (): Promise<AIModelsResponse> => {
+    const catalog = await fetchCatalog();
+    return {
+      models: catalog.models,
+      current_model: catalog.current_model,
+      is_live: catalog.is_live,
+      provider: catalog.default_provider,
+    };
+  },
 
   getSuggestions: async (payload?: {
     ingredients?: string[];

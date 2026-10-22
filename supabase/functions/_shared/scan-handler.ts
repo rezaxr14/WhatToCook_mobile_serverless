@@ -5,7 +5,11 @@ import {
   type UsageSnapshot,
 } from '../../../packages/shared/src/ai-contracts.ts';
 import { checkCors } from './cors.ts';
-import { mapDetectedIngredients, type CatalogIngredient, type MappedIngredient } from './catalog.ts';
+import {
+  mapDetectedIngredients,
+  type CatalogIngredient,
+  type MappedIngredient,
+} from './catalog.ts';
 import { badRequest, payloadTooLarge } from './errors.ts';
 import {
   assertFeature,
@@ -50,10 +54,7 @@ interface ScanData {
   detected_count: number;
 }
 
-export async function handleScanPantry(
-  request: Request,
-  deps: GatewayDeps,
-): Promise<Response> {
+export async function handleScanPantry(request: Request, deps: GatewayDeps): Promise<Response> {
   const pre = await preflight(request, deps);
   if (pre) return pre;
 
@@ -74,7 +75,7 @@ export async function handleScanPantry(
 
     const locale = resolveLocale(auth, input);
     const provider = providerFor(deps, config);
-    const model = modelFor(config, 'scan');
+    const model = modelFor(config, 'scan', input.model);
     const bytes = decodeBase64(encoded);
     if (bytes.byteLength > auth.plan.max_image_bytes) {
       throw payloadTooLarge(
@@ -173,6 +174,7 @@ export async function handleScanPantry(
       estimateMicroUsd: reserveEstimate,
       provider: provider.id,
       model,
+      rateLimits: config.rateLimits,
     });
     ensureNotIdempotentDuplicate(reserve);
     let initialRemaining: UsageSnapshot;

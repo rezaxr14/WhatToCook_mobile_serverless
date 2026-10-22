@@ -3,6 +3,7 @@ import {
   type AIFeature,
   type UsageSnapshot,
 } from '../../../packages/shared/src/ai-contracts.ts';
+import { isFreeOpenRouterModel } from '../../../packages/shared/src/ai-models.ts';
 import { assertAllowedOrigin, preflightResponse } from './cors.ts';
 import { buildCacheKey, buildIdempotencyCacheKey } from './cache.ts';
 import {
@@ -24,6 +25,7 @@ import type {
   ModelPrice,
   ProviderRequest,
   ProviderUsage,
+  RateLimits,
   ReserveResult,
   RuntimeConfig,
 } from './types.ts';
@@ -55,16 +57,37 @@ export function assertFeature(config: RuntimeConfig, feature: AIFeature): void {
 }
 
 export function providerFor(deps: GatewayDeps, config: RuntimeConfig): AIProvider {
-  if (config.providerId !== 'gemini' && config.providerId !== 'fake') {
+  if (
+    config.providerId !== 'gemini' &&
+    config.providerId !== 'openrouter' &&
+    config.providerId !== 'lmstudio' &&
+    config.providerId !== 'fake'
+  ) {
     throw providerError('The configured AI provider is not supported.');
   }
   return deps.provider(config.providerId, config);
 }
 
-export function modelFor(config: RuntimeConfig, feature: AIFeature): string {
+export function modelFor(
+  config: RuntimeConfig,
+  feature: AIFeature,
+  requestedModel?: string,
+): string {
   if (config.providerId === 'fake') return config.models[feature] ?? 'fake-1';
   const model = config.models[feature];
   if (!model) throw providerError('AI model routing is not configured for this feature.');
+
+  // The client may choose a model only when the server allows it. OpenRouter
+  // free models are always safe because they are billed at $0; any other
+  // choice must be explicitly allowlisted. Unknown choices fall back to the
+  // deploy-time routed model instead of failing an otherwise valid request.
+  const requested = requestedModel?.trim();
+  if (requested && config.allowedModels.includes(requested)) {
+    return requested;
+  }
+  if (config.providerId === 'openrouter' && requested && isFreeOpenRouterModel(requested)) {
+    return requested;
+  }
   return model;
 }
 
@@ -194,7 +217,10 @@ export async function writeIdempotencyCache(
       ttlSeconds: AI_LIMITS.idempotencyTtlSeconds,
     });
   } catch (error) {
-    console.error('ai_idempotency_cache_write_failed', error instanceof Error ? error.message : 'unknown');
+    console.error(
+      'ai_idempotency_cache_write_failed',
+      error instanceof Error ? error.message : 'unknown',
+    );
   }
 }
 
@@ -207,8 +233,10 @@ export async function reserveUsage(
     estimateMicroUsd: number;
     provider: string;
     model: string;
+    rateLimits: RateLimits;
   },
 ): Promise<ReserveResult> {
+  await deps.quota.checkRateLimit({ ...input.rateLimits, now: deps.now() });
   return deps.quota.reserve({
     userId: auth.userId,
     requestId: input.requestId,
@@ -219,10 +247,7 @@ export async function reserveUsage(
   });
 }
 
-export async function usageSnapshot(
-  deps: GatewayDeps,
-  auth: AuthContext,
-): Promise<UsageSnapshot> {
+export async function usageSnapshot(deps: GatewayDeps, auth: AuthContext): Promise<UsageSnapshot> {
   return deps.quota.getUsage(auth);
 }
 

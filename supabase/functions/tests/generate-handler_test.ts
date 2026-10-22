@@ -1,11 +1,7 @@
 import { assert, assertEquals, assertStringIncludes } from 'jsr:@std/assert@1';
 import { handleGenerateRecipe } from '../_shared/generate-handler.ts';
-import {
-  createHarness,
-  delay,
-  jsonRequest,
-  readNdjson,
-} from './test_harness.ts';
+import { rateLimited } from '../_shared/errors.ts';
+import { createHarness, delay, jsonRequest, readNdjson } from './test_harness.ts';
 
 const suggestionsBody = {
   mode: 'suggestions',
@@ -31,13 +27,43 @@ Deno.test('generate-recipe: suggestions happy path', async () => {
   assertEquals(harness.quota.refunded.length, 0);
 });
 
+Deno.test('generate-recipe: passes RPM/RPD limits to the quota gate before reserving', async () => {
+  const harness = createHarness({ rateLimits: { rpm: 5, rpd: 50 } });
+  const response = await handleGenerateRecipe(
+    jsonRequest(suggestionsBody, { idempotencyKey: 'rate-limit-key-1' }),
+    harness.deps,
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(harness.quota.rateLimitChecks.length, 1);
+  assertEquals(harness.quota.rateLimitChecks[0]?.rpm, 5);
+  assertEquals(harness.quota.rateLimitChecks[0]?.rpd, 50);
+  assertEquals(harness.quota.reservations.length, 1);
+});
+
+Deno.test(
+  'generate-recipe: a rate-limit rejection does not reserve or call the provider',
+  async () => {
+    const harness = createHarness({
+      rateLimits: { rpm: 1, rpd: null },
+      quota: { rateLimitError: rateLimited('Too many AI requests.', 60) },
+    });
+    const response = await handleGenerateRecipe(
+      jsonRequest(suggestionsBody, { idempotencyKey: 'rate-limit-key-2' }),
+      harness.deps,
+    );
+
+    assertEquals(response.status, 429);
+    assertEquals((await response.json()).code, 'rate_limited');
+    assertEquals(harness.quota.reservations.length, 0);
+    assertEquals(harness.provider.calls.length, 0);
+  },
+);
+
 Deno.test('generate-recipe: detail happy path uses the routed model', async () => {
   const harness = createHarness();
   const response = await handleGenerateRecipe(
-    jsonRequest(
-      { mode: 'detail', recipe_name: 'Lemon Pasta' },
-      { idempotencyKey: 'detail-key-1' },
-    ),
+    jsonRequest({ mode: 'detail', recipe_name: 'Lemon Pasta' }, { idempotencyKey: 'detail-key-1' }),
     harness.deps,
   );
 
@@ -48,6 +74,58 @@ Deno.test('generate-recipe: detail happy path uses the routed model', async () =
   assertEquals(body.model_used, 'fake-flash');
   assertEquals(harness.provider.calls[0]?.model, 'fake-flash');
   assertEquals(harness.quota.settled.length, 1);
+});
+
+Deno.test('generate-recipe: honors a client-selected free OpenRouter model', async () => {
+  const harness = createHarness({ providerId: 'openrouter' });
+  harness.config.models.suggestions = 'openrouter/free';
+  harness.config.allowedModels = ['openrouter/free'];
+
+  const response = await handleGenerateRecipe(
+    jsonRequest(
+      { ...suggestionsBody, model: 'google/gemma-4-31b-it:free' },
+      { idempotencyKey: 'client-model-free-1' },
+    ),
+    harness.deps,
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals((await response.json()).model_used, 'google/gemma-4-31b-it:free');
+  assertEquals(harness.provider.calls[0]?.model, 'google/gemma-4-31b-it:free');
+});
+
+Deno.test('generate-recipe: falls back for a non-allowlisted paid model', async () => {
+  const harness = createHarness({ providerId: 'openrouter' });
+  harness.config.models.suggestions = 'openrouter/free';
+  harness.config.allowedModels = ['openrouter/free'];
+
+  const response = await handleGenerateRecipe(
+    jsonRequest(
+      { ...suggestionsBody, model: 'openai/gpt-4o' },
+      { idempotencyKey: 'client-model-paid-1' },
+    ),
+    harness.deps,
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(harness.provider.calls[0]?.model, 'openrouter/free');
+});
+
+Deno.test('generate-recipe: honors an explicitly allowlisted paid model', async () => {
+  const harness = createHarness({ providerId: 'openrouter' });
+  harness.config.models.suggestions = 'openrouter/free';
+  harness.config.allowedModels = ['openrouter/free', 'openai/gpt-4o-mini'];
+
+  const response = await handleGenerateRecipe(
+    jsonRequest(
+      { ...suggestionsBody, model: 'openai/gpt-4o-mini' },
+      { idempotencyKey: 'client-model-allowed-1' },
+    ),
+    harness.deps,
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(harness.provider.calls[0]?.model, 'openai/gpt-4o-mini');
 });
 
 Deno.test('generate-recipe: chat happy path', async () => {
@@ -73,89 +151,99 @@ Deno.test('generate-recipe: chat happy path', async () => {
   assertEquals(harness.quota.settled.length, 1);
 });
 
-Deno.test('generate-recipe: NDJSON stream emits meta, deltas, and a validated final payload', async () => {
-  const harness = createHarness();
-  const response = await handleGenerateRecipe(
-    jsonRequest(
-      {
-        mode: 'chat',
-        recipe_name: 'Lemon Pasta',
-        message: 'Tell me a serving tip.',
-        stream: true,
-      },
-      { idempotencyKey: 'stream-key-1' },
-    ),
-    harness.deps,
-  );
+Deno.test(
+  'generate-recipe: NDJSON stream emits meta, deltas, and a validated final payload',
+  async () => {
+    const harness = createHarness();
+    const response = await handleGenerateRecipe(
+      jsonRequest(
+        {
+          mode: 'chat',
+          recipe_name: 'Lemon Pasta',
+          message: 'Tell me a serving tip.',
+          stream: true,
+        },
+        { idempotencyKey: 'stream-key-1' },
+      ),
+      harness.deps,
+    );
 
-  assertEquals(response.status, 200);
-  assertStringIncludes(response.headers.get('content-type') ?? '', 'application/x-ndjson');
-  const events = await readNdjson(response);
-  assertEquals(events[0]?.type, 'meta');
-  assert(events.some((event) => event.type === 'delta'));
-  const final = events.find((event) => event.type === 'final');
-  assert(final);
-  assert(((final.data as { reply?: string }).reply?.length ?? 0) > 0);
-  assertEquals((final.usage as { cost_micro_usd: number }).cost_micro_usd, 0);
-  assertEquals(harness.quota.settled.length, 1);
-});
+    assertEquals(response.status, 200);
+    assertStringIncludes(response.headers.get('content-type') ?? '', 'application/x-ndjson');
+    const events = await readNdjson(response);
+    assertEquals(events[0]?.type, 'meta');
+    assert(events.some((event) => event.type === 'delta'));
+    const final = events.find((event) => event.type === 'final');
+    assert(final);
+    assert(((final.data as { reply?: string }).reply?.length ?? 0) > 0);
+    assertEquals((final.usage as { cost_micro_usd: number }).cost_micro_usd, 0);
+    assertEquals(harness.quota.settled.length, 1);
+  },
+);
 
-Deno.test('generate-recipe: normal cache hit does not call the provider or charge again', async () => {
-  const harness = createHarness();
-  const first = await handleGenerateRecipe(
-    jsonRequest(suggestionsBody, { idempotencyKey: 'cache-key-1' }),
-    harness.deps,
-  );
-  const second = await handleGenerateRecipe(
-    jsonRequest(suggestionsBody, { idempotencyKey: 'cache-key-2' }),
-    harness.deps,
-  );
+Deno.test(
+  'generate-recipe: normal cache hit does not call the provider or charge again',
+  async () => {
+    const harness = createHarness();
+    const first = await handleGenerateRecipe(
+      jsonRequest(suggestionsBody, { idempotencyKey: 'cache-key-1' }),
+      harness.deps,
+    );
+    const second = await handleGenerateRecipe(
+      jsonRequest(suggestionsBody, { idempotencyKey: 'cache-key-2' }),
+      harness.deps,
+    );
 
-  assertEquals(first.status, 200);
-  assertEquals(second.status, 200);
-  const body = await second.json();
-  assertEquals(body.cached, true);
-  assertEquals(body.usage.cost_micro_usd, 0);
-  assertEquals(harness.provider.calls.filter((call) => call.feature === 'suggestions').length, 1);
-  assertEquals(harness.quota.settled.length, 1);
-  assertEquals(harness.quota.cacheHitRecords, 1);
-  assertEquals(harness.cache.touches, 1);
-});
+    assertEquals(first.status, 200);
+    assertEquals(second.status, 200);
+    const body = await second.json();
+    assertEquals(body.cached, true);
+    assertEquals(body.usage.cost_micro_usd, 0);
+    assertEquals(harness.provider.calls.filter((call) => call.feature === 'suggestions').length, 1);
+    assertEquals(harness.quota.settled.length, 1);
+    assertEquals(harness.quota.cacheHitRecords, 1);
+    assertEquals(harness.cache.touches, 1);
+  },
+);
 
-Deno.test('generate-recipe: idempotent retry returns the same response without double charging', async () => {
-  const harness = createHarness();
-  const request = () =>
-    jsonRequest(suggestionsBody, { idempotencyKey: 'same-key-1' });
-  const first = await handleGenerateRecipe(request(), harness.deps);
-  const second = await handleGenerateRecipe(request(), harness.deps);
+Deno.test(
+  'generate-recipe: idempotent retry returns the same response without double charging',
+  async () => {
+    const harness = createHarness();
+    const request = () => jsonRequest(suggestionsBody, { idempotencyKey: 'same-key-1' });
+    const first = await handleGenerateRecipe(request(), harness.deps);
+    const second = await handleGenerateRecipe(request(), harness.deps);
 
-  assertEquals(first.status, 200);
-  assertEquals(second.status, 200);
-  const body = await second.json();
-  assertEquals(body.duplicate, true);
-  assertEquals(body.cached, true);
-  assertEquals(body.usage.cost_micro_usd, 0);
-  assertEquals(harness.provider.calls.filter((call) => call.feature === 'suggestions').length, 1);
-  assertEquals(harness.quota.reservations.length, 1);
-  assertEquals(harness.quota.settled.length, 1);
-});
+    assertEquals(first.status, 200);
+    assertEquals(second.status, 200);
+    const body = await second.json();
+    assertEquals(body.duplicate, true);
+    assertEquals(body.cached, true);
+    assertEquals(body.usage.cost_micro_usd, 0);
+    assertEquals(harness.provider.calls.filter((call) => call.feature === 'suggestions').length, 1);
+    assertEquals(harness.quota.reservations.length, 1);
+    assertEquals(harness.quota.settled.length, 1);
+  },
+);
 
-Deno.test('generate-recipe: expired idempotency cache returns 409 instead of recharging', async () => {
-  const harness = createHarness();
-  const request = () =>
-    jsonRequest(suggestionsBody, { idempotencyKey: 'expired-key-12345' });
-  const first = await handleGenerateRecipe(request(), harness.deps);
-  assertEquals(first.status, 200);
+Deno.test(
+  'generate-recipe: expired idempotency cache returns 409 instead of recharging',
+  async () => {
+    const harness = createHarness();
+    const request = () => jsonRequest(suggestionsBody, { idempotencyKey: 'expired-key-12345' });
+    const first = await handleGenerateRecipe(request(), harness.deps);
+    assertEquals(first.status, 200);
 
-  harness.cache.entries.clear();
-  const second = await handleGenerateRecipe(request(), harness.deps);
+    harness.cache.entries.clear();
+    const second = await handleGenerateRecipe(request(), harness.deps);
 
-  assertEquals(second.status, 409);
-  const body = await second.json();
-  assertEquals(body.code, 'duplicate_request');
-  assertEquals(harness.quota.settled.length, 1);
-  assertEquals(harness.provider.calls.filter((call) => call.feature === 'suggestions').length, 1);
-});
+    assertEquals(second.status, 409);
+    const body = await second.json();
+    assertEquals(body.code, 'duplicate_request');
+    assertEquals(harness.quota.settled.length, 1);
+    assertEquals(harness.provider.calls.filter((call) => call.feature === 'suggestions').length, 1);
+  },
+);
 
 Deno.test('generate-recipe: usage snapshot failure after reserve refunds the event', async () => {
   const harness = createHarness({ quota: { failUsageSnapshot: true } });
@@ -280,10 +368,7 @@ Deno.test('generate-recipe: CORS preflight succeeds without a bearer token', asy
   });
   const response = await handleGenerateRecipe(request, harness.deps);
   assertEquals(response.status, 204);
-  assertEquals(
-    response.headers.get('access-control-allow-origin'),
-    'http://localhost:5173',
-  );
+  assertEquals(response.headers.get('access-control-allow-origin'), 'http://localhost:5173');
 });
 
 Deno.test('generate-recipe: client cancellation settles partial stream usage', async () => {

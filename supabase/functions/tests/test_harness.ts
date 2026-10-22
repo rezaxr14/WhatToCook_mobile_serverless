@@ -5,6 +5,7 @@ import type {
   GatewayDeps,
   ModelPrice,
   QuotaGateway,
+  RateLimits,
   ReserveInput,
   ReserveResult,
   SettleInput,
@@ -27,20 +28,25 @@ export interface QuotaOptions {
   monthlyUsed?: number;
   globalUsed?: number;
   failUsageSnapshot?: boolean;
+  rateLimitError?: Error;
 }
 
 export class MemoryQuota implements QuotaGateway {
-  readonly events = new Map<string, {
-    eventId: string;
-    requestId: string;
-    feature: string;
-    status: string;
-    reserved: number;
-    cost: number;
-  }>();
+  readonly events = new Map<
+    string,
+    {
+      eventId: string;
+      requestId: string;
+      feature: string;
+      status: string;
+      reserved: number;
+      cost: number;
+    }
+  >();
   readonly reservations: ReserveInput[] = [];
   readonly settled: SettleInput[] = [];
   readonly refunded: string[] = [];
+  readonly rateLimitChecks: Array<RateLimits & { now: Date }> = [];
   cacheHitRecords = 0;
   dailyUsed: number;
   monthlyUsed: number;
@@ -54,6 +60,11 @@ export class MemoryQuota implements QuotaGateway {
     this.dailyUsed = options.dailyUsed ?? 0;
     this.monthlyUsed = options.monthlyUsed ?? 0;
     this.globalUsed = options.globalUsed ?? 0;
+  }
+
+  async checkRateLimit(input: RateLimits & { now: Date }): Promise<void> {
+    this.rateLimitChecks.push(input);
+    if (this.options.rateLimitError) throw this.options.rateLimitError;
   }
 
   async reserve(input: ReserveInput): Promise<ReserveResult> {
@@ -233,16 +244,19 @@ export interface TestHarness {
   auth: AuthContext;
 }
 
-export function createHarness(options: {
-  provider?: FakeProviderOptions;
-  quota?: QuotaOptions;
-  monthlyBudget?: number;
-  planFeatures?: Record<string, number>;
-  maxImageBytes?: number;
-  killSwitch?: boolean;
-  providerId?: 'fake' | 'gemini';
-  price?: ModelPrice | null;
-} = {}): TestHarness {
+export function createHarness(
+  options: {
+    provider?: FakeProviderOptions;
+    quota?: QuotaOptions;
+    monthlyBudget?: number;
+    planFeatures?: Record<string, number>;
+    maxImageBytes?: number;
+    killSwitch?: boolean;
+    providerId?: 'fake' | 'gemini' | 'openrouter' | 'lmstudio';
+    rateLimits?: RateLimits;
+    price?: ModelPrice | null;
+  } = {},
+): TestHarness {
   const features = options.planFeatures ?? {
     suggestions: 30,
     recipe: 30,
@@ -264,6 +278,7 @@ export function createHarness(options: {
       substitution: true,
     },
     globalDailyCapMicroUsd: 5_000_000,
+    rateLimits: options.rateLimits ?? { rpm: null, rpd: null },
     models: {
       suggestions: 'fake-lite',
       recipe: 'fake-flash',
@@ -272,6 +287,7 @@ export function createHarness(options: {
       scan: 'fake-flash',
       substitution: 'fake-lite',
     },
+    allowedModels: [],
     fallbacks: { text: [], vision: [] },
     allowedOrigins: ['http://localhost:5173'],
   };
@@ -295,14 +311,15 @@ export function createHarness(options: {
   const quota = new MemoryQuota(features, monthlyBudget, options.quota);
   const now = () => new Date('2026-10-22T12:00:00.000Z');
   const cache = new MemoryCache(now);
-  const price = options.price === undefined
-    ? {
-        provider: 'fake',
-        model: 'fake-flash',
-        input_micro_usd_per_million: 0,
-        output_micro_usd_per_million: 0,
-      }
-    : options.price;
+  const price =
+    options.price === undefined
+      ? {
+          provider: 'fake',
+          model: 'fake-flash',
+          input_micro_usd_per_million: 0,
+          output_micro_usd_per_million: 0,
+        }
+      : options.price;
 
   const deps: GatewayDeps = {
     allowedOrigins: () => ['http://localhost:5173'],
@@ -352,24 +369,16 @@ export function bytesToBase64(bytes: Uint8Array): string {
 }
 
 export function makeJpegWithExif(extraBytes = 0): Uint8Array {
-  const payload = new TextEncoder().encode(`Exif\u0000\u0000secret-metadata${'x'.repeat(extraBytes)}`);
+  const payload = new TextEncoder().encode(
+    `Exif\u0000\u0000secret-metadata${'x'.repeat(extraBytes)}`,
+  );
   const app1 = new Uint8Array(2 + 2 + payload.length);
   app1[0] = 0xff;
   app1[1] = 0xe1;
   app1[2] = ((payload.length + 2) >> 8) & 0xff;
   app1[3] = (payload.length + 2) & 0xff;
   app1.set(payload, 4);
-  return new Uint8Array([
-    0xff,
-    0xd8,
-    ...app1,
-    0xff,
-    0xda,
-    0x00,
-    0x02,
-    0xff,
-    0xd9,
-  ]);
+  return new Uint8Array([0xff, 0xd8, ...app1, 0xff, 0xda, 0x00, 0x02, 0xff, 0xd9]);
 }
 
 export function makePngWithText(): Uint8Array {

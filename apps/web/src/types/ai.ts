@@ -1,4 +1,4 @@
-export type AIProvider = 'gemini' | 'lmstudio';
+export type AIProvider = 'gemini' | 'openrouter' | 'lmstudio';
 
 export interface AISuggestedDish {
   name: string;
@@ -53,6 +53,8 @@ export interface AIProvidersResponse {
   default_provider: AIProvider;
   has_gemini: boolean;
   gemini_model: string;
+  has_openrouter: boolean;
+  openrouter_model: string;
   has_lmstudio: boolean;
   lmstudio_online: boolean;
   lmstudio_model: string;
@@ -70,6 +72,7 @@ export interface AIModelsResponse {
   models: AIModelInfo[];
   current_model: string;
   is_live: boolean;
+  provider?: AIProvider;
 }
 
 export interface ChatMessage {

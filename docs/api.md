@@ -1,22 +1,38 @@
 # AI Gateway API
 
-The AI features run as three Supabase Edge Functions behind one shared gateway
+The AI features run as four Supabase Edge Functions behind one shared gateway
 module. The web and mobile clients call them directly; there is no custom
 server. The wire schemas live in
 [`packages/shared/src/ai-contracts.ts`](../packages/shared/src/ai-contracts.ts),
 which is the source of truth for request validation, response validation, and
 NDJSON events.
 
-| Function | Feature flag | Plan feature | URL |
-| --- | --- | --- | --- |
-| `generate-recipe` | `suggestions`, `recipe`, `chat`, `stream` | matching feature | `/functions/v1/generate-recipe` |
-| `scan-pantry` | `scan` | `scan` | `/functions/v1/scan-pantry` |
-| `suggest-substitution` | `substitution` | `substitution` | `/functions/v1/suggest-substitution` |
+| Function               | Feature flag                              | Plan feature     | URL                                  |
+| ---------------------- | ----------------------------------------- | ---------------- | ------------------------------------ |
+| `generate-recipe`      | `suggestions`, `recipe`, `chat`, `stream` | matching feature | `/functions/v1/generate-recipe`      |
+| `scan-pantry`          | `scan`                                    | `scan`           | `/functions/v1/scan-pantry`          |
+| `suggest-substitution` | `substitution`                            | `substitution`   | `/functions/v1/suggest-substitution` |
+| `ai-models`            | none (metadata only)                      | none             | `/functions/v1/ai-models`            |
 
-The provider (`gemini` or `fake`) and model are selected server-side from
-`app_config.model_routing`, with `AI_PROVIDER`, `GEMINI_MODEL`, and
-`GEMINI_VISION_MODEL` as deploy-time overrides. A client-supplied `provider` or
-`model` is accepted for forward compatibility but **ignored**.
+The provider (`gemini`, `openrouter`, `lmstudio`, or `fake`) and model are
+selected server-side from `app_config.model_routing`, with `AI_PROVIDER`,
+`GEMINI_MODEL`, `GEMINI_VISION_MODEL`, `OPENROUTER_MODEL`,
+`OPENROUTER_VISION_MODEL`, and `LMSTUDIO_MODEL` / `LMSTUDIO_VISION_MODEL` as
+deploy-time overrides. When `AI_PROVIDER=openrouter`, `OPENROUTER_MODEL` selects
+the model for every feature and replaces the Gemini routing from
+`app_config.model_routing`; optional OpenRouter fallback model ids are read from
+`OPENROUTER_FALLBACK_MODELS` / `OPENROUTER_VISION_FALLBACK_MODELS`. When
+`AI_PROVIDER=lmstudio`, LM Studio's OpenAI-compatible server at
+`LMSTUDIO_BASE_URL` (default `http://127.0.0.1:1234/v1`) serves every feature
+with `LMSTUDIO_MODEL`; `LMSTUDIO_FALLBACK_MODELS` /
+`LMSTUDIO_VISION_FALLBACK_MODELS` may add local fallbacks, and local models are
+priced at zero. A client-supplied `provider` is accepted for forward
+compatibility but **ignored**. A client-supplied `model` is honored only when it
+is in the server allowlist (`OPENROUTER_ALLOWED_MODELS` or
+`LMSTUDIO_ALLOWED_MODELS`); for OpenRouter, free models (`openrouter/free` or a
+`*:free` id) are always accepted. Otherwise the server-routed model is used.
+Free and local models are priced at zero, so they do not consume the monthly
+budget.
 
 ## Authentication and CORS
 
@@ -262,6 +278,43 @@ Response:
 
 `recipe_name`, `available_ingredients`, and `dietary` are optional.
 
+## `ai-models`
+
+A public, read-only metadata endpoint for the client model selector. It needs no
+bearer token and exposes no provider secrets: it reports the deploy-time
+provider, whether a local LM Studio server is reachable, and the models the
+client may request. The web client calls it once per session and falls back to
+the curated static OpenRouter catalog if the function is not deployed.
+
+Request: `POST /functions/v1/ai-models` (no body).
+
+Response:
+
+```json
+{
+  "default_provider": "lmstudio",
+  "has_gemini": false,
+  "gemini_model": "",
+  "has_openrouter": false,
+  "openrouter_model": "",
+  "has_lmstudio": true,
+  "lmstudio_online": true,
+  "lmstudio_model": "gemma-4-e4b-uncensored-hauhaucs-aggressive",
+  "providers": [
+    { "id": "lmstudio", "name": "LM Studio", "active": true, "online": true, "badge": "Local AI" }
+  ],
+  "models": [
+    {
+      "id": "gemma-4-e4b-uncensored-hauhaucs-aggressive",
+      "displayName": "gemma-4-e4b-uncensored-hauhaucs-aggressive",
+      "description": "Local model served by LM Studio"
+    }
+  ],
+  "current_model": "gemma-4-e4b-uncensored-hauhaucs-aggressive",
+  "is_live": true
+}
+```
+
 ## Errors
 
 Non-stream failures use:
@@ -277,20 +330,20 @@ Non-stream failures use:
 }
 ```
 
-| Code | HTTP | Meaning |
-| --- | --- | --- |
-| `unauthorized` | 401 | Missing, invalid, or expired bearer token. |
-| `bad_request` | 400 | Body/schema/type/size validation failed. |
-| `origin_not_allowed` | 403 | Browser origin is not in `ALLOWED_ORIGINS`. |
-| `payload_too_large` | 413 | Image or JSON body exceeds the limit. |
-| `quota_exceeded` | 429 | Daily feature limit or monthly budget reached. |
-| `rate_limited` | 429 | Provider asked us to slow down; see `retry_after`. |
-| `ai_disabled` | 503 | Kill switch or feature flag is off. |
-| `ai_budget_exhausted` | 503 | Global daily circuit breaker is open. |
-| `provider_error` | 502 | Provider failed, timed out, or pricing is missing. |
-| `invalid_model_output` | 502 | Output failed validation after one repair attempt. |
-| `duplicate_request` | 409 | Idempotency key already completed and the response is no longer cached. |
-| `internal_error` | 500 | Unexpected gateway/database failure. |
+| Code                   | HTTP | Meaning                                                                 |
+| ---------------------- | ---- | ----------------------------------------------------------------------- |
+| `unauthorized`         | 401  | Missing, invalid, or expired bearer token.                              |
+| `bad_request`          | 400  | Body/schema/type/size validation failed.                                |
+| `origin_not_allowed`   | 403  | Browser origin is not in `ALLOWED_ORIGINS`.                             |
+| `payload_too_large`    | 413  | Image or JSON body exceeds the limit.                                   |
+| `quota_exceeded`       | 429  | Daily feature limit or monthly budget reached.                          |
+| `rate_limited`         | 429  | Provider asked us to slow down; see `retry_after`.                      |
+| `ai_disabled`          | 503  | Kill switch or feature flag is off.                                     |
+| `ai_budget_exhausted`  | 503  | Global daily circuit breaker is open.                                   |
+| `provider_error`       | 502  | Provider failed, timed out, or pricing is missing.                      |
+| `invalid_model_output` | 502  | Output failed validation after one repair attempt.                      |
+| `duplicate_request`    | 409  | Idempotency key already completed and the response is no longer cached. |
+| `internal_error`       | 500  | Unexpected gateway/database failure.                                    |
 
 A client disconnect before the response starts may produce HTTP 499 internally;
 it is not a normal API response.
@@ -323,22 +376,26 @@ with the service role. Clients cannot call them. `remaining` is the caller's
 - A provider/validation failure refunds the reservation once.
 - A stream cancelled after partial output settles the partial usage instead of
   refunding.
+- Optional `AI_RPM_LIMIT` / `AI_RPD_LIMIT` env guards apply globally before a
+  reservation. RPM overflow returns `429 rate_limited`; RPD overflow returns
+  `429 quota_exceeded` with `resets_at` at the next UTC midnight. Cache hits and
+  idempotent replays do not count against either guard.
 - `AI_PROVIDER=fake` uses deterministic output and zero price; it is the
   supported staging/test configuration.
 
 ## Limits summary
 
-| Limit | Value |
-| --- | --- |
-| JSON body (`generate-recipe`, `suggest-substitution`) | 64 KiB |
-| Scan body | 20 MiB |
-| Image after base64 decode | plan cap: 5 MiB free/anonymous, 10 MiB pro |
-| Suggestions ingredients | 50 items, 60 chars each |
-| Chat history | 12 messages, 2,000 chars each |
-| Chat message | 4,000 chars |
-| Chat recipe context | 12,000 JSON chars per value |
-| Scan items returned | 30 |
-| Substitutes | 6 |
-| Idempotency key | 8-128 chars |
-| Idempotency cache TTL | 24 hours |
-| Response cache TTL | 7 days |
+| Limit                                                 | Value                                      |
+| ----------------------------------------------------- | ------------------------------------------ |
+| JSON body (`generate-recipe`, `suggest-substitution`) | 64 KiB                                     |
+| Scan body                                             | 20 MiB                                     |
+| Image after base64 decode                             | plan cap: 5 MiB free/anonymous, 10 MiB pro |
+| Suggestions ingredients                               | 50 items, 60 chars each                    |
+| Chat history                                          | 12 messages, 2,000 chars each              |
+| Chat message                                          | 4,000 chars                                |
+| Chat recipe context                                   | 12,000 JSON chars per value                |
+| Scan items returned                                   | 30                                         |
+| Substitutes                                           | 6                                          |
+| Idempotency key                                       | 8-128 chars                                |
+| Idempotency cache TTL                                 | 24 hours                                   |
+| Response cache TTL                                    | 7 days                                     |

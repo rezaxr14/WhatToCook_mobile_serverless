@@ -3,18 +3,20 @@
 Operational procedures for the serverless Supabase backend. For the HTTP contract see
 [`api.md`](./api.md); for schema and environment details see [`SUPABASE.md`](./SUPABASE.md).
 
-The M4 AI gateway has three Edge Functions:
+The M4 AI gateway has four Edge Functions:
 
-| Function | Purpose |
-| --- | --- |
-| `generate-recipe` | suggestions, recipe detail, sous-chef chat, streamed recipe |
-| `scan-pantry` | fridge/pantry photo extraction |
-| `suggest-substitution` | ingredient substitutions |
+| Function               | Purpose                                                     |
+| ---------------------- | ----------------------------------------------------------- |
+| `generate-recipe`      | suggestions, recipe detail, sous-chef chat, streamed recipe |
+| `scan-pantry`          | fridge/pantry photo extraction                              |
+| `suggest-substitution` | ingredient substitutions                                    |
+| `ai-models`            | public provider/model catalog for the client selector       |
 
-All three use `supabase/functions/_shared/gateway.ts` for auth, CORS, quota, cache, pricing,
-provider dispatch, and error mapping. `verify_jwt = false` is intentional: preflight must reach
-the shared layer, and `_shared/auth.ts` rejects every non-`OPTIONS` request without a valid user
-token.
+The three AI functions use `supabase/functions/_shared/gateway.ts` for auth, CORS, quota, cache,
+pricing, provider dispatch, and error mapping. `ai-models` is public and reads only the config
+plus the LM Studio status; it exposes no secrets. `verify_jwt = false` is intentional for all
+four: preflight must reach the shared layer, and `_shared/auth.ts` rejects every non-`OPTIONS`
+request to the AI functions without a valid user token.
 
 ## 1. Local stack and functions
 
@@ -33,9 +35,28 @@ pnpm exec supabase functions serve --env-file supabase/functions/.env --no-verif
 ```dotenv
 AI_PROVIDER=fake
 ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
-# GEMINI_API_KEY=...        # only when testing the real provider
+# GEMINI_API_KEY=...        # only when testing the Gemini provider
 # GEMINI_MODEL=...
 # GEMINI_VISION_MODEL=...
+# OPENROUTER_API_KEY=...    # only when AI_PROVIDER=openrouter
+# OPENROUTER_MODEL=...      # example: openai/gpt-4o-mini
+# OPENROUTER_VISION_MODEL=... # optional; defaults to OPENROUTER_MODEL
+# LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1  # only when AI_PROVIDER=lmstudio
+# LMSTUDIO_MODEL=...        # exact id from `lms ls`
+# Global provider request guards; blank disables them.
+# AI_RPM_LIMIT=20
+# AI_RPD_LIMIT=200
+```
+
+To exercise AI without a hosted provider, run LM Studio locally instead of Docker while testing:
+it serves an OpenAI-compatible API and local models are billed at $0. Stop the Supabase stack
+first (`pnpm exec supabase stop`) to free RAM, then `lms server start`.
+
+```dotenv
+AI_PROVIDER=lmstudio
+LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1
+LMSTUDIO_MODEL=gemma-4-e4b-uncensored-hauhaucs-aggressive
+# LMSTUDIO_JSON_MODE=false  # LM Studio rejects json_object; structured calls rely on validation
 ```
 
 The CLI injects `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` into the
@@ -49,7 +70,8 @@ deterministic and zero-cost.
 pnpm dlx deno check --config supabase/functions/deno.json `
   supabase/functions/generate-recipe/index.ts `
   supabase/functions/scan-pantry/index.ts `
-  supabase/functions/suggest-substitution/index.ts
+  supabase/functions/suggest-substitution/index.ts `
+  supabase/functions/ai-models/index.ts
 
 pnpm dlx deno test --config supabase/functions/deno.json `
   --allow-env --allow-net --allow-read supabase/functions/tests
@@ -111,15 +133,23 @@ pnpm exec supabase db push --yes
 pnpm exec supabase secrets set AI_PROVIDER=fake `
   "ALLOWED_ORIGINS=https://<web-origin>,http://localhost:5173"
 
+# To use OpenRouter instead, keep the same deploy flags and add:
+# pnpm exec supabase secrets set AI_PROVIDER=openrouter
+# pnpm exec supabase secrets set "OPENROUTER_API_KEY=$env:OPENROUTER_API_KEY"
+# pnpm exec supabase secrets set "OPENROUTER_MODEL=$env:OPENROUTER_MODEL"
+# LM Studio is local-only: hosted functions cannot reach your machine, so keep
+# AI_PROVIDER=fake or openrouter in staging/prod and use lmstudio locally only.
+
 pnpm exec supabase functions deploy generate-recipe --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
 pnpm exec supabase functions deploy scan-pantry --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
 pnpm exec supabase functions deploy suggest-substitution --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
+pnpm exec supabase functions deploy ai-models --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
 ```
 
 `verify_jwt = false` is also committed in `supabase/config.toml`; the explicit flag keeps the
 deploy independent of CLI defaults. Re-run the local smoke checklist against the staging URL.
 `supabase secrets list` shows digests, not values. The web bundle never receives
-`GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, or any server-only variable.
+`GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, or any server-only variable.
 
 ### Applying the M4 migration
 
@@ -151,12 +181,12 @@ are verified against current Google documentation. The historical M1 price row u
 
 Planned routing and active M4 rows:
 
-| Feature | Model | Input / output micro-USD per 1M tokens |
-| --- | --- | --- |
-| suggestions, substitution | `gemini-2.5-flash-lite` | 100,000 / 400,000 |
-| detail, chat, stream, scan | `gemini-2.5-flash` | 300,000 / 2,500,000 |
-| fallback text/vision | `gemini-2.0-flash` | 100,000 / 400,000 |
-| fallback (not default) | `gemini-2.5-pro` | 1,250,000 / 10,000,000 |
+| Feature                    | Model                   | Input / output micro-USD per 1M tokens |
+| -------------------------- | ----------------------- | -------------------------------------- |
+| suggestions, substitution  | `gemini-2.5-flash-lite` | 100,000 / 400,000                      |
+| detail, chat, stream, scan | `gemini-2.5-flash`      | 300,000 / 2,500,000                    |
+| fallback text/vision       | `gemini-2.0-flash`      | 100,000 / 400,000                      |
+| fallback (not default)     | `gemini-2.5-pro`        | 1,250,000 / 10,000,000                 |
 
 Before enabling:
 
@@ -184,7 +214,66 @@ If the provider returns `429`, the client sees `429 rate_limited`; do not retry 
 without checking the provider quota. If the provider returns `502 provider_error`, check the
 function logs for `gemini_http_<status>` and the model/pricing configuration.
 
-## 4. Kill switch and feature flags
+## 4. OpenRouter enablement
+
+OpenRouter is the second real provider. It uses the OpenAI-compatible chat-completions API, so
+the same adapter covers text, structured JSON, streaming, and vision. The key is read only in the
+Edge Function process; it must never be exposed through `VITE_*` or `EXPO_PUBLIC_*`.
+
+1. Put the key and model id in the root `.env.local` and in `supabase/functions/.env`:
+   ```dotenv
+   AI_PROVIDER=openrouter
+   OPENROUTER_API_KEY=...
+   OPENROUTER_MODEL=openai/gpt-4o-mini
+   # Optional multimodal model for pantry scans:
+   # OPENROUTER_VISION_MODEL=openai/gpt-4o
+   ```
+   The model id is the exact id from <https://openrouter.ai/models>. `OPENROUTER_MODEL` is used
+   for every feature, including scans, unless `OPENROUTER_VISION_MODEL` is set. If the model is
+   text-only, set a multimodal vision model or disable the `scan` feature flag.
+2. Set a deliberately low global cap before the first call, as in the Gemini procedure:
+   ```sql
+   update app_config
+   set global_daily_cap_micro_usd = 50000   -- USD 0.05/day
+   where id = 1;
+   ```
+3. Restart the local functions:
+   ```powershell
+   pnpm exec supabase functions serve --env-file supabase/functions/.env --no-verify-jwt
+   ```
+   For staging, set secrets instead of editing a file on the server:
+   ```powershell
+   pnpm exec supabase secrets set AI_PROVIDER=openrouter
+   pnpm exec supabase secrets set "OPENROUTER_API_KEY=$env:OPENROUTER_API_KEY"
+   pnpm exec supabase secrets set "OPENROUTER_MODEL=$env:OPENROUTER_MODEL"
+   # Optional: match the RPM/RPD shown for your OpenRouter model.
+   # pnpm exec supabase secrets set AI_RPM_LIMIT=... AI_RPD_LIMIT=...
+   ```
+4. Pricing: the gateway first looks for an active `ai_model_prices` row for
+   `provider='openrouter'` and the exact model. If none exists, it uses the conservative
+   defaults `OPENROUTER_INPUT_MICRO_USD_PER_MILLION=1000000` /
+   `OPENROUTER_OUTPUT_MICRO_USD_PER_MILLION=3000000` (USD 1 / USD 3 per 1M tokens). These are
+   estimates; set the env overrides or insert the model's current price before production
+   traffic.
+5. Run one low-cost request per feature and verify `provider: "openrouter"`, the exact
+   `model_used`, token counts, and `ai_usage_events` cost. Remember that the gateway ignores a
+   client-supplied `provider`/`model`; routing is server-side.
+6. If the model rejects `response_format`, set `OPENROUTER_JSON_MODE=false` and restart. If a
+   model is unavailable or rate-limited, add a fallback:
+   ```dotenv
+   OPENROUTER_FALLBACK_MODELS=openai/gpt-4.1-mini,openai/gpt-4o-mini
+   ```
+7. OpenRouter free tiers also publish RPM/RPD limits. Mirror them with `AI_RPM_LIMIT` and
+   `AI_RPD_LIMIT` so the gateway rejects excess traffic before calling the provider. Both are
+   global across users, count actual provider attempts (not cache hits or idempotent replays),
+   and are disabled when blank. RPM overflows return `429 rate_limited`; RPD overflows return
+   `429 quota_exceeded` with `resets_at` at the next UTC midnight.
+
+To switch back, set `AI_PROVIDER=gemini` (with `GEMINI_API_KEY`) or `AI_PROVIDER=fake` and
+restart/redeploy. Cache keys include the provider and model, so switching providers does not
+reuse the previous provider's responses.
+
+## 5. Kill switch and feature flags
 
 All flags are in `public.app_config` (id = 1). Changes take effect on the next request.
 
@@ -209,7 +298,7 @@ from app_config where id = 1;
 means the global daily cap is reached. A disabled feature also stops cache hits, so re-enable the
 flag before investigating client reports.
 
-## 5. Usage, quota, and cache
+## 6. Usage, quota, and cache
 
 The service-role gateway owns `reserve_ai_quota`, `settle_ai_usage`, `refund_ai_usage`, and
 `record_ai_cache_hit`. Clients can only call `get_my_usage()` for their own profile.
@@ -257,20 +346,20 @@ select * from ai_usage_events where status = 'reserved' order by created_at;
 select refund_ai_usage('<event-id>', 'manual_recovery');
 ```
 
-## 6. Error triage
+## 7. Error triage
 
-| Symptom | Check |
-| --- | --- |
-| `401 unauthorized` | Bearer token missing/expired; local token expires hourly. `verify_jwt=false` does not mean anonymous access. |
-| `403 origin_not_allowed` | Exact scheme/host/port in `ALLOWED_ORIGINS`; native apps send no `Origin`. In PowerShell quote the whole `ALLOWED_ORIGINS=...` argument, otherwise the comma is parsed as an array and the CLI stores a space-separated value. The parser accepts both commas and whitespace, but use the canonical comma form. |
-| `413 payload_too_large` | JSON > 64 KiB or scan body > 20 MiB; decoded image > plan cap. |
-| `429 quota_exceeded` | `ai_usage_counters`, plan feature limits, monthly budget. Cache hits do not count. |
-| `429 rate_limited` | Provider rate limit; respect `Retry-After`. |
-| `503 ai_disabled` | `ai_kill_switch` or `feature_flags`. |
-| `503 ai_budget_exhausted` | `global_daily_cap_micro_usd` / `ai_global_daily`. |
-| `502 provider_error` | Missing/invalid key, model id, price row, provider outage, or timeout. |
-| `502 invalid_model_output` | Provider JSON failed schema validation twice; inspect the prompt/schema. |
-| `500 internal_error` | Service-role configuration, DB/RLS, or an unexpected gateway error. |
+| Symptom                    | Check                                                                                                                                                                                                                                                                                                           |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `401 unauthorized`         | Bearer token missing/expired; local token expires hourly. `verify_jwt=false` does not mean anonymous access.                                                                                                                                                                                                    |
+| `403 origin_not_allowed`   | Exact scheme/host/port in `ALLOWED_ORIGINS`; native apps send no `Origin`. In PowerShell quote the whole `ALLOWED_ORIGINS=...` argument, otherwise the comma is parsed as an array and the CLI stores a space-separated value. The parser accepts both commas and whitespace, but use the canonical comma form. |
+| `413 payload_too_large`    | JSON > 64 KiB or scan body > 20 MiB; decoded image > plan cap.                                                                                                                                                                                                                                                  |
+| `429 quota_exceeded`       | `ai_usage_counters`, plan feature limits, monthly budget. Cache hits do not count.                                                                                                                                                                                                                              |
+| `429 rate_limited`         | Provider rate limit; respect `Retry-After`.                                                                                                                                                                                                                                                                     |
+| `503 ai_disabled`          | `ai_kill_switch` or `feature_flags`.                                                                                                                                                                                                                                                                            |
+| `503 ai_budget_exhausted`  | `global_daily_cap_micro_usd` / `ai_global_daily`.                                                                                                                                                                                                                                                               |
+| `502 provider_error`       | Missing/invalid key, model id, price row, provider outage, or timeout.                                                                                                                                                                                                                                          |
+| `502 invalid_model_output` | Provider JSON failed schema validation twice; inspect the prompt/schema.                                                                                                                                                                                                                                        |
+| `500 internal_error`       | Service-role configuration, DB/RLS, or an unexpected gateway error.                                                                                                                                                                                                                                             |
 
 Function logs:
 
@@ -281,7 +370,7 @@ pnpm exec supabase functions logs generate-recipe --project-ref $env:SUPABASE_PR
 The Supabase dashboard's Edge Functions log view is equivalent. Do not paste full logs containing
 user content into public issues.
 
-## 7. Rollback
+## 8. Rollback
 
 1. Set `ai_kill_switch = true`.
 2. Redeploy the last known-good commit for the affected function:
@@ -295,7 +384,7 @@ user content into public issues.
    `ai_response_cache` before re-enabling traffic.
 5. Re-enable the kill switch only after the smoke checklist passes.
 
-## 8. M4 verification record
+## 9. M4 verification record
 
 Local fake-provider smoke on 2026-10-22 (Supabase CLI 2.121.0, Deno 2.9.6):
 

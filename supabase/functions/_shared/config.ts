@@ -1,4 +1,5 @@
 import type { AIFeature, AIProviderId } from '../../../packages/shared/src/ai-contracts.ts';
+import { OPENROUTER_FREE_MODEL_IDS } from '../../../packages/shared/src/ai-models.ts';
 import { mapDatabaseError, providerError } from './errors.ts';
 import type { DbClient } from './db.ts';
 import { parseAllowedOrigins } from './cors.ts';
@@ -13,13 +14,7 @@ export interface AppConfigRow {
   model_routing: Record<string, unknown> | null;
 }
 
-const TEXT_FEATURES: AIFeature[] = [
-  'suggestions',
-  'recipe',
-  'chat',
-  'stream',
-  'substitution',
-];
+const TEXT_FEATURES: AIFeature[] = ['suggestions', 'recipe', 'chat', 'stream', 'substitution'];
 
 export function parseRuntimeConfig(row: AppConfigRow | null, env: Env): RuntimeConfig {
   const routing = asRecord(row?.model_routing);
@@ -47,30 +42,74 @@ export function parseRuntimeConfig(row: AppConfigRow | null, env: Env): RuntimeC
   setModel('scan', modelValue('scan', ['vision']));
   setModel('substitution', modelValue('substitution'));
 
-  const envTextModel = env.GEMINI_MODEL?.trim();
-  if (envTextModel) {
-    for (const feature of TEXT_FEATURES) models[feature] = envTextModel;
-  }
-  const envVisionModel = env.GEMINI_VISION_MODEL?.trim() || envTextModel;
-  if (envVisionModel) models.scan = envVisionModel;
-
   const providerId = normalizeProvider(
     env.AI_PROVIDER?.trim() || stringValue(routing.provider) || 'gemini',
   );
+
+  let textFallbacks = stringArray(fallbacks.text).length
+    ? stringArray(fallbacks.text)
+    : stringArray(routing.text_fallbacks);
+  let visionFallbacks = stringArray(fallbacks.vision).length
+    ? stringArray(fallbacks.vision)
+    : stringArray(routing.vision_fallbacks);
+  let allowedModels: string[] = [];
+
+  if (providerId === 'openrouter') {
+    // OpenRouter model ids are namespaced (for example `openai/gpt-4o-mini`),
+    // so the Gemini routing in app_config cannot be reused. A single model can
+    // cover every feature; the optional vision override is for multimodal
+    // models. Fallbacks are opt-in and must also be OpenRouter model ids.
+    const openRouterModel = env.OPENROUTER_MODEL?.trim();
+    if (!openRouterModel) {
+      throw providerError('OPENROUTER_MODEL is not configured for the OpenRouter provider.');
+    }
+    for (const feature of TEXT_FEATURES) models[feature] = openRouterModel;
+    models.scan = env.OPENROUTER_VISION_MODEL?.trim() || openRouterModel;
+    textFallbacks = commaList(env.OPENROUTER_FALLBACK_MODELS);
+    visionFallbacks = commaList(env.OPENROUTER_VISION_FALLBACK_MODELS);
+    if (!visionFallbacks.length) visionFallbacks = textFallbacks;
+    const configuredModels = commaList(env.OPENROUTER_ALLOWED_MODELS);
+    allowedModels = [
+      ...new Set([
+        openRouterModel,
+        ...(configuredModels.length ? configuredModels : OPENROUTER_FREE_MODEL_IDS),
+      ]),
+    ];
+  } else if (providerId === 'lmstudio') {
+    const lmStudioModel = env.LMSTUDIO_MODEL?.trim();
+    if (!lmStudioModel) {
+      throw providerError('LMSTUDIO_MODEL is not configured for the LM Studio provider.');
+    }
+    for (const feature of TEXT_FEATURES) models[feature] = lmStudioModel;
+    models.scan = env.LMSTUDIO_VISION_MODEL?.trim() || lmStudioModel;
+    textFallbacks = commaList(env.LMSTUDIO_FALLBACK_MODELS);
+    visionFallbacks = commaList(env.LMSTUDIO_VISION_FALLBACK_MODELS);
+    if (!visionFallbacks.length) visionFallbacks = textFallbacks;
+    const configuredModels = commaList(env.LMSTUDIO_ALLOWED_MODELS);
+    allowedModels = [...new Set([lmStudioModel, ...configuredModels])];
+  } else {
+    const envTextModel = env.GEMINI_MODEL?.trim();
+    if (envTextModel) {
+      for (const feature of TEXT_FEATURES) models[feature] = envTextModel;
+    }
+    const envVisionModel = env.GEMINI_VISION_MODEL?.trim() || envTextModel;
+    if (envVisionModel) models.scan = envVisionModel;
+  }
 
   return {
     providerId,
     killSwitch: row?.ai_kill_switch === true,
     featureFlags: parseFeatureFlags(row?.feature_flags),
     globalDailyCapMicroUsd: Number(row?.global_daily_cap_micro_usd ?? 5_000_000),
+    rateLimits: {
+      rpm: parseRequestLimit(env.AI_RPM_LIMIT, 'AI_RPM_LIMIT'),
+      rpd: parseRequestLimit(env.AI_RPD_LIMIT, 'AI_RPD_LIMIT'),
+    },
     models,
+    allowedModels,
     fallbacks: {
-      text: stringArray(fallbacks.text).length
-        ? stringArray(fallbacks.text)
-        : stringArray(routing.text_fallbacks),
-      vision: stringArray(fallbacks.vision).length
-        ? stringArray(fallbacks.vision)
-        : stringArray(routing.vision_fallbacks),
+      text: textFallbacks,
+      vision: visionFallbacks,
     },
     allowedOrigins: parseAllowedOrigins(env.ALLOWED_ORIGINS),
   };
@@ -87,11 +126,15 @@ export async function loadRuntimeConfig(db: DbClient, env: Env): Promise<Runtime
 }
 
 function normalizeProvider(value: string): AIProviderId {
-  if (value === 'gemini' || value === 'fake') return value;
+  if (value === 'gemini' || value === 'openrouter' || value === 'lmstudio' || value === 'fake') {
+    return value;
+  }
   throw providerError('The configured AI provider is not supported.');
 }
 
-function parseFeatureFlags(value: Record<string, unknown> | null | undefined): Record<string, boolean> {
+function parseFeatureFlags(
+  value: Record<string, unknown> | null | undefined,
+): Record<string, boolean> {
   const flags: Record<string, boolean> = {};
   for (const [key, entry] of Object.entries(value ?? {})) {
     if (typeof entry === 'boolean') flags[key] = entry;
@@ -119,4 +162,25 @@ function stringArray(value: unknown): string[] {
         .filter(Boolean),
     ),
   ];
+}
+
+function commaList(value: string | undefined): string[] {
+  return [
+    ...new Set(
+      (value ?? '')
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function parseRequestLimit(value: string | undefined, name: string): number | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw providerError(`${name} must be a non-negative integer.`);
+  }
+  return parsed;
 }

@@ -189,7 +189,7 @@ export const AIChefPage: React.FC = () => {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>
               {t('aiChefPage.engineLabel')}{' '}
-              <strong>{activeAIProvider === 'gemini' ? t('aiChefPage.engineGemini', { model: activeModel }) : t('aiChefPage.engineLocal')}</strong>
+              <strong>{activeAIProvider === 'lmstudio' ? t('aiChefPage.engineLocal') : t('aiChefPage.engineCloud', { model: activeModel })}</strong>
             </span>
           </div>
 

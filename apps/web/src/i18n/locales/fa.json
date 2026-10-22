@@ -133,6 +133,7 @@
     "add": "+ افزودن",
     "engineLabel": "موتور:",
     "engineGemini": "گوگل جمنای ({{model}})",
+    "engineCloud": "هوش مصنوعی ابری ({{model}})",
     "engineLocal": "هوش مصنوعی محلی (LM Studio)",
     "generating": "در حال پختن ایده‌ها...",
     "generate": "تولید دستورهای سرآشپز",

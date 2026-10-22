@@ -133,6 +133,7 @@
     "add": "+ إضافة",
     "engineLabel": "المحرك:",
     "engineGemini": "جوجل جيميناي ({{model}})",
+    "engineCloud": "ذكاء اصطناعي سحابي ({{model}})",
     "engineLocal": "ذكاء اصطناعي محلي (LM Studio)",
     "generating": "جارٍ تطوير الأفكار...",
     "generate": "توليد وصفات الشيف",

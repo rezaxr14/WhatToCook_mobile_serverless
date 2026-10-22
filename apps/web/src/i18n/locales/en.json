@@ -133,6 +133,7 @@
     "add": "+ Add",
     "engineLabel": "Engine:",
     "engineGemini": "Google Gemini ({{model}})",
+    "engineCloud": "Cloud AI ({{model}})",
     "engineLocal": "Local AI (LM Studio)",
     "generating": "Simmering Ideas...",
     "generate": "Generate Chef Recipes",

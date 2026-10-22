@@ -8,7 +8,14 @@ import type {
 } from '../../../packages/shared/src/ai-contracts.ts';
 import type { CatalogIngredient } from './catalog.ts';
 
-export type { AIFeature, AIProviderId, NDJSONEvent, RecipeDetail, SubstitutionResult, UsageSnapshot };
+export type {
+  AIFeature,
+  AIProviderId,
+  NDJSONEvent,
+  RecipeDetail,
+  SubstitutionResult,
+  UsageSnapshot,
+};
 
 export interface PlanInfo {
   id: string;
@@ -31,12 +38,22 @@ export interface AuthContext {
   plan: PlanInfo;
 }
 
+export interface RateLimits {
+  /** Global provider requests per rolling minute; null disables this guard. */
+  rpm: number | null;
+  /** Global provider requests per UTC day; null disables this guard. */
+  rpd: number | null;
+}
+
 export interface RuntimeConfig {
   providerId: AIProviderId;
   killSwitch: boolean;
   featureFlags: Record<string, boolean>;
   globalDailyCapMicroUsd: number;
+  rateLimits: RateLimits;
   models: Partial<Record<AIFeature, string>>;
+  /** Client-selectable models. Empty means client model choices are ignored. */
+  allowedModels: string[];
   fallbacks: {
     text: string[];
     vision: string[];
@@ -125,6 +142,7 @@ export interface CacheSetInput {
 }
 
 export interface QuotaGateway {
+  checkRateLimit(input: RateLimits & { now: Date }): Promise<void>;
   reserve(input: ReserveInput): Promise<ReserveResult>;
   settle(input: SettleInput): Promise<void>;
   refund(eventId: string, errorCode: string): Promise<void>;

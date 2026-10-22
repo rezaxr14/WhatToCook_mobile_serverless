@@ -1,6 +1,7 @@
 import { providerError } from '../errors.ts';
 import { FakeProvider } from './fake.ts';
 import { GeminiProvider } from './gemini.ts';
+import { OpenRouterProvider } from './openrouter.ts';
 import type { AIProvider, RuntimeConfig } from '../types.ts';
 
 export function createProvider(
@@ -36,6 +37,66 @@ export function createProvider(
       config.models.recipe,
     ]);
     return new GeminiProvider({ apiKey, textFallbacks, visionFallbacks });
+  }
+
+  if (providerId === 'openrouter') {
+    const apiKey = env.OPENROUTER_API_KEY?.trim();
+    if (!apiKey) {
+      throw providerError('OpenRouter is not configured on the server.');
+    }
+    const textFallbacks = unique([
+      ...config.fallbacks.text,
+      config.models.suggestions,
+      config.models.recipe,
+      config.models.chat,
+      config.models.stream,
+      config.models.substitution,
+    ]);
+    const visionFallbacks = unique([
+      ...config.fallbacks.vision,
+      config.models.scan,
+      config.models.recipe,
+    ]);
+    return new OpenRouterProvider({
+      apiKey,
+      textFallbacks,
+      visionFallbacks,
+      siteUrl: env.OPENROUTER_SITE_URL?.trim() || undefined,
+      appName: env.OPENROUTER_APP_NAME?.trim() || 'WhatToCook',
+      jsonMode: env.OPENROUTER_JSON_MODE !== 'false',
+    });
+  }
+
+  if (providerId === 'lmstudio') {
+    const textFallbacks = unique([
+      ...config.fallbacks.text,
+      ...config.allowedModels,
+      config.models.suggestions,
+      config.models.recipe,
+      config.models.chat,
+      config.models.stream,
+      config.models.substitution,
+    ]);
+    const visionFallbacks = unique([
+      ...config.fallbacks.vision,
+      ...config.allowedModels,
+      config.models.scan,
+      config.models.recipe,
+    ]);
+    return new OpenRouterProvider({
+      providerId: 'lmstudio',
+      displayName: 'LM Studio',
+      baseUrl: env.LMSTUDIO_BASE_URL?.trim() || 'http://127.0.0.1:1234/v1',
+      apiKey: env.LMSTUDIO_API_KEY?.trim() || undefined,
+      textFallbacks,
+      visionFallbacks,
+      // LM Studio rejects `response_format: json_object` for many local models
+      // (it expects `json_schema` or `text`), so JSON mode is opt-in here and
+      // structured calls rely on the shared JSON repair/validation instead.
+      jsonMode: env.LMSTUDIO_JSON_MODE === 'true',
+      timeoutMs: numberFromEnv(env.LMSTUDIO_TIMEOUT_MS, 120_000),
+      streamTimeoutMs: numberFromEnv(env.LMSTUDIO_STREAM_TIMEOUT_MS, 180_000),
+    });
   }
 
   throw providerError('The configured AI provider is not supported.');

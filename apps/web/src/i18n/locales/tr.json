@@ -131,6 +131,7 @@
     "add": "+ Ekle",
     "engineLabel": "Motor:",
     "engineGemini": "Google Gemini ({{model}})",
+    "engineCloud": "Bulut AI ({{model}})",
     "engineLocal": "Yerel AI (LM Studio)",
     "generating": "Fikirler pişiyor...",
     "generate": "Şef Tarifleri Oluştur",

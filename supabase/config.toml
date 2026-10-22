@@ -406,6 +406,11 @@ verify_jwt = false
 [functions.suggest-substitution]
 verify_jwt = false
 
+# Public, secret-free catalog for the client model selector. It reports the
+# active provider and models only; it never exposes provider API keys.
+[functions.ai-models]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

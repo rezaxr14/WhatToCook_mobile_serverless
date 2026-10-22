@@ -70,10 +70,7 @@ interface GeneratedPayload {
   providerResult: ProviderResult;
 }
 
-export async function handleGenerateRecipe(
-  request: Request,
-  deps: GatewayDeps,
-): Promise<Response> {
+export async function handleGenerateRecipe(request: Request, deps: GatewayDeps): Promise<Response> {
   const pre = await preflight(request, deps);
   if (pre) return pre;
 
@@ -94,7 +91,7 @@ export async function handleGenerateRecipe(
     assertFeature(config, feature);
     const locale = resolveLocale(auth, input);
     const provider = providerFor(deps, config);
-    const model = modelFor(config, feature);
+    const model = modelFor(config, feature, input.model);
     const prompt = buildPrompt(input, locale);
     const idempotency = await idempotencyKeyFor(
       auth.userId,
@@ -113,14 +110,7 @@ export async function handleGenerateRecipe(
       });
       const remaining = await usageSnapshot(deps, auth);
       if (input.stream) {
-        return streamCached(
-          request,
-          cors,
-          input,
-          feature,
-          remaining,
-          idempotentHit,
-        );
+        return streamCached(request, cors, input, feature, remaining, idempotentHit);
       }
       return jsonResponse(
         buildJsonResponse(input, feature, idempotentHit, {
@@ -184,6 +174,7 @@ export async function handleGenerateRecipe(
       estimateMicroUsd: reserveEstimate,
       provider: provider.id,
       model,
+      rateLimits: config.rateLimits,
     });
     ensureNotIdempotentDuplicate(reserve);
     let initialRemaining: UsageSnapshot;
@@ -633,7 +624,9 @@ function cachePayload(input: GenerateRecipeRequest, locale: string): unknown {
       return {
         ...base,
         mode: input.mode,
-        ingredients: [...new Set(input.ingredients.map((entry) => entry.trim().toLowerCase()))].sort(),
+        ingredients: [
+          ...new Set(input.ingredients.map((entry) => entry.trim().toLowerCase())),
+        ].sort(),
       };
     case 'detail':
       return { ...base, mode: input.mode, recipe_name: input.recipe_name.trim().toLowerCase() };
@@ -652,7 +645,9 @@ function cachePayload(input: GenerateRecipeRequest, locale: string): unknown {
         ...base,
         mode: input.mode,
         recipe_name: input.recipe_name.trim().toLowerCase(),
-        ingredients: [...new Set((input.ingredients ?? []).map((entry) => entry.trim().toLowerCase()))].sort(),
+        ingredients: [
+          ...new Set((input.ingredients ?? []).map((entry) => entry.trim().toLowerCase())),
+        ].sort(),
       };
   }
 }

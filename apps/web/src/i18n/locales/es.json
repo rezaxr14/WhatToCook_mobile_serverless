@@ -133,6 +133,7 @@
     "add": "+ Añadir",
     "engineLabel": "Motor:",
     "engineGemini": "Google Gemini ({{model}})",
+    "engineCloud": "IA en la nube ({{model}})",
     "engineLocal": "IA local (LM Studio)",
     "generating": "Cociendo ideas...",
     "generate": "Generar recetas de chef",

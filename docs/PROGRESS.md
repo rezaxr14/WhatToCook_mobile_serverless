@@ -7,6 +7,14 @@
 
 **Milestone:** M4 - AI gateway and usage metering (implemented and deployed to staging with the fake provider; real Gemini smoke blocked on H5)
 
+**Provider addendum (2026-10-22):** added a server-side OpenRouter adapter (text, structured JSON,
+streaming, vision) with `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL`
+routing. The key and model placeholders are in `.env.example`, `supabase/functions/.env.example`,
+and the two gitignored local env files. Optional `AI_RPM_LIMIT` / `AI_RPD_LIMIT` env guards cap
+global provider attempts per rolling minute and UTC day; blank disables them. The adapter and
+rate-guard wiring are unit-tested; a real OpenRouter smoke waits for the key/model to be pasted
+into the local env files.
+
 ## M0 checklist
 
 - [x] Git repo initialized on `main`; plan excluded from version control
@@ -74,8 +82,9 @@
       `packages/shared/src/ai-contracts.ts`
 - [x] `_shared/` auth, CORS, config, quota, cache, prices, prompts, catalog, validation, NDJSON,
       HTTP, provider dispatch, image sanitization
-- [x] Provider interface with deterministic `fake` and Gemini REST adapters (text, structured,
-      stream, vision; fallback model ladder and SSE parsing)
+- [x] Provider interface with deterministic `fake`, Gemini REST, and OpenRouter adapters (text,
+      structured, stream, vision; fallback model ladder and SSE parsing)
+- [x] Optional global `AI_RPM_LIMIT` / `AI_RPD_LIMIT` guards checked before reservation
 - [x] `generate-recipe` suggestions/detail/chat/stream modes, including NDJSON
 - [x] `scan-pantry` with magic-byte checks, EXIF/XMP/IPTC stripping, plan image caps and catalog
       mapping; image is never persisted
@@ -84,8 +93,9 @@
 - [x] `20261022100000_ai_gateway.sql`: Gemini prices/routing, substitution feature, cache-hit
       RPC, quota-cache exclusion, `v_ai_spend_daily` / `v_ai_spend_by_user` /
       `v_ai_cache_hit_rate`
-- [x] Deno tests: 44 passing across 6 files, including cache/idempotency, refunds, streaming,
-      cancellation, auth/CORS, image and catalog cases
+- [x] Deno tests: 60 passing across 8 files, including cache/idempotency, refunds, streaming,
+      cancellation, auth/CORS, image and catalog cases, plus OpenRouter text/stream/vision/pricing
+      and global RPM/RPD guards
 - [x] pgTAP: 120 tests (new `005_ai_gateway.test.sql`), `db lint` clean
 - [x] CI runs Deno check/lint/test in addition to typecheck/lint/test/build/pgTAP
 - [x] Local fake-provider smoke for all three functions, idempotent retry, normal cache hit,
@@ -120,7 +130,7 @@
 - `pnpm dlx deno check --config supabase/functions/deno.json` passed for all three entrypoints;
   `pnpm dlx deno lint --config supabase/functions/deno.json supabase/functions` passed 34 files.
 - `pnpm dlx deno test --config supabase/functions/deno.json --allow-env --allow-net
-  --allow-read supabase/functions/tests` passed 44 tests across 6 files.
+--allow-read supabase/functions/tests` passed 44 tests across 6 files.
 - `supabase test db` passed 120 pgTAP tests; `005_ai_gateway.test.sql` covers substitution
   plans, model routing/prices, cache-hit quota exclusion, the cache-hit RPC, and admin views.
 - `supabase db lint --local --schema public --level warning --fail-on error` reported no errors.
@@ -157,12 +167,34 @@
 - Test anonymous users were deleted and the staging response cache was purged after the smoke.
 - Real Gemini smoke remains blocked on H5 and manual model/price verification.
 
+## Model selector, free OpenRouter, and LM Studio (2026-10-22)
+
+- Added a shared free-model catalog (`packages/shared/src/ai-models.ts`) and an
+  `OPENROUTER_ALLOWED_MODELS` allowlist so the client selector can offer free
+  OpenRouter models without letting a client choice raise the AI budget. Unknown
+  or paid client models fall back to the server-routed model.
+- Added the `lmstudio` provider id and reused the OpenAI-compatible OpenRouter
+  adapter with a configurable base URL, optional key, and provider id. Local
+  models are priced at $0. LM Studio rejects `response_format: json_object`, so
+  JSON mode is off by default and structured calls rely on the shared JSON
+  repair/validation.
+- Added a public `ai-models` Edge Function that returns the active provider, the
+  LM Studio online state, and the allowed model catalog. The web
+  `aiApi.getProviders`/`getModels` call it once per session and fall back to the
+  static OpenRouter catalog when it is not deployed.
+- Verified the LM Studio provider independently (`lms server start`, model
+  `gemma-4-e4b-uncensored-hauhaucs-aggressive`): text, structured JSON, stream,
+  and the real `suggestions` schema all succeeded; the suggestions response
+  validated on the first attempt. Docker was stopped first to free RAM.
+- Deno suite passes 70 tests across 9 files; `deno check`, `deno lint`, and the
+  workspace `typecheck`/`lint`/`test`/`build:web` are re-run after this change.
+
 ## Environment notes
 
 - Supabase CLI 2.121.0 is a root dev dependency; use `pnpm exec supabase` or the root scripts.
-- `GEMINI_API_KEY` is a server-side secret. It lives in the gitignored repo-root
-  `.env.local` and `supabase/functions/.env` for local functions, or in
-  `supabase secrets` for staging/prod. It is never a `VITE_*`/`EXPO_PUBLIC_*` value.
+- `GEMINI_API_KEY` and `OPENROUTER_API_KEY` are server-side secrets. They live in the gitignored
+  repo-root `.env.local` and `supabase/functions/.env` for local functions, or in
+  `supabase secrets` for staging/prod. They are never `VITE_*`/`EXPO_PUBLIC_*` values.
 - Docker Desktop is installed; the local stack is optional day to day (ADR-006). When running:
   DB `54322`, API `54321`, Studio `54323`, containers `supabase_*_lderdvhteofqemiivosz`.
 - Local Supabase stack was used for M1 and M4 reset/test/lint verification and is currently
@@ -171,7 +203,8 @@
   the local Edge runtime is 1.77.4 (Deno 2.1.4 compatible) and Deno 2.9.6 is used for
   `deno check`/`deno test`.
 - `AI_PROVIDER=fake` is set in the ignored `supabase/functions/.env` for local/staging smoke.
-  `GEMINI_API_KEY` remains blank, so real-provider calls are not enabled.
+  `GEMINI_API_KEY` and `OPENROUTER_API_KEY` remain blank, so real-provider calls are not enabled
+  until the user pastes a key/model and changes `AI_PROVIDER`.
 - `dblink` concurrency tests connect via `host=db port=5432` so password auth is used;
   loopback connections match the local trust rule and are rejected by dblink for
   non-superusers.
@@ -190,11 +223,15 @@
 ## Blocked / waiting on human
 
 - H1: Play Console account (needed later, M7+).
-- M4: the gateway is implemented and verified locally with the fake provider. Staging
-  deployment with `AI_PROVIDER=fake` is next; the real Gemini smoke needs H5
-  (`GEMINI_API_KEY`) and manual verification of the model IDs/prices because the official
-  Google docs return 403 from this environment. The web AI pages remain in their intentional
-  `ai_not_ready` state until WM3 wires them to these functions.
+- M4: the gateway is implemented and verified locally with the fake provider and with LM Studio
+  (`AI_PROVIDER=lmstudio`). Staging runs `AI_PROVIDER=fake`. The real Gemini smoke needs H5
+  (`GEMINI_API_KEY`) and manual verification of the model IDs/prices because the official Google
+  docs return 403 from this environment. The OpenRouter smoke needs `OPENROUTER_API_KEY` and
+  `OPENROUTER_MODEL`; the adapter and config tests are already green, but this machine's
+  OpenRouter network access is blocked by a security policy (403) from Cloudflare, so a live
+  OpenRouter smoke can only run from an allowed network. LM Studio covers local development in
+  the meantime. The web AI pages remain in their intentional `ai_not_ready` state until WM3
+  wires them to these functions.
 - M8: create the production Supabase project and a protected production GitHub environment.
 - PR #7 checks: `Typecheck, lint, test, build`, `Secret scan`, and `Local schema and pgTAP`
   pass. The staging deploy job skips on pull requests by design; after merge, verify the first

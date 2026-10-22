@@ -11,7 +11,7 @@ import { z } from 'zod';
 export const AI_LOCALES = ['en', 'tr', 'fa', 'ar', 'es'] as const;
 export type AILocale = (typeof AI_LOCALES)[number];
 
-export const AI_PROVIDERS = ['gemini', 'fake'] as const;
+export const AI_PROVIDERS = ['gemini', 'openrouter', 'lmstudio', 'fake'] as const;
 export type AIProviderId = (typeof AI_PROVIDERS)[number];
 
 export const AI_FEATURES = [
@@ -90,11 +90,7 @@ const ingredientListSchema = z
   .max(AI_LIMITS.maxIngredients);
 
 const recipeContextSchema = z
-  .union([
-    z.string().max(8_000),
-    z.array(z.unknown()).max(40),
-    z.record(z.string(), z.unknown()),
-  ])
+  .union([z.string().max(8_000), z.array(z.unknown()).max(40), z.record(z.string(), z.unknown())])
   .superRefine((value, ctx) => {
     if (JSON.stringify(value ?? null).length > AI_LIMITS.maxChatContextJsonLength) {
       ctx.addIssue({
@@ -161,6 +157,8 @@ export const scanPantryRequestSchema = z.object({
   mime_type: z.enum(['image/jpeg', 'image/png', 'image/webp']).optional().default('image/jpeg'),
   language: localeSchema.optional(),
   locale: localeSchema.optional(),
+  provider: providerSchema,
+  model: trimmedString(80).optional(),
   min_confidence: z.number().min(0).max(1).optional().default(0.5),
   max_items: z.number().int().min(1).max(AI_LIMITS.maxScanItems).optional().default(25),
 });
@@ -189,10 +187,7 @@ export const substitutionRequestSchema = z.object({
 
 export type SubstitutionRequest = z.infer<typeof substitutionRequestSchema>;
 
-const difficultySchema = z.union([
-  z.enum(['Easy', 'Medium', 'Hard']),
-  trimmedString(20),
-]);
+const difficultySchema = z.union([z.enum(['Easy', 'Medium', 'Hard']), trimmedString(20)]);
 
 export const suggestedDishSchema = z.object({
   name: trimmedString(120),
@@ -239,11 +234,16 @@ export const recipeDetailSchema = z.object({
     .array(
       z.union([
         instructionSchema,
-        z.string().trim().min(1).max(2_000).transform((step) => ({
-          step,
-          time_minutes: null,
-          chef_tip: null,
-        })),
+        z
+          .string()
+          .trim()
+          .min(1)
+          .max(2_000)
+          .transform((step) => ({
+            step,
+            time_minutes: null,
+            chef_tip: null,
+          })),
       ]),
     )
     .min(1)
@@ -269,9 +269,7 @@ export const pantryScanItemSchema = z.object({
   matched: z.boolean().optional().default(false),
 });
 
-export const pantryScanItemsSchema = z
-  .array(pantryScanItemSchema)
-  .max(AI_LIMITS.maxScanItems);
+export const pantryScanItemsSchema = z.array(pantryScanItemSchema).max(AI_LIMITS.maxScanItems);
 
 export const substitutionResultSchema = z.object({
   missing_ingredient: trimmedString(120),

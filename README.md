@@ -64,8 +64,11 @@ pnpm exec supabase db push --dry-run
 
 M4 - AI gateway complete and deployed to staging with the deterministic `fake` provider. The
 M0/M1 Supabase foundation (RLS, quota RPCs, matcher, 80-ingredient / 12-recipe catalog, Storage)
-and the WM1 web parity port are done. The three AI Edge Functions cover suggestions, recipe
-detail, chat, streaming, pantry scans and substitutions with a service-role quota/cache path.
-Real Gemini traffic is blocked until the key (H5) and model/pricing rows are verified. The mobile
-app starts in M5; the web AI pages remain in their intentional not-connected state until WM3.
-Local checks currently cover 120 pgTAP tests and 44 Deno tests.
+and the WM1 web parity port are done. The four AI Edge Functions cover suggestions, recipe
+detail, chat, streaming, pantry scans, substitutions, and the client model catalog with a
+service-role quota/cache path. Gemini, OpenRouter, and local LM Studio are available as
+server-side providers; OpenRouter uses `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` and LM Studio
+uses `LMSTUDIO_MODEL`, and neither needs a migration. Real provider traffic is enabled only after
+the key and model/pricing are verified. The mobile app starts in M5; the web AI pages remain in
+their intentional not-connected state until WM3. Local checks currently cover 120 pgTAP tests and
+70 Deno tests.

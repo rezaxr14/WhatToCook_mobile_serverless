@@ -1,3 +1,4 @@
+import { isFreeOpenRouterModel } from '../../../packages/shared/src/ai-models.ts';
 import type { ModelPrice, ProviderUsage } from './types.ts';
 import type { DbClient } from './db.ts';
 import { mapDatabaseError } from './errors.ts';
@@ -38,6 +39,58 @@ export const MAX_OUTPUT_TOKENS = {
   scan: 1_200,
   substitution: 800,
 } as const;
+
+/**
+ * OpenRouter model ids are selected at deploy time, so they cannot have a
+ * hard-coded price row. Use an explicit env override when the model price is
+ * known; otherwise fall back to a deliberately conservative estimate so the
+ * monthly and global caps still apply. The defaults are USD 1 / USD 3 per 1M
+ * input/output tokens.
+ */
+export const DEFAULT_OPENROUTER_INPUT_MICRO_USD_PER_MILLION = 1_000_000;
+export const DEFAULT_OPENROUTER_OUTPUT_MICRO_USD_PER_MILLION = 3_000_000;
+
+export function localPrice(provider: string, model: string): ModelPrice {
+  return {
+    provider,
+    model,
+    input_micro_usd_per_million: 0,
+    output_micro_usd_per_million: 0,
+  };
+}
+
+export function openRouterPriceFromEnv(
+  provider: string,
+  model: string,
+  env: Record<string, string | undefined>,
+): ModelPrice | null {
+  if (provider !== 'openrouter') return null;
+  if (isFreeOpenRouterModel(model)) {
+    return {
+      provider,
+      model,
+      input_micro_usd_per_million: 0,
+      output_micro_usd_per_million: 0,
+    };
+  }
+  return {
+    provider,
+    model,
+    input_micro_usd_per_million: nonNegativeNumber(
+      env.OPENROUTER_INPUT_MICRO_USD_PER_MILLION,
+      DEFAULT_OPENROUTER_INPUT_MICRO_USD_PER_MILLION,
+    ),
+    output_micro_usd_per_million: nonNegativeNumber(
+      env.OPENROUTER_OUTPUT_MICRO_USD_PER_MILLION,
+      DEFAULT_OPENROUTER_OUTPUT_MICRO_USD_PER_MILLION,
+    ),
+  };
+}
+
+function nonNegativeNumber(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return value?.trim() && Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
 
 interface PriceRow {
   provider: string;

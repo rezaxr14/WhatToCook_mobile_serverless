@@ -192,7 +192,7 @@ anonymous-sign-in policy notices; these are documented exceptions, not missing h
 ## ADR-012 - AI gateway as shared Edge Function modules
 
 **Context:** suggestions, recipe detail, sous-chef chat, streaming, fridge scanning and
-substitutions need one quota/cache/provider path. The Gemini key must stay server-side, and the
+substitutions need one quota/cache/provider path. Provider keys must stay server-side, and the
 client must not be able to choose a model or mint usage. M4 explicitly does not build the mobile
 or web feature UI; those are M5 and WM3.
 
@@ -203,16 +203,22 @@ Wire schemas live in `packages/shared/src/ai-contracts.ts` so future clients sha
 without duplicating limits or error codes.
 
 Provider selection and model IDs come from `app_config.model_routing` and deploy-time
-`AI_PROVIDER`/`GEMINI_*` overrides. A client-supplied `provider` or `model` is accepted for
-compatibility but ignored. `gemini` is the runtime provider id; `fake` is a deterministic,
-zero-cost adapter used in Deno tests and staging. All user text and image-derived labels are
-untrusted data, never instructions; structured output is schema-validated with at most one repair
-attempt.
+`AI_PROVIDER` overrides. `gemini`, `openrouter`, `lmstudio`, and `fake` are the runtime provider
+ids. Gemini uses `GEMINI_MODEL`/`GEMINI_VISION_MODEL`; OpenRouter and LM Studio share the
+OpenAI-compatible chat-completions adapter but keep their own `OPENROUTER_*` / `LMSTUDIO_*`
+model and fallback settings, because their model ids are namespaced and cannot reuse the Gemini
+routing. A client-supplied `provider` is accepted for compatibility but ignored; a client
+`model` is honored only when it is server-allowlisted (OpenRouter additionally accepts free
+`*:free` ids). `fake` is a deterministic, zero-cost adapter used in Deno tests and staging; LM
+Studio is a local-only, zero-cost provider for development. All user text and image-derived
+labels are untrusted data, never instructions; structured output is schema-validated with at
+most one repair attempt.
 
-`verify_jwt = false` is set on all three functions so browser CORS preflight reaches the shared
-layer. Every non-`OPTIONS` request is still rejected by `_shared/auth.ts` without a valid user
-JWT. Browser origins are allow-listed through `ALLOWED_ORIGINS`; native clients send no
-`Origin`. The provider key is only read from function secrets / `supabase/functions/.env`, never
+`verify_jwt = false` is set on all four functions so browser CORS preflight reaches the shared
+layer. Every non-`OPTIONS` request to an AI function is still rejected by `_shared/auth.ts`
+without a valid user JWT; `ai-models` is intentionally public and returns provider/model metadata
+only. Browser origins are allow-listed through `ALLOWED_ORIGINS`; native clients send no
+`Origin`. Provider keys are only read from function secrets / `supabase/functions/.env`, never
 from `VITE_*` or `EXPO_PUBLIC_*`.
 
 Guardrails: a kill switch, per-feature flags, per-plan daily limits, per-plan monthly budget and
@@ -223,9 +229,10 @@ EXIF/XMP/IPTC stripping; the image is never persisted.
 **Consequences:** no custom server runtime is introduced. The web and mobile AI clients stay in
 their intentional not-connected state until WM3/M5, then call these same functions. Staging can
 run with `AI_PROVIDER=fake` for deterministic, zero-cost integration tests. Real Gemini traffic
-requires H5 (the key) and manual verification of current model ids and prices; until then the
-active `gemini` price rows are a configurable estimate, and missing prices fail closed with
-`provider_error`.
+requires H5 (the key) and manual verification of current model ids and prices. OpenRouter can be
+enabled without a database migration: its model id is deploy-time configuration, and pricing
+falls back to conservative env-configured estimates when no `ai_model_prices` row exists. Missing
+keys or models fail closed with `provider_error`.
 
 ## ADR-013 - Cache, idempotency and quota accounting
 
@@ -249,9 +256,11 @@ settled event remains, the gateway returns `409 duplicate_request` rather than c
 A normal cache hit inserts a zero-cost `ai_usage_events` row with `cache_hit=true`, increments
 the cache hit counter, and is excluded from daily/monthly quota checks. It remains visible in
 `v_ai_spend_daily`, `v_ai_spend_by_user` and `v_ai_cache_hit_rate`. Idempotent retries reuse the
-original row and do not insert another. Structured `suggestions`/`detail` responses are
-validated before NDJSON is emitted and then chunked; only `chat`/`stream` forward live provider
-deltas.
+original row and do not insert another. Optional `AI_RPM_LIMIT` / `AI_RPD_LIMIT` env guards run
+before reservation and cap global provider attempts per rolling minute and UTC day; blank
+disables them, and cache hits/idempotent replays are not counted. Structured
+`suggestions`/`detail` responses are validated before NDJSON is emitted and then chunked; only
+`chat`/`stream` forward live provider deltas.
 
 **Consequences:** a cache hit still appears in audit views but is not a billed request. Cache
 purging is safe but forces the next call to the provider. The cache stores response JSON, never

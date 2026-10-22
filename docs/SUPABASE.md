@@ -17,7 +17,7 @@ pnpm supabase:reset       # reapply migrations, seed, and Storage images
 pnpm supabase:test        # pgTAP suite (120 tests)
 pnpm gen:types            # regenerate shared types from the local DB
 
-# Serve all three AI Edge Functions with the local fake provider
+# Serve all four AI Edge Functions with the local fake provider
 pnpm exec supabase functions serve --env-file supabase/functions/.env --no-verify-jwt
 ```
 
@@ -61,10 +61,30 @@ never put a service-role or provider key in either prefix.
 The Edge Functions read server-only values from `supabase/functions/.env` locally or from
 Supabase secrets remotely:
 
-- `AI_PROVIDER` - `fake` (default for tests/staging) or `gemini`.
+- `AI_PROVIDER` - `fake` (default for tests/staging), `gemini`, `openrouter`, or `lmstudio`.
 - `GEMINI_API_KEY` - required only when `AI_PROVIDER=gemini`.
-- `GEMINI_MODEL` / `GEMINI_VISION_MODEL` - optional overrides; normal routing comes from
+- `GEMINI_MODEL` / `GEMINI_VISION_MODEL` - optional Gemini overrides; normal routing comes from
   `app_config.model_routing`.
+- `OPENROUTER_API_KEY` - required only when `AI_PROVIDER=openrouter`; server-side only.
+- `OPENROUTER_MODEL` - required when `AI_PROVIDER=openrouter`; one model id for all features.
+- `OPENROUTER_VISION_MODEL` - optional scan override; defaults to `OPENROUTER_MODEL`.
+- `OPENROUTER_ALLOWED_MODELS` - optional comma-separated allowlist for client-selected models;
+  free `*:free` ids are always selectable.
+- `OPENROUTER_FALLBACK_MODELS` / `OPENROUTER_VISION_FALLBACK_MODELS` - optional comma-separated
+  OpenRouter model ids.
+- `OPENROUTER_INPUT_MICRO_USD_PER_MILLION` / `OPENROUTER_OUTPUT_MICRO_USD_PER_MILLION` - optional
+  pricing overrides; defaults are conservative estimates (1,000,000 / 3,000,000).
+- `OPENROUTER_SITE_URL` / `OPENROUTER_APP_NAME` / `OPENROUTER_JSON_MODE` - optional request
+  attribution and JSON-mode toggle.
+- `LMSTUDIO_BASE_URL` - LM Studio OpenAI-compatible base URL; default `http://127.0.0.1:1234/v1`.
+- `LMSTUDIO_MODEL` - required when `AI_PROVIDER=lmstudio`; one local model id for all features.
+- `LMSTUDIO_VISION_MODEL` / `LMSTUDIO_FALLBACK_MODELS` / `LMSTUDIO_VISION_FALLBACK_MODELS` -
+  optional local overrides and fallbacks.
+- `LMSTUDIO_ALLOWED_MODELS` - optional comma-separated allowlist for client-selected local models.
+- `LMSTUDIO_API_KEY` / `LMSTUDIO_JSON_MODE` / `LMSTUDIO_TIMEOUT_MS` /
+  `LMSTUDIO_STREAM_TIMEOUT_MS` - optional local auth, JSON mode (off by default), and timeouts.
+- `AI_RPM_LIMIT` / `AI_RPD_LIMIT` - optional global provider request guards (rolling minute and
+  UTC day). Blank disables them; cache hits and idempotent replays are not counted.
 - `ALLOWED_ORIGINS` - comma-separated browser origins for CORS.
 
 `supabase/functions/.env` is gitignored. The web bundle must contain none of these names or
@@ -120,7 +140,7 @@ branches may deploy independently.
 ### AI Edge Functions
 
 The AI functions are deployed separately from the migration job. After `db push`, set the
-server-only values and deploy all three:
+server-only values and deploy all four:
 
 ```powershell
 pnpm exec supabase secrets set AI_PROVIDER=fake `
@@ -129,19 +149,23 @@ pnpm exec supabase secrets set AI_PROVIDER=fake `
 pnpm exec supabase functions deploy generate-recipe --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
 pnpm exec supabase functions deploy scan-pantry --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
 pnpm exec supabase functions deploy suggest-substitution --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
+pnpm exec supabase functions deploy ai-models --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
 ```
 
 `AI_PROVIDER=fake` is the supported staging/test state: deterministic output and zero cost.
-Staging currently has the M4 migration and all three functions deployed in this state, with
+LM Studio is local-only and must not be set on hosted functions, which cannot reach a developer
+machine. Staging currently has the M4 migration and all four functions deployed in this state, with
 `ALLOWED_ORIGINS` limited to the local Vite origins until a hosted web origin exists. Real
-Gemini traffic waits for H5 and a model/price review. `GEMINI_API_KEY`, when enabled, is a
-function secret only; it never enters `VITE_*`, `EXPO_PUBLIC_*`, or the static bundle. The full
-deployment, smoke, quota, cache, and rollback procedures live in [`runbook.md`](./runbook.md);
-the HTTP contract is in [`api.md`](./api.md).
+Gemini traffic waits for H5 and a model/price review; OpenRouter traffic waits for
+`OPENROUTER_API_KEY` and `OPENROUTER_MODEL`. Either provider key, when enabled, is a function
+secret only; it never enters `VITE_*`, `EXPO_PUBLIC_*`, or the static bundle. The full deployment,
+smoke, quota, cache, and rollback procedures live in [`runbook.md`](./runbook.md); the HTTP
+contract is in [`api.md`](./api.md).
 
 The shared gateway lives in `supabase/functions/_shared/`. `verify_jwt = false` is intentional
-for all three functions so browser preflight reaches the shared auth/CORS layer; every
-non-`OPTIONS` request is still rejected without a valid user token.
+for all four functions so browser preflight reaches the shared auth/CORS layer; every
+non-`OPTIONS` request to an AI function is still rejected without a valid user token, while
+`ai-models` is intentionally public and exposes only provider/model metadata.
 
 Use `supabase gen types typescript --project-id lderdvhteofqemiivosz --schema public` when the
 committed types must match staging exactly.

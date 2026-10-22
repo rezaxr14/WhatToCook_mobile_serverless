@@ -40,8 +40,8 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [pantryIngredients, setPantryIngredients] = useState<Ingredient[]>([]);
   const [allIngredients, setAllIngredients] = useState<Ingredient[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [activeAIProvider, setActiveAIProvider] = useState<AIProvider>('gemini');
-  const [activeModel, setActiveModel] = useState<string>('gemini-3.5-flash-lite');
+  const [activeAIProvider, setActiveAIProvider] = useState<AIProvider>('openrouter');
+  const [activeModel, setActiveModel] = useState<string>('openrouter/free');
   const [availableModels, setAvailableModels] = useState<Array<{ id: string; displayName?: string; name?: string; description?: string }>>([]);
   const [rateLimitedModels, setRateLimitedModels] = useState<string[]>(() => {
     try {
@@ -80,6 +80,9 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           const rawModels = (modelsData.models || (modelsData as any).available_models || []) as Array<{ id: string; displayName?: string; name?: string; description?: string }>;
           if (rawModels.length > 0) {
             setAvailableModels(rawModels);
+          }
+          if (modelsData.provider) {
+            setActiveAIProvider(modelsData.provider);
           }
           if (modelsData.current_model) {
             // Check if current_model is rate limited

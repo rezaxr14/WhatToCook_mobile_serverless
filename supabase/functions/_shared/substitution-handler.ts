@@ -60,7 +60,7 @@ export async function handleSuggestSubstitution(
     assertFeature(config, 'substitution');
     const locale = resolveLocale(auth, input);
     const provider = providerFor(deps, config);
-    const model = modelFor(config, 'substitution');
+    const model = modelFor(config, 'substitution', input.model);
     const idempotency = await idempotencyKeyFor(
       auth.userId,
       request.headers.get('idempotency-key'),
@@ -92,7 +92,9 @@ export async function handleSuggestSubstitution(
     const payload = {
       recipe_name: input.recipe_name?.trim().toLowerCase() ?? null,
       missing_ingredient: input.missing_ingredient.trim().toLowerCase(),
-      available_ingredients: [...new Set(input.available_ingredients.map((entry) => entry.trim().toLowerCase()))].sort(),
+      available_ingredients: [
+        ...new Set(input.available_ingredients.map((entry) => entry.trim().toLowerCase())),
+      ].sort(),
       dietary: [...new Set(input.dietary.map((entry) => entry.trim().toLowerCase()))].sort(),
       locale,
     };
@@ -152,6 +154,7 @@ export async function handleSuggestSubstitution(
       estimateMicroUsd: reserveEstimate,
       provider: provider.id,
       model,
+      rateLimits: config.rateLimits,
     });
     ensureNotIdempotentDuplicate(reserve);
     let initialRemaining: UsageSnapshot;

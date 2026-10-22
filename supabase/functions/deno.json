@@ -23,6 +23,6 @@
   },
   "tasks": {
     "test": "deno test --allow-env --allow-net --allow-read",
-    "check": "deno check generate-recipe/index.ts scan-pantry/index.ts suggest-substitution/index.ts"
+    "check": "deno check generate-recipe/index.ts scan-pantry/index.ts suggest-substitution/index.ts ai-models/index.ts"
   }
 }

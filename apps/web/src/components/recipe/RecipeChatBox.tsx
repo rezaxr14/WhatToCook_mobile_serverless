@@ -199,7 +199,7 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
         <div className="flex items-center gap-2">
           <span className="hidden sm:inline-flex items-center gap-1 text-xs text-stone-400 bg-stone-800/80 px-2.5 py-1 rounded-xl border border-stone-700 font-mono text-[11px]">
             <Bot className="w-3 h-3 text-amber-400" />
-            {activeAIProvider === 'gemini' ? activeModel : 'LM Studio Local'}
+            {activeAIProvider === 'lmstudio' ? 'LM Studio Local' : activeModel}
           </span>
           <button
             type="button"

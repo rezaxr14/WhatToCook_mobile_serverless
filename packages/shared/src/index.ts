@@ -1,5 +1,6 @@
 export * from './database.types';
 export * from './ai-contracts';
+export * from './ai-models';
 
 export const APP_NAME = 'WhatToCook' as const;
 

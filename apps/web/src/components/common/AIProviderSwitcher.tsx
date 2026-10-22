@@ -17,8 +17,23 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
 
   const isLMStudioOnline = Boolean(aiProvidersInfo?.lmstudio_online);
-  const geminiModel = activeModel || aiProvidersInfo?.gemini_model || 'gemini-3.5-flash-lite';
+  const isCloudActive = activeAIProvider !== 'lmstudio';
+  const cloudProvider: AIProvider =
+    aiProvidersInfo?.default_provider && aiProvidersInfo.default_provider !== 'lmstudio'
+      ? aiProvidersInfo.default_provider
+      : 'openrouter';
+  const cloudModel =
+    activeModel ||
+    aiProvidersInfo?.openrouter_model ||
+    aiProvidersInfo?.gemini_model ||
+    'openrouter/free';
   const lmModel = aiProvidersInfo?.lmstudio_model || 'Local Model';
+  const cloudModelsLabel =
+    cloudProvider === 'openrouter'
+      ? 'OpenRouter Free Models'
+      : cloudProvider === 'gemini'
+        ? 'Google Gemini Models'
+        : 'Cloud AI Models';
 
   const currentModelDisplay =
     availableModels.find((m) => m.id === activeModel)?.displayName ||
@@ -35,13 +50,13 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
         {/* Cloud AI Button */}
         <button
           type="button"
-          onClick={() => setActiveAIProvider('gemini')}
+          onClick={() => setActiveAIProvider(cloudProvider)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
- activeAIProvider === 'gemini'
+ isCloudActive
  ? 'bg-white text-stone-900'
  : 'text-stone-500 hover:text-stone-900'
  }`}
-          title={`Cloud AI Engine (${geminiModel})`}
+          title={`Cloud AI Engine (${cloudModel})`}
         >
           <Sparkles className="w-3.5 h-3.5 text-brand-500" />
           <span>Cloud AI</span>
@@ -80,7 +95,7 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
       </div>
 
       {/* Model Selection Dropdown (Only when Cloud AI is active) */}
-      {activeAIProvider === 'gemini' && availableModels.length > 0 && (
+      {isCloudActive && availableModels.length > 0 && (
         <div className="relative">
           <button
             type="button"
@@ -102,7 +117,7 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
               />
               <div className="fixed left-1/2 -translate-x-1/2 top-24 w-[min(18rem,calc(100vw-1.5rem))] max-h-96 overflow-y-auto bg-stone-900 border border-stone-700 rounded-2xl shadow-2xl z-50 p-2 space-y-1 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:translate-x-0 sm:mt-1.5 sm:w-72">
                 <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-stone-400 flex items-center justify-between">
-                  <span>Google Gemini Models</span>
+                  <span>{cloudModelsLabel}</span>
                   <span className="text-[9px] text-amber-400/80 lowercase">auto-fallback active</span>
                 </div>
                 {availableModels.map((m) => {

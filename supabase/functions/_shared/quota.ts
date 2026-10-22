@@ -6,12 +6,13 @@ import {
 import type {
   AuthContext,
   QuotaGateway,
+  RateLimits,
   ReserveInput,
   ReserveResult,
   SettleInput,
 } from './types.ts';
 import type { DbClient } from './db.ts';
-import { mapDatabaseError } from './errors.ts';
+import { mapDatabaseError, nextUtcMidnight, quotaExceeded, rateLimited } from './errors.ts';
 
 interface ReserveRow {
   event_id?: string;
@@ -38,6 +39,42 @@ export function createQuotaGateway(
   userClientFor: (auth: AuthContext) => DbClient,
 ): QuotaGateway {
   return {
+    async checkRateLimit(input: RateLimits & { now: Date }): Promise<void> {
+      const rpm = normalizeLimit(input.rpm);
+      const rpd = normalizeLimit(input.rpd);
+      if (rpm === null && rpd === null) return;
+
+      if (rpd !== null) {
+        const day = input.now.toISOString().slice(0, 10);
+        const { data, error } = await serviceDb
+          .from('ai_global_daily')
+          .select('requests')
+          .eq('day', day)
+          .maybeSingle();
+        if (error) throw mapDatabaseError(error.message, error);
+        const used = Number((data as { requests?: number } | null)?.requests ?? 0);
+        if (used >= rpd) {
+          throw quotaExceeded(
+            'The daily AI request limit for the service has been reached.',
+            nextUtcMidnight(input.now),
+          );
+        }
+      }
+
+      if (rpm !== null) {
+        const since = new Date(input.now.getTime() - 60_000).toISOString();
+        const { count, error } = await serviceDb
+          .from('ai_usage_events')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', since)
+          .eq('cache_hit', false);
+        if (error) throw mapDatabaseError(error.message, error);
+        if (Number(count ?? 0) >= rpm) {
+          throw rateLimited('Too many AI requests. Please wait a minute and try again.', 60);
+        }
+      }
+    },
+
     async reserve(input: ReserveInput): Promise<ReserveResult> {
       const { data, error } = await serviceDb.rpc('reserve_ai_quota', {
         p_user_id: input.userId,
@@ -112,4 +149,9 @@ export function createQuotaGateway(
 
 function isDuplicate(message: string, code?: string): boolean {
   return code === '23505' || message.includes('duplicate key value');
+}
+
+function normalizeLimit(value: number | null): number | null {
+  if (value === null || value === undefined) return null;
+  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : null;
 }
