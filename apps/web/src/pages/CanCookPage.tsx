@@ -5,7 +5,6 @@ import { CanCookResponse } from '../types/recipe';
 import { recipeApi } from '../api/recipeApi';
 import { usePantry } from '../context/PantryContext';
 import { useShoppingList } from '../context/ShoppingListContext';
-import { useAuth } from '../context/AuthContext';
 import { RecipeCard } from '../components/recipe/RecipeCard';
 import { StyledButton } from '../components/common/StyledButton';
 import { StyledCard } from '../components/common/StyledCard';
@@ -17,7 +16,6 @@ export const CanCookPage: React.FC = () => {
 
   const { pantryIngredients } = usePantry();
   const { addMultipleItems } = useShoppingList();
-  const { isAuthenticated, isLoading: authLoading, demoLogin } = useAuth();
 
   useEffect(() => {
     const fetchCanCook = async () => {
@@ -98,36 +96,6 @@ export const CanCookPage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {!isAuthenticated && (
-        <div className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="font-extrabold text-sm text-stone-900">
-              Sign in to match recipes with your pantry
-            </div>
-            <p className="text-xs text-stone-600 mt-1">
-              The guest demo stocks 11 common ingredients instantly, so you can try the matcher
-              without creating an account.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <StyledButton
-              $variant="primary"
-              $size="sm"
-              onClick={() => void demoLogin()}
-              disabled={authLoading}
-            >
-              <ChefHat className="w-4 h-4" />
-              <span>Start Guest Demo</span>
-            </StyledButton>
-            <Link to="/auth">
-              <StyledButton $variant="outline" $size="sm">
-                Sign In
-              </StyledButton>
-            </Link>
-          </div>
-        </div>
-      )}
 
       {/* Matching Tabs & Quick Actions */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3">

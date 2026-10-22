@@ -25,7 +25,6 @@ export const RecipesPage: React.FC = () => {
 
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [readyCount, setReadyCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [maxCookTime, setMaxCookTime] = useState(90);
@@ -44,25 +43,6 @@ export const RecipesPage: React.FC = () => {
     };
     fetchRecipes();
   }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setReadyCount(0);
-      return;
-    }
-    let cancelled = false;
-    recipeApi
-      .getCanCookRecipes()
-      .then((data) => {
-        if (!cancelled) setReadyCount(data.total_full_matches);
-      })
-      .catch(() => {
-        if (!cancelled) setReadyCount(0);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, pantryIngredients]);
 
   // Filter recipes
   const filteredRecipes = useMemo(() => {
@@ -177,7 +157,9 @@ export const RecipesPage: React.FC = () => {
                   <span className="text-xs font-bold text-stone-400 group-hover:text-white transition-colors">{t('recipesPage.cook')} →</span>
                 </div>
                 <div className="mt-3">
-                  <div className="text-2xl font-black text-white">{readyCount}</div>
+                  <div className="text-2xl font-black text-white">
+                    {pantryCount > 0 ? t('recipesPage.ready') : '0'}
+                  </div>
                   <div className="text-xs text-stone-300 font-medium">{t('recipesPage.zeroWasteMatches')}</div>
                 </div>
               </Link>

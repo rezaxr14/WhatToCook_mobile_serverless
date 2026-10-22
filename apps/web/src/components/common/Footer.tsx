@@ -56,7 +56,7 @@ export const Footer: React.FC = () => {
             <ul className="space-y-2 text-sm text-stone-400 font-medium">
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
-                <span>Supabase Postgres &amp; Edge Functions</span>
+                <span>Django REST Framework</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />

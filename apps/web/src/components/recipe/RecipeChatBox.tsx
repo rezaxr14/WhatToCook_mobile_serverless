@@ -96,18 +96,11 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
 
       setMessages((prev) => [...prev, botMsg]);
     } catch (err: any) {
-      const notReady = err?.code === 'ai_not_ready' || err?.status === 503;
-      setChatError(
-        notReady
-          ? 'The AI Sous-Chef is being connected in milestone M4. Recipe steps, pantry matching and the grocery list already work.'
-          : 'Failed to get answer from chef. Please try again.',
-      );
+      setChatError('Failed to get answer from chef. Please try again.');
       const fallbackMsg: ChatMessage = {
         id: `bot-${Date.now()}`,
         role: 'assistant',
-        content: notReady
-          ? 'I can’t reach the AI kitchen yet — it arrives in milestone M4. In the meantime, the full ingredient list and step-by-step method above are ready to cook from.'
-          : `I'm currently having a quick kitchen moment! For ${recipeName}, make sure your pan is preheated and season with salt and fresh herbs to taste. Feel free to ask another question!`,
+        content: `I'm currently having a quick kitchen moment! For ${recipeName}, make sure your pan is preheated and season with salt and fresh herbs to taste. Feel free to ask another question!`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, fallbackMsg]);

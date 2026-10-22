@@ -1,4 +1,4 @@
-﻿import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Sparkles, Play, Pause, ArrowRight, X, RotateCcw, Film } from 'lucide-react';
@@ -17,7 +17,7 @@ import { journey, initPointerParallax, prefersReducedMotion } from '../component
  * perfect sync), with chapter navigation, play/pause and a progress rail.
  *
  * Chapter overlays are updated imperatively from a single rAF loop reading
- * window.scrollY â€” deliberately NOT via framer scroll-linked styles, which
+ * window.scrollY — deliberately NOT via framer scroll-linked styles, which
  * rely on native scroll-timeline sampling that goes stale under programmatic
  * scroll jumps and heavy WebGL load.
  */
@@ -29,7 +29,7 @@ const JourneyScene = lazy(() =>
 /** Linear 0?1 ramp between two progress points (clamped). */
 const lin = (v: number, a: number, b: number) => (b === a ? 1 : Math.min(1, Math.max(0, (v - a) / (b - a))));
 
-/** Shared display typeface style â€” module-level so its identity never changes. */
+/** Shared display typeface style — module-level so its identity never changes. */
 const DISPLAY_FONT: React.CSSProperties = { fontFamily: "'Sora', 'Inter', system-ui, sans-serif" };
 
 const CHAP_KEYS = ['hero', 'fridge', 'ai', 'galaxy', 's1', 's2', 's3', 's4', 'final', 'cta'] as const;
@@ -40,7 +40,7 @@ const CHAP_WINDOWS: Record<
   ChapKey,
   { a: number; b: number; c: number; d: number; drift: number; startVisible?: boolean }
 > = {
-  // Fast fades with clean dead zones â€” no two captions ever share the frame.
+  // Fast fades with clean dead zones — no two captions ever share the frame.
   hero: { a: 0, b: 0.001, c: 0.07, d: 0.1, drift: 40, startVisible: true },
   fridge: { a: 0.19, b: 0.205, c: 0.315, d: 0.335, drift: 40 },
   ai: { a: 0.355, b: 0.37, c: 0.465, d: 0.485, drift: 40 },
@@ -50,7 +50,7 @@ const CHAP_WINDOWS: Record<
   s3: { a: 0.76, b: 0.775, c: 0.812, d: 0.83, drift: 40 },
   s4: { a: 0.84, b: 0.855, c: 0.885, d: 0.902, drift: 40 },
   final: { a: 0.912, b: 0.928, c: 0.96, d: 0.975, drift: 40 },
-  cta: { a: 0.975, b: 0.995, c: 0.995, d: 0.995, drift: 48 }, // fade-in only (c==d â†’ never auto-fades)
+  cta: { a: 0.975, b: 0.995, c: 0.995, d: 0.995, drift: 48 }, // fade-in only (c==d → never auto-fades)
 };
 
 /* ------------------------------------------------------------------ */
@@ -73,20 +73,20 @@ const TOUR_STOPS: ChapterStop[] = [
 ];
 
 /**
- * [from, to, seconds] â€” the film's editing rhythm.
+ * [from, to, seconds] — the film's editing rhythm.
  * Short opening cuts get the film moving within the first second or two;
  * zero-length segments are in-place "beats" that let each chapter breathe
- * before the next cut. Total â‰ˆ 55 s.
+ * before the next cut. Total ≈ 55 s.
  */
 const TOUR_SEGMENTS: Array<[number, number, number]> = [
-  [0, 0.12, 2.0], // opening cut â€” moving at full speed from the first frame
+  [0, 0.12, 2.0], // opening cut — moving at full speed from the first frame
   [0.12, 0.28, 3.4], // glide to the fridge as the door swings open
   [0.28, 0.28, 2.4], // beat: fridge shelves
   [0.28, 0.445, 4.2], // pull back into the constellation
   [0.445, 0.445, 2.2], // beat: AI vision
   [0.445, 0.545, 3.4], // drift into the galaxy
   [0.545, 0.545, 2.2], // beat: galaxy
-  [0.545, 0.66, 3.2], // descend to the stove â€” pieces drop in sequence
+  [0.545, 0.66, 3.2], // descend to the stove — pieces drop in sequence
   [0.66, 0.66, 1.6], // beat: everything in the pan
   [0.66, 0.72, 2.0], // flame and sauce develop
   [0.72, 0.72, 2.4], // beat: cooking
@@ -100,19 +100,19 @@ const TOUR_SEGMENTS: Array<[number, number, number]> = [
 
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-/** Ease-out for the opening cut â€” fastest motion at the very start. */
+/** Ease-out for the opening cut — fastest motion at the very start. */
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
 /** Inverse of easeOutCubic (for resuming a paused opening cut). */
 const easeOutCubicInv = (k: number) => 1 - Math.cbrt(1 - k);
 
-/** Inverse of easeInOutCubic â€” turns a 0..1 position into the time it takes. */
+/** Inverse of easeInOutCubic — turns a 0..1 position into the time it takes. */
 const easeInOutCubicInv = (k: number) =>
   k < 0.5 ? Math.pow(k / 4, 1 / 3) : 1 - Math.pow(2 * (1 - k), 1 / 3) / 2;
 
 type TourStatus = 'idle' | 'playing' | 'paused' | 'ended';
 
-/** Chapter overlay â€” a fixed layer that appears/disappears along the timeline. */
+/** Chapter overlay — a fixed layer that appears/disappears along the timeline. */
 const Chapter: React.FC<{
   k: ChapKey;
   range?: [number, number, number, number]; // overrides CHAP_WINDOWS (used by step numerals)
@@ -166,7 +166,7 @@ export const LandingPage: React.FC = () => {
   useEffect(() => initPointerParallax(), []);
 
   // Deterministic opening shot: the journey module state and the scroll
-  // position both persist across SPA navigation, so reset both on mount â€”
+  // position both persist across SPA navigation, so reset both on mount —
   // otherwise a back-nav or reload could resume the film mid-chapter.
   useEffect(() => {
     journey.progress = 0;
@@ -213,7 +213,7 @@ export const LandingPage: React.FC = () => {
     return { o, y };
   }, []);
 
-  // Drive the timeline from window scroll â€” imperative and throttling-proof.
+  // Drive the timeline from window scroll — imperative and throttling-proof.
   // rAF can be starved by heavy WebGL frames (esp. in headless/software GL),
   // so chapters are also refreshed on a small timer and on scroll events.
   useEffect(() => {
@@ -269,7 +269,7 @@ export const LandingPage: React.FC = () => {
     };
     apply();
     // DOM chrome (chapter captions, hairline, cue, rail) only needs to catch
-    // up when the page is actually moving â€” the native scroll event covers
+    // up when the page is actually moving — the native scroll event covers
     // manual scrolling AND the programmatic tour scrolls. A slow interval is
     // kept purely as a safety net (e.g. scroll events coalesced away).
     const timer = window.setInterval(apply, 200);
@@ -444,7 +444,7 @@ export const LandingPage: React.FC = () => {
   const canTour = useMemo(() => !prefersReducedMotion(), []);
 
   // Authenticated users go straight to their kitchen dashboard.
-  // NOTE: must stay BELOW every hook â€” an early return above a hook breaks
+  // NOTE: must stay BELOW every hook — an early return above a hook breaks
   // the Rules of Hooks once the session resolves after mount.
   if (user) return <Navigate to="/recipes" replace />;
 
@@ -492,7 +492,7 @@ export const LandingPage: React.FC = () => {
             <div className="absolute inset-0 animate-spin rounded-full border border-amber-200/15 border-t-amber-300/90" style={{ animationDuration: '1.1s' }} />
             <div className="absolute inset-2.5 animate-spin rounded-full border border-transparent border-b-amber-400/50" style={{ animationDuration: '1.7s', animationDirection: 'reverse' }} />
             <div className="absolute inset-0 animate-pulse rounded-full bg-amber-400/10 blur-xl" />
-            <span className="text-2xl">ðŸ³</span>
+            <span className="text-2xl">🍳</span>
           </div>
           <div className="text-center">
             <div className="text-sm font-black tracking-[0.45em] text-amber-100" style={DISPLAY_FONT}>
@@ -503,7 +503,7 @@ export const LandingPage: React.FC = () => {
         </div>
       )}
 
-      {/* ---------- Chapter I â€” Arrival ---------- */}
+      {/* ---------- Chapter I — Arrival ---------- */}
       <Chapter k="hero" register={registerChapter} className="items-center">
         <div className="mx-auto max-w-5xl px-6 text-center">
           <div
@@ -562,11 +562,11 @@ export const LandingPage: React.FC = () => {
         </button>
       </div>
 
-      {/* ---------- Chapter II â€” The fridge ---------- */}
+      {/* ---------- Chapter II — The fridge ---------- */}
       <Chapter k="fridge" register={registerChapter} className="items-center justify-start">
         <div className="max-w-md px-8 sm:px-16">
           <div className="text-[10px] font-black tracking-[0.4em] text-amber-300/90" style={DISPLAY_FONT}>
-            01 â€” {t('story.heroCta')}
+            01 — {t('story.heroCta')}
           </div>
           <h2 className="mt-3 text-2xl font-black leading-tight tracking-tight text-stone-50 sm:text-4xl" style={DISPLAY_FONT}>
             {t('story.fridgeTitle')}
@@ -575,11 +575,11 @@ export const LandingPage: React.FC = () => {
         </div>
       </Chapter>
 
-      {/* ---------- Chapter III â€” AI vision ---------- */}
+      {/* ---------- Chapter III — AI vision ---------- */}
       <Chapter k="ai" register={registerChapter} className="items-center justify-center sm:justify-end">
         <div className="max-w-md px-6 text-center sm:text-right sm:pr-24 lg:pr-32">
           <div className="text-[10px] font-black tracking-[0.4em] text-amber-300/90" style={DISPLAY_FONT}>
-            02 â€” AI
+            02 — AI
           </div>
           <h2 className="mt-3 text-2xl font-black leading-tight tracking-tight text-stone-50 sm:text-4xl" style={DISPLAY_FONT}>
             {t('story.aiTitle')}
@@ -588,14 +588,14 @@ export const LandingPage: React.FC = () => {
         </div>
       </Chapter>
 
-      {/* ---------- Chapter IV â€” Recipe galaxy ---------- */}
+      {/* ---------- Chapter IV — Recipe galaxy ---------- */}
       <Chapter k="galaxy" register={registerChapter} className="items-start justify-center pt-24 sm:pt-28">
         {/* Intro Top Header */}
         <div className="max-w-xl px-4 text-center">
           <div className="mx-auto rounded-3xl border border-amber-200/20 bg-stone-950/75 p-4 sm:p-6 backdrop-blur-xl shadow-[0_16px_50px_rgba(0,0,0,0.6)]">
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 text-[10px] font-black tracking-widest text-amber-300 uppercase" style={DISPLAY_FONT}>
               <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-              03 â€” AI Recipe Galaxy
+              03 — AI Recipe Galaxy
             </div>
             <h2 className="mt-2 text-xl sm:text-3xl md:text-4xl font-black leading-tight tracking-tight text-stone-50" style={DISPLAY_FONT}>
               {t('story.galaxyTitle')}
@@ -614,16 +614,16 @@ export const LandingPage: React.FC = () => {
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
                 96% {t('story.match')}
               </span>
-              <span className="text-[10px] font-bold text-amber-200">â± {t('story.cardTime')}</span>
+              <span className="text-[10px] font-bold text-amber-200">⏱ {t('story.cardTime')}</span>
             </div>
             <div className="mt-2 text-sm font-black text-white" style={DISPLAY_FONT}>
               {t('story.cardName')}
             </div>
             <div className="mt-1 text-[10px] text-stone-400">
-              {t('story.uses', { n: 6 })} Â· <span className="text-emerald-400 font-bold">{t('story.cardLevel')}</span>
+              {t('story.uses', { n: 6 })} · <span className="text-emerald-400 font-bold">{t('story.cardLevel')}</span>
             </div>
             <div className="mt-3 pt-2 border-t border-stone-800/80 flex items-center justify-between text-[10px] text-stone-400">
-              <span>ðŸ Tomato & Penne</span>
+              <span>🍝 Tomato & Penne</span>
               <span className="text-amber-300 font-bold">+2 More Dishes</span>
             </div>
           </div>
@@ -639,16 +639,16 @@ export const LandingPage: React.FC = () => {
                 <span className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-ping" />
                 85% {t('story.match')}
               </span>
-              <span className="text-[10px] font-bold text-stone-300">â± 10 min</span>
+              <span className="text-[10px] font-bold text-stone-300">⏱ 10 min</span>
             </div>
             <div className="mt-2 text-sm font-black text-stone-100" style={DISPLAY_FONT}>
               {t('story.card3Name')}
             </div>
             <div className="mt-1 text-[10px] font-semibold text-stone-400">
-              {t('story.uses', { n: 4 })} Â· <span className="text-sky-300 font-bold">Fresh bite</span>
+              {t('story.uses', { n: 4 })} · <span className="text-sky-300 font-bold">Fresh bite</span>
             </div>
             <div className="mt-2 pt-2 border-t border-stone-800/80 text-[10px] text-stone-400">
-              ðŸ… Mozzarella, Basil, Tomato
+              🍅 Mozzarella, Basil, Tomato
             </div>
           </div>
         </div>
@@ -661,16 +661,16 @@ export const LandingPage: React.FC = () => {
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
                 91% {t('story.match')}
               </span>
-              <span className="text-[10px] font-bold text-stone-300">â± 15 min</span>
+              <span className="text-[10px] font-bold text-stone-300">⏱ 15 min</span>
             </div>
             <div className="mt-2 text-sm font-black text-stone-100" style={DISPLAY_FONT}>
               {t('story.card2Name')}
             </div>
             <div className="mt-1 text-[10px] font-semibold text-stone-400">
-              {t('story.uses', { n: 5 })} Â· <span className="text-amber-300 font-bold">Skillet</span>
+              {t('story.uses', { n: 5 })} · <span className="text-amber-300 font-bold">Skillet</span>
             </div>
             <div className="mt-2 pt-2 border-t border-stone-800/80 text-[10px] text-stone-400">
-              ðŸ³ Farm Eggs, Bell Pepper, Tomato
+              🍳 Farm Eggs, Bell Pepper, Tomato
             </div>
           </div>
         </div>
@@ -683,22 +683,22 @@ export const LandingPage: React.FC = () => {
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
                 96% {t('story.match')}
               </span>
-              <span className="text-[10px] font-bold text-stone-300">â± {t('story.cardTime')}</span>
+              <span className="text-[10px] font-bold text-stone-300">⏱ {t('story.cardTime')}</span>
             </div>
             <div className="mt-2 text-sm font-black text-stone-100" style={DISPLAY_FONT}>
               {t('story.cardName')}
             </div>
             <div className="mt-1 text-[10px] font-semibold text-stone-400">
-              {t('story.uses', { n: 6 })} Â· <span className="text-emerald-300 font-bold">{t('story.cardLevel')}</span>
+              {t('story.uses', { n: 6 })} · <span className="text-emerald-300 font-bold">{t('story.cardLevel')}</span>
             </div>
             <div className="mt-2 pt-2 border-t border-stone-800/80 text-[10px] text-stone-400">
-              ðŸ Penne, Garlic, Vine Tomatoes
+              🍝 Penne, Garlic, Vine Tomatoes
             </div>
           </div>
         </div>
       </Chapter>
 
-      {/* ---------- Chapter V â€” Cooking steps ---------- */}
+      {/* ---------- Chapter V — Cooking steps ---------- */}
       {([
         [0.6, 0.615, 0.65, 0.668, 's1', '01', t('story.prep')],
         [0.672, 0.687, 0.732, 0.75, 's2', '02', t('story.cook')],
@@ -720,7 +720,7 @@ export const LandingPage: React.FC = () => {
         </Chapter>
       ))}
 
-      {/* ---------- Chapter VI â€” Dinner, discovered ---------- */}
+      {/* ---------- Chapter VI — Dinner, discovered ---------- */}
       <Chapter k="final" register={registerChapter} className="items-center">
         <div className="mx-auto grid max-w-6xl gap-10 px-8 sm:px-12 lg:grid-cols-2 lg:items-center">
           <div>
@@ -735,7 +735,7 @@ export const LandingPage: React.FC = () => {
                 94% {t('story.match')}
               </span>
               <span className="text-[10px] font-bold text-stone-400">
-                {t('story.cardTime')} Â· {t('story.cardLevel')}
+                {t('story.cardTime')} · {t('story.cardLevel')}
               </span>
             </div>
             <div className="mt-3 text-xl font-black tracking-tight text-stone-50" style={DISPLAY_FONT}>
@@ -766,7 +766,7 @@ export const LandingPage: React.FC = () => {
         </div>
       </Chapter>
 
-      {/* ---------- Chapter VII â€” Finale / CTA ---------- */}
+      {/* ---------- Chapter VII — Finale / CTA ---------- */}
       <Chapter k="cta" register={registerChapter} className="items-center justify-center">
         <div className="mx-auto max-w-3xl px-6 text-center">
           <h2 className="text-5xl font-black tracking-tight text-stone-50 sm:text-7xl" style={DISPLAY_FONT}>

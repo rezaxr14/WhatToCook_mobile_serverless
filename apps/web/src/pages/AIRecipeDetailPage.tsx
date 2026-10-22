@@ -25,7 +25,6 @@ export const AIRecipeDetailPage: React.FC = () => {
   const [servings, setServings] = useState<number>(4);
   const [substitutionModalOpen, setSubstitutionModalOpen] = useState(false);
   const [selectedSubIngredient, setSelectedSubIngredient] = useState('');
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const { addMultipleItems } = useShoppingList();
   const { isInPantry, activeModel, handleRateLimitedModels } = usePantry();
@@ -34,19 +33,14 @@ export const AIRecipeDetailPage: React.FC = () => {
     const fetchDetail = async () => {
       if (!name) return;
       setIsLoading(true);
-      setLoadError(null);
       try {
         const data = await aiApi.getRecipeDetail(name, provider, activeModel);
         setRecipe(data);
         if (data.rate_limited_models && data.rate_limited_models.length > 0) {
           handleRateLimitedModels(data.rate_limited_models);
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error fetching AI recipe detail:', err);
-        setLoadError(
-          err?.message ||
-            'The AI recipe could not be generated. Try another dish from the AI Chef Studio.',
-        );
       } finally {
         setIsLoading(false);
       }
@@ -92,10 +86,6 @@ export const AIRecipeDetailPage: React.FC = () => {
     return (
       <div className="max-w-md mx-auto py-16 text-center">
         <h2 className="text-2xl font-bold text-stone-900 mb-2">Recipe detail could not be generated</h2>
-        <p className="text-sm text-stone-500 mb-6">
-          {loadError ||
-            'The AI recipe could not be generated. Browse the catalog or try another dish from the AI Chef Studio.'}
-        </p>
         <Link to="/ai-chef">
           <StyledButton $variant="primary">Back to AI Studio</StyledButton>
         </Link>
