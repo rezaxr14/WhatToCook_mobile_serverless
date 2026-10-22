@@ -139,20 +139,23 @@ into the local env files.
       empty states
 - [x] `/recipe/[id]` detail screen: hero and meta badges, 1/2/4/6/8 serving scaler,
       ingredient checklist with "in pantry" tags, inline AI substitutions, missing-only
-      grocery export, step completion and recipe chat
+      grocery export, step completion, in-app step timer and recipe chat
+- [x] Cooking timer shared by catalog and AI detail: start/pause/restart, reset, +1/+5 min,
+      progress bar and haptic completion alert; pure duration helpers covered by 5 tests
 - [x] Cook tab: recipe-catalog banner and tappable full/partial match cards; catalog and
       detail routes registered in the root Stack
 - [x] Shared `RecipeChatCard` and `SubstitutePanel` extracted from the AI recipe detail;
       both AI and catalog detail screens reuse them
 - [x] New `mobile.recipes` copy and extra `mobile.recipe` keys in all five locales; shared
       locale parity test still passes
-- [x] Mobile typecheck, `expo lint`, helper tests (16), shared tests (12), Expo config and
+- [x] Mobile typecheck, `expo lint`, helper tests (21), shared tests (12), Expo config and
       Android Metro export green
 - [x] Headless Chrome smoke of the web export: 12 catalog cards and images render;
       All / vegetarian / sweet return 12 / 10 / 3 recipes; searching `affogato` returns 1;
-      detail scales 4 -> 2 servings and updates quantities; the substitution panel opens and
-      degrades to the translated not-connected message when browser CORS blocks the function
-      (native requests do not send an Origin)
+      detail scales 4 -> 2 servings and updates quantities; the timer starts at 15:00,
+      pauses/resumes, adds time and resets; the substitution panel opens and degrades to the
+      translated not-connected message when browser CORS blocks the function (native
+      requests do not send an Origin)
 - [ ] On-device catalog/detail walkthrough (RTL, serving scale, chat keyboard) - needs a
       dev-client build
 - [ ] RNTL component tests and Maestro coverage for catalog, detail and substitutions

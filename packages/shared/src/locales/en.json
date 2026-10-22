@@ -422,7 +422,18 @@
       "notFound": "Recipe not found",
       "notFoundSub": "This recipe is no longer in the catalog.",
       "stepsOne": "1 step",
-      "servingsValueOne": "1 serving"
+      "servingsValueOne": "1 serving",
+      "timerTitle": "Step timer",
+      "timerStart": "Start",
+      "timerPause": "Pause",
+      "timerRestart": "Restart",
+      "timerReset": "Reset timer",
+      "timerAddOne": "+1 min",
+      "timerAddFive": "+5 min",
+      "timerRunning": "Cooking...",
+      "timerPaused": "Paused",
+      "timerReady": "Ready",
+      "timerDone": "Time is up!"
     },
     "scan": {
       "title": "Scan your pantry",

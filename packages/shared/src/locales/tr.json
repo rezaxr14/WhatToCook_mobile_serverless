@@ -420,7 +420,18 @@
       "notFound": "Tarif bulunamad?",
       "notFoundSub": "Bu tarif art?k katalogda de?il.",
       "stepsOne": "1 ad?m",
-      "servingsValueOne": "1 porsiyon"
+      "servingsValueOne": "1 porsiyon",
+      "timerTitle": "Ad?m zamanlay?c?s?",
+      "timerStart": "Ba?lat",
+      "timerPause": "Duraklat",
+      "timerRestart": "Yeniden ba?lat",
+      "timerReset": "Zamanlay?c?y? s?f?rla",
+      "timerAddOne": "+1 dk",
+      "timerAddFive": "+5 dk",
+      "timerRunning": "Pi?iyor...",
+      "timerPaused": "Duraklat?ld?",
+      "timerReady": "Haz?r",
+      "timerDone": "S?re doldu!"
     },
     "scan": {
       "title": "Kilerini tara",

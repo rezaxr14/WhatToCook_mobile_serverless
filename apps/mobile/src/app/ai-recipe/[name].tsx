@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { CookingTimer } from '@/components/cooking-timer';
 import { RecipeChatCard } from '@/components/recipe-chat';
 import { SubstitutePanel } from '@/components/substitute-panel';
 import { Button } from '@/components/ui/button';
@@ -341,6 +342,8 @@ export default function AIRecipeScreen() {
             );
           })}
         </Card>
+
+        <CookingTimer initialMinutes={recipe.time_minutes ?? 15} />
 
         {recipe.chef_tips && recipe.chef_tips.length > 0 ? (
           <Card style={styles.section}>

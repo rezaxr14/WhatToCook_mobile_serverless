@@ -422,7 +422,18 @@
       "notFound": "Receta no encontrada",
       "notFoundSub": "Esta receta ya no est? en el cat?logo.",
       "stepsOne": "1 paso",
-      "servingsValueOne": "1 raci?n"
+      "servingsValueOne": "1 raci?n",
+      "timerTitle": "Temporizador",
+      "timerStart": "Iniciar",
+      "timerPause": "Pausar",
+      "timerRestart": "Reiniciar",
+      "timerReset": "Reiniciar temporizador",
+      "timerAddOne": "+1 min",
+      "timerAddFive": "+5 min",
+      "timerRunning": "Cocinando...",
+      "timerPaused": "En pausa",
+      "timerReady": "Listo",
+      "timerDone": "?Se acab? el tiempo!"
     },
     "scan": {
       "title": "Escanea tu despensa",

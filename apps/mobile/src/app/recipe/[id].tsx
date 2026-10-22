@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
+import { CookingTimer } from '@/components/cooking-timer';
 import { RecipeChatCard } from '@/components/recipe-chat';
 import { SubstitutePanel } from '@/components/substitute-panel';
 import { Button } from '@/components/ui/button';
@@ -353,6 +354,8 @@ export default function RecipeDetailScreen() {
           );
         })}
       </Card>
+
+      <CookingTimer initialMinutes={data.cookingTime ?? 15} />
 
       <RecipeChatCard
         recipeName={data.name}
