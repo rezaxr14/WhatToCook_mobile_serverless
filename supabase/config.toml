@@ -393,6 +393,19 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
+# The gateway verifies the user JWT itself (auth.getUser) so that browser
+# CORS preflight requests can reach the function. Do not rely on the platform
+# JWT check for these three endpoints; every non-OPTIONS request is rejected
+# by _shared/auth.ts when the bearer token is missing or invalid.
+[functions.generate-recipe]
+verify_jwt = false
+
+[functions.scan-pantry]
+verify_jwt = false
+
+[functions.suggest-substitution]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

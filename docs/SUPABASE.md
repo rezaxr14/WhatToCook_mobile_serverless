@@ -14,8 +14,11 @@ needed.
 ```bash
 pnpm supabase:start       # start local stack (Docker)
 pnpm supabase:reset       # reapply migrations, seed, and Storage images
-pnpm supabase:test        # pgTAP suite (102 tests)
+pnpm supabase:test        # pgTAP suite (120 tests)
 pnpm gen:types            # regenerate shared types from the local DB
+
+# Serve all three AI Edge Functions with the local fake provider
+pnpm exec supabase functions serve --env-file supabase/functions/.env --no-verify-jwt
 ```
 
 Local endpoints: API `http://127.0.0.1:54321`, DB `127.0.0.1:54322`, Studio
@@ -55,6 +58,18 @@ The web client reads `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_AP
 `EXPO_PUBLIC_SUPABASE_ANON_KEY` from `apps/mobile/.env.local`. These are public by design;
 never put a service-role or provider key in either prefix.
 
+The Edge Functions read server-only values from `supabase/functions/.env` locally or from
+Supabase secrets remotely:
+
+- `AI_PROVIDER` - `fake` (default for tests/staging) or `gemini`.
+- `GEMINI_API_KEY` - required only when `AI_PROVIDER=gemini`.
+- `GEMINI_MODEL` / `GEMINI_VISION_MODEL` - optional overrides; normal routing comes from
+  `app_config.model_routing`.
+- `ALLOWED_ORIGINS` - comma-separated browser origins for CORS.
+
+`supabase/functions/.env` is gitignored. The web bundle must contain none of these names or
+values.
+
 ## Schema and tests
 
 Migrations, in order:
@@ -64,6 +79,8 @@ Migrations, in order:
 3. `quota_and_match.sql` - `can_cook()`, `seed_demo_data()`, quota RPCs, `get_my_usage()`
 4. `catalog_seed.sql` - plans, app config, prices, 80/12/65 catalog rows, buckets
 5. `hardening.sql` - helper-function revokes and server-only deny policies
+6. `20261022100000_ai_gateway.sql` - Gemini prices/routing, substitution feature,
+   cache-hit RPC and quota exclusion, AI spend/cache views
 
 pgTAP coverage:
 
@@ -72,6 +89,8 @@ pgTAP coverage:
 - `002_quota.test.sql` - reserve/idempotency/settle/refund/limits/usage
 - `003_concurrency.test.sql` - two simultaneous reservations cannot exceed the limit
 - `004_hardening.test.sql` - helper RPC revokes and deny policies
+- `005_ai_gateway.test.sql` - substitution plans, routing/prices, cache-hit quota exclusion,
+  cache-hit RPC, and admin views
 
 `db lint` must stay clean:
 
@@ -97,6 +116,32 @@ migrations. The Supabase GitHub integration is connected (`Supabase Preview` app
 requests and currently skips) but is allowed only for preview branches; its production deploy
 must remain off so it cannot race the workflow. If preview branching is enabled later, preview
 branches may deploy independently.
+
+### AI Edge Functions
+
+The AI functions are deployed separately from the migration job. After `db push`, set the
+server-only values and deploy all three:
+
+```powershell
+pnpm exec supabase secrets set AI_PROVIDER=fake `
+  "ALLOWED_ORIGINS=https://<web-origin>,http://localhost:5173"
+
+pnpm exec supabase functions deploy generate-recipe --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
+pnpm exec supabase functions deploy scan-pantry --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
+pnpm exec supabase functions deploy suggest-substitution --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
+```
+
+`AI_PROVIDER=fake` is the supported staging/test state: deterministic output and zero cost.
+Staging currently has the M4 migration and all three functions deployed in this state, with
+`ALLOWED_ORIGINS` limited to the local Vite origins until a hosted web origin exists. Real
+Gemini traffic waits for H5 and a model/price review. `GEMINI_API_KEY`, when enabled, is a
+function secret only; it never enters `VITE_*`, `EXPO_PUBLIC_*`, or the static bundle. The full
+deployment, smoke, quota, cache, and rollback procedures live in [`runbook.md`](./runbook.md);
+the HTTP contract is in [`api.md`](./api.md).
+
+The shared gateway lives in `supabase/functions/_shared/`. `verify_jwt = false` is intentional
+for all three functions so browser preflight reaches the shared auth/CORS layer; every
+non-`OPTIONS` request is still rejected without a valid user token.
 
 Use `supabase gen types typescript --project-id lderdvhteofqemiivosz --schema public` when the
 committed types must match staging exactly.

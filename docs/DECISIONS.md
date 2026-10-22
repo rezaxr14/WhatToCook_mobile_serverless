@@ -188,3 +188,72 @@ Supabase; migrations must not try to alter it as the migration role is not its o
 **Consequences:** adding a table requires an explicit grant and policy in the same migration.
 The advisor still reports the intentional authenticated `SECURITY DEFINER` RPCs and the
 anonymous-sign-in policy notices; these are documented exceptions, not missing hardening.
+
+## ADR-012 - AI gateway as shared Edge Function modules
+
+**Context:** suggestions, recipe detail, sous-chef chat, streaming, fridge scanning and
+substitutions need one quota/cache/provider path. The Gemini key must stay server-side, and the
+client must not be able to choose a model or mint usage. M4 explicitly does not build the mobile
+or web feature UI; those are M5 and WM3.
+
+**Decision:** implement three Deno Edge Functions (`generate-recipe`, `scan-pantry`,
+`suggest-substitution`) over `supabase/functions/_shared/`. The shared layer owns auth, CORS,
+config/routing, quota wrappers, cache, prices, validation/repair, NDJSON and provider dispatch.
+Wire schemas live in `packages/shared/src/ai-contracts.ts` so future clients share the contract
+without duplicating limits or error codes.
+
+Provider selection and model IDs come from `app_config.model_routing` and deploy-time
+`AI_PROVIDER`/`GEMINI_*` overrides. A client-supplied `provider` or `model` is accepted for
+compatibility but ignored. `gemini` is the runtime provider id; `fake` is a deterministic,
+zero-cost adapter used in Deno tests and staging. All user text and image-derived labels are
+untrusted data, never instructions; structured output is schema-validated with at most one repair
+attempt.
+
+`verify_jwt = false` is set on all three functions so browser CORS preflight reaches the shared
+layer. Every non-`OPTIONS` request is still rejected by `_shared/auth.ts` without a valid user
+JWT. Browser origins are allow-listed through `ALLOWED_ORIGINS`; native clients send no
+`Origin`. The provider key is only read from function secrets / `supabase/functions/.env`, never
+from `VITE_*` or `EXPO_PUBLIC_*`.
+
+Guardrails: a kill switch, per-feature flags, per-plan daily limits, per-plan monthly budget and
+a global daily micro-USD cap. `substitution` is its own feature so cheap substitutions do not
+consume chat allowance. Image scans enforce magic-byte type checks, plan size caps and
+EXIF/XMP/IPTC stripping; the image is never persisted.
+
+**Consequences:** no custom server runtime is introduced. The web and mobile AI clients stay in
+their intentional not-connected state until WM3/M5, then call these same functions. Staging can
+run with `AI_PROVIDER=fake` for deterministic, zero-cost integration tests. Real Gemini traffic
+requires H5 (the key) and manual verification of current model ids and prices; until then the
+active `gemini` price rows are a configurable estimate, and missing prices fail closed with
+`provider_error`.
+
+## ADR-013 - Cache, idempotency and quota accounting
+
+**Context:** retries, double-clicks and duplicated streams must not double-charge; cached
+responses should be visible to admins but should not consume a user's daily allowance.
+
+**Decision:** `reserve_ai_quota` / `settle_ai_usage` / `refund_ai_usage` remain the only quota
+mutators and are `service_role`-only. The gateway reserves before calling the provider, settles
+actual token usage/cost on success, and refunds once on provider or validation failure. A stream
+cancelled after partial output settles partial usage instead of refunding. Initial usage-snapshot
+failures after reserve are also refunded.
+
+Normal response cache keys include feature, provider, model, locale, prompt version and a
+normalized payload (for scans, the SHA-256 of the metadata-stripped image). TTL is 7 days;
+`force_refresh` skips the read but still writes. The idempotency cache uses
+`idem:<sha256(user, request)>`, a 24-hour TTL and a deterministic UUID in
+`ai_usage_events.request_id`. A repeat with the same `Idempotency-Key` returns the original
+response with `duplicate: true` and no new charge. If that cache entry has expired but the
+settled event remains, the gateway returns `409 duplicate_request` rather than charging again.
+
+A normal cache hit inserts a zero-cost `ai_usage_events` row with `cache_hit=true`, increments
+the cache hit counter, and is excluded from daily/monthly quota checks. It remains visible in
+`v_ai_spend_daily`, `v_ai_spend_by_user` and `v_ai_cache_hit_rate`. Idempotent retries reuse the
+original row and do not insert another. Structured `suggestions`/`detail` responses are
+validated before NDJSON is emitted and then chunked; only `chat`/`stream` forward live provider
+deltas.
+
+**Consequences:** a cache hit still appears in audit views but is not a billed request. Cache
+purging is safe but forces the next call to the provider. The cache stores response JSON, never
+uploaded image bytes. `ai_response_cache` keys are constrained to 16-128 characters, and
+`ai_usage_events.request_id` remains a UUID.

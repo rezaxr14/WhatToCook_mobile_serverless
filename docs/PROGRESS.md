@@ -5,7 +5,7 @@
 
 ## Current
 
-**Milestone:** WM1 - reference web UI ported to the static Supabase client (PR pending)
+**Milestone:** M4 - AI gateway and usage metering (implemented and deployed to staging with the fake provider; real Gemini smoke blocked on H5)
 
 ## M0 checklist
 
@@ -56,6 +56,7 @@
 ## WM1 checklist (web parity)
 
 - [x] Reference React/Vite UI copied from the read-only reference repo
+- [x] UI copy, modals and landing page restored to reference parity (no custom M4/M10 banners)
 - [x] Supabase client + generated `Database` types
 - [x] Auth: email/password, sign-up, anonymous guest demo with `seed_demo_data()`
 - [x] Catalog: recipes, ingredients, recipe detail, Storage image URLs
@@ -63,9 +64,38 @@
 - [x] Matcher: `can_cook()` RPC with real totals on Recipes and Can Cook
 - [x] Grocery list: `grocery_items` sync, localStorage fallback, source recipe
 - [x] AI pages ported with a graceful `ai_not_ready` state until M4
-- [x] Telegram modal shows M10 status instead of calling a removed endpoint
+- [x] Telegram modal uses the reference UI; its link endpoint is deferred to M10
 - [x] Typecheck, lint, tests and production build green
 - [x] Headless browser smoke: catalog, guest demo, matcher, pantry, grocery sync
+
+## M4 checklist (AI gateway)
+
+- [x] Shared zod contracts, limits, error codes, NDJSON schemas and token/cache helpers in
+      `packages/shared/src/ai-contracts.ts`
+- [x] `_shared/` auth, CORS, config, quota, cache, prices, prompts, catalog, validation, NDJSON,
+      HTTP, provider dispatch, image sanitization
+- [x] Provider interface with deterministic `fake` and Gemini REST adapters (text, structured,
+      stream, vision; fallback model ladder and SSE parsing)
+- [x] `generate-recipe` suggestions/detail/chat/stream modes, including NDJSON
+- [x] `scan-pantry` with magic-byte checks, EXIF/XMP/IPTC stripping, plan image caps and catalog
+      mapping; image is never persisted
+- [x] `suggest-substitution` with its own plan feature
+- [x] Prompt-injection hygiene, strict schemas, one repair attempt, length caps
+- [x] `20261022100000_ai_gateway.sql`: Gemini prices/routing, substitution feature, cache-hit
+      RPC, quota-cache exclusion, `v_ai_spend_daily` / `v_ai_spend_by_user` /
+      `v_ai_cache_hit_rate`
+- [x] Deno tests: 44 passing across 6 files, including cache/idempotency, refunds, streaming,
+      cancellation, auth/CORS, image and catalog cases
+- [x] pgTAP: 120 tests (new `005_ai_gateway.test.sql`), `db lint` clean
+- [x] CI runs Deno check/lint/test in addition to typecheck/lint/test/build/pgTAP
+- [x] Local fake-provider smoke for all three functions, idempotent retry, normal cache hit,
+      401/403, usage rows and quota exclusion (see `docs/runbook.md`)
+- [x] `docs/api.md` request/response/error contract and `docs/runbook.md` operations guide
+- [x] Applied the M4 migration to staging and deployed all three functions with
+      `AI_PROVIDER=fake`; staging smoke, idempotency, cache, 401/403 and kill-switch checks pass
+- [ ] Real Gemini smoke with a low spend cap; record latency, tokens, cost and CPU time
+- [ ] H5: provide `GEMINI_API_KEY` and verify the listed model IDs/prices against current
+      Google documentation
 
 ## Staging verification (2026-10-22)
 
@@ -85,12 +115,63 @@
   `delete_my_account_data()` RPCs, and anonymous-sign-in policy notices.
 - Performance advisor only reports unused indexes on a fresh, unqueried database.
 
+## M4 local verification (2026-10-22)
+
+- `pnpm dlx deno check --config supabase/functions/deno.json` passed for all three entrypoints;
+  `pnpm dlx deno lint --config supabase/functions/deno.json supabase/functions` passed 34 files.
+- `pnpm dlx deno test --config supabase/functions/deno.json --allow-env --allow-net
+  --allow-read supabase/functions/tests` passed 44 tests across 6 files.
+- `supabase test db` passed 120 pgTAP tests; `005_ai_gateway.test.sql` covers substitution
+  plans, model routing/prices, cache-hit quota exclusion, the cache-hit RPC, and admin views.
+- `supabase db lint --local --schema public --level warning --fail-on error` reported no errors.
+- Local `supabase functions serve` smoke with `AI_PROVIDER=fake`: suggestions, detail, chat,
+  stream, scan and substitution all returned 200; detail/chat NDJSON produced `meta` -> deltas
+  -> `final`; scan returned 5 raw detections / 4 catalog matches.
+- Idempotent retry returned `duplicate: true` with zero usage; a normal cache hit returned
+  `cached: true` with zero usage and did not consume the scan allowance. Missing auth returned
+  401 and a disallowed `Origin` returned 403.
+- Usage rows were settled with `provider=fake` and zero cost; cache-hit rows are visible in
+  admin views and excluded from quota counters.
+- Real Gemini smoke was still pending at this record; see `docs/runbook.md` for the exact
+  procedure.
+
+## M4 staging verification (2026-10-22)
+
+- `supabase db push` applied `20261022100000_ai_gateway.sql`; staging history ends at
+  `ai_gateway`.
+- Function secrets `AI_PROVIDER=fake` and
+  `ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173` are set. All three functions
+  are deployed with `verify_jwt=false` and the shared auth guard.
+- Staging smoke returned 200 for suggestions (5 recipes), detail (2 steps), chat, detail
+  stream (`meta` -> 2 deltas -> `final`), scan (5 raw / 4 matched), and substitution (2
+  substitutes); all reported `provider=fake`, zero cost. End-to-end time was 1.3-3.9 s
+  including cold starts (not a Gemini latency measurement).
+- CORS preflight for `http://localhost:5173` returned 204 and an allowed-origin POST returned
+  200; disallowed origin -> 403. The initial secret write was split by PowerShell at the comma;
+  `parseAllowedOrigins` now accepts comma or whitespace separators, and the secret was rewritten
+  in the canonical quoted form.
+- Same-key retry returned `duplicate: true`; new-key repeat returned `cached: true` with zero
+  usage. Missing token -> 401; `ai_kill_switch=true` -> 503 `ai_disabled`, then reset to false.
+- Staging usage rows and counters were correct: a scan plus a cache hit counted one scan; cache
+  hits remained visible in the admin views but did not consume quota.
+- Test anonymous users were deleted and the staging response cache was purged after the smoke.
+- Real Gemini smoke remains blocked on H5 and manual model/price verification.
+
 ## Environment notes
 
 - Supabase CLI 2.121.0 is a root dev dependency; use `pnpm exec supabase` or the root scripts.
+- `GEMINI_API_KEY` is a server-side secret. It lives in the gitignored repo-root
+  `.env.local` and `supabase/functions/.env` for local functions, or in
+  `supabase secrets` for staging/prod. It is never a `VITE_*`/`EXPO_PUBLIC_*` value.
 - Docker Desktop is installed; the local stack is optional day to day (ADR-006). When running:
-  DB `54322`, API `54321`, Studio `54323`, container `supabase_db_whattocook`.
-- Local Supabase stack was used for M1 reset/test/lint verification and is currently running.
+  DB `54322`, API `54321`, Studio `54323`, containers `supabase_*_lderdvhteofqemiivosz`.
+- Local Supabase stack was used for M1 and M4 reset/test/lint verification and is currently
+  running. Serve the AI functions with
+  `pnpm exec supabase functions serve --env-file supabase/functions/.env --no-verify-jwt`;
+  the local Edge runtime is 1.77.4 (Deno 2.1.4 compatible) and Deno 2.9.6 is used for
+  `deno check`/`deno test`.
+- `AI_PROVIDER=fake` is set in the ignored `supabase/functions/.env` for local/staging smoke.
+  `GEMINI_API_KEY` remains blank, so real-provider calls are not enabled.
 - `dblink` concurrency tests connect via `host=db port=5432` so password auth is used;
   loopback connections match the local trust rule and are rejected by dblink for
   non-superusers.
@@ -109,8 +190,11 @@
 ## Blocked / waiting on human
 
 - H1: Play Console account (needed later, M7+).
-- M4: AI Edge Functions and the Gemini secret are not deployed yet; AI Chef,
-  fridge scanning and sous-chef show the intentional `ai_not_ready` state.
+- M4: the gateway is implemented and verified locally with the fake provider. Staging
+  deployment with `AI_PROVIDER=fake` is next; the real Gemini smoke needs H5
+  (`GEMINI_API_KEY`) and manual verification of the model IDs/prices because the official
+  Google docs return 403 from this environment. The web AI pages remain in their intentional
+  `ai_not_ready` state until WM3 wires them to these functions.
 - M8: create the production Supabase project and a protected production GitHub environment.
 - PR #7 checks: `Typecheck, lint, test, build`, `Secret scan`, and `Local schema and pgTAP`
   pass. The staging deploy job skips on pull requests by design; after merge, verify the first

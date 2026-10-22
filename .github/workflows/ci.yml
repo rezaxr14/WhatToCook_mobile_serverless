@@ -42,6 +42,28 @@ jobs:
       - name: Test
         run: pnpm -r test
 
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Deno check (Edge Functions)
+        run: |
+          deno check --config supabase/functions/deno.json \
+            supabase/functions/generate-recipe/index.ts \
+            supabase/functions/scan-pantry/index.ts \
+            supabase/functions/suggest-substitution/index.ts \
+            supabase/functions/tests/test_harness.ts \
+            supabase/functions/tests/*_test.ts
+
+      - name: Deno lint (Edge Functions)
+        run: deno lint --config supabase/functions/deno.json supabase/functions
+
+      - name: Deno test (Edge Functions)
+        run: >-
+          deno test --config supabase/functions/deno.json
+          --allow-env --allow-net
+          supabase/functions/tests
+
       - name: Build web
         run: pnpm --filter @whattocook/web build
 

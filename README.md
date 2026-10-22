@@ -5,7 +5,9 @@ Expo) and a static web app (React + Vite), both backed by Supabase. No servers t
 
 - Reference (read-only): `../WhatToCook-AI-Powered-Recipe-Generator`
 - Build plan: `implementation_plan.md` (local-only, untracked)
-- Supabase runbook: `docs/SUPABASE.md`
+- Supabase setup: `docs/SUPABASE.md`
+- AI HTTP contract: `docs/api.md`
+- Operations runbook: `docs/runbook.md`
 
 ## Layout
 
@@ -46,6 +48,12 @@ pnpm supabase:reset
 pnpm supabase:test
 pnpm gen:types
 
+# Edge Functions (local fake provider)
+pnpm exec supabase functions serve --env-file supabase/functions/.env --no-verify-jwt
+pnpm dlx deno check --config supabase/functions/deno.json supabase/functions/generate-recipe/index.ts
+pnpm dlx deno lint --config supabase/functions/deno.json supabase/functions
+pnpm dlx deno test --config supabase/functions/deno.json --allow-env --allow-net supabase/functions/tests
+
 # staging types / deploy verification (requires .env.local credentials)
 pnpm gen:types:remote
 pnpm exec supabase link --project-ref <project-ref>
@@ -54,6 +62,10 @@ pnpm exec supabase db push --dry-run
 
 ## Status
 
-M1 - backend foundation complete. The local/staging schema, 80-ingredient / 12-recipe catalog,
-RLS, quota RPCs, matcher, Storage images, and 102 pgTAP tests are in place. The web app is still
-a placeholder; the mobile app starts in M2.
+M4 - AI gateway complete and deployed to staging with the deterministic `fake` provider. The
+M0/M1 Supabase foundation (RLS, quota RPCs, matcher, 80-ingredient / 12-recipe catalog, Storage)
+and the WM1 web parity port are done. The three AI Edge Functions cover suggestions, recipe
+detail, chat, streaming, pantry scans and substitutions with a service-role quota/cache path.
+Real Gemini traffic is blocked until the key (H5) and model/pricing rows are verified. The mobile
+app starts in M5; the web AI pages remain in their intentional not-connected state until WM3.
+Local checks currently cover 120 pgTAP tests and 44 Deno tests.
