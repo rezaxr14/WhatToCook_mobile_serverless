@@ -244,5 +244,108 @@
     "sub": "La página que buscas no existe o se ha movido.",
     "home": "Volver al viaje",
     "recipes": "Ver recetas"
+  },
+  "mobile": {
+    "tabs": {
+      "pantry": "Despensa",
+      "cook": "Cocinar",
+      "grocery": "Compras",
+      "settings": "Ajustes"
+    },
+    "onboarding": {
+      "title": "Elige tu idioma",
+      "subtitle": "WhatToCook habla tu idioma. Puedes cambiarlo cuando quieras en Ajustes.",
+      "continue": "Continuar"
+    },
+    "auth": {
+      "title": "Bienvenido a WhatToCook",
+      "subtitle": "Inicia sesión para sincronizar tu despensa, recetas y lista de compras.",
+      "email": "Correo electrónico",
+      "emailPlaceholder": "tu@ejemplo.com",
+      "password": "Contraseña",
+      "passwordPlaceholder": "Al menos 8 caracteres",
+      "signIn": "Iniciar sesión",
+      "signUp": "Crear cuenta",
+      "switchToSignUp": "¿Eres nuevo? Crea una cuenta",
+      "switchToSignIn": "¿Ya tienes cuenta? Inicia sesión",
+      "continueAsGuest": "Continuar como invitado",
+      "guestHint": "Empieza con una despensa demo ya cargada. Sin correo.",
+      "or": "o",
+      "signingIn": "Iniciando sesión...",
+      "signingUp": "Creando cuenta...",
+      "guestLoading": "Preparando tu cocina...",
+      "checkEmail": "Revisa tu correo para confirmar la cuenta y luego inicia sesión.",
+      "errorTitle": "No se pudo iniciar sesión",
+      "guestError": "El modo invitado no está disponible ahora."
+    },
+    "pantry": {
+      "badge": "Inventario de cocina",
+      "title": "Mi despensa",
+      "subtitle": "{{count}} ingredientes listos para cocinar",
+      "empty": "Tu despensa está vacía",
+      "emptySub": "Añade los ingredientes que ya tienes para ver qué puedes cocinar.",
+      "addPlaceholder": "Añadir un ingrediente...",
+      "add": "Añadir",
+      "noResults": "Ningún ingrediente coincide",
+      "clearAll": "Vaciar despensa",
+      "clearConfirm": "¿Eliminar todos los ingredientes de tu despensa?",
+      "remove": "Eliminar",
+      "calories": "{{count}} kcal / 100 g",
+      "items": "{{count}} artículos"
+    },
+    "cook": {
+      "badge": "Cocina sin desperdicio",
+      "title": "¿Qué puedo cocinar?",
+      "subtitle": "Ordenado según lo que ya tienes en la cocina.",
+      "fullTitle": "Listo para cocinar",
+      "partialTitle": "Casi listo",
+      "empty": "Aún no hay coincidencias",
+      "emptySub": "Añade algunos ingredientes más y encontraremos platos que puedes hacer ahora.",
+      "missing": "Faltan {{count}}",
+      "missingOne": "Falta 1 ingrediente",
+      "uses": "Usa {{count}} ingredientes",
+      "minutes": "{{count}} min",
+      "refresh": "Actualizar coincidencias",
+      "full": "{{count}} coincidencias completas",
+      "partial": "{{count}} coincidencias parciales"
+    },
+    "grocery": {
+      "badge": "Lista de compras",
+      "title": "Lista de la compra",
+      "subtitle": "{{count}} artículos por comprar",
+      "empty": "Nada que comprar",
+      "emptySub": "Añade artículos manualmente o envía aquí los ingredientes que faltan.",
+      "addPlaceholder": "Añadir un artículo...",
+      "quantityPlaceholder": "Cant.",
+      "add": "Añadir",
+      "clearChecked": "Borrar marcados",
+      "checked": "{{count}} marcados",
+      "category": "Otros"
+    },
+    "settings": {
+      "title": "Ajustes",
+      "account": "Cuenta",
+      "guest": "Chef invitado",
+      "anonymous": "Sesión anónima",
+      "email": "Correo electrónico",
+      "language": "Idioma",
+      "languageSub": "Idioma de la app y dirección del texto",
+      "about": "Acerca de",
+      "version": "Versión {{version}}",
+      "signOut": "Cerrar sesión",
+      "signOutConfirm": "¿Cerrar sesión en WhatToCook?",
+      "restartHint": "Reinicia la app para aplicar del todo el diseño de derecha a izquierda.",
+      "server": "Conectado a Supabase"
+    },
+    "common": {
+      "retry": "Reintentar",
+      "cancel": "Cancelar",
+      "confirm": "Confirmar",
+      "delete": "Eliminar",
+      "save": "Guardar",
+      "loading": "Cargando...",
+      "error": "Algo salió mal",
+      "offline": "Estás sin conexión"
+    }
   }
 }

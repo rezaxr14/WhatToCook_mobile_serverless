@@ -14,6 +14,8 @@
     "format:check": "prettier --check .",
     "build:web": "pnpm --filter @whattocook/web build",
     "dev:web": "pnpm --filter @whattocook/web dev",
+    "dev:mobile": "pnpm --filter @whattocook/mobile start",
+    "android": "pnpm --filter @whattocook/mobile android",
     "gen:types": "supabase gen types typescript --local --schema public > packages/shared/src/database.types.ts && prettier --write packages/shared/src/database.types.ts",
     "gen:types:remote": "supabase gen types typescript --project-id lderdvhteofqemiivosz --schema public > packages/shared/src/database.types.ts && prettier --write packages/shared/src/database.types.ts",
     "supabase:start": "supabase start",

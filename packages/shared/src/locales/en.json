@@ -244,5 +244,108 @@
     "sub": "The page you are looking for doesn’t exist or has moved.",
     "home": "Back to the journey",
     "recipes": "Browse recipes"
+  },
+  "mobile": {
+    "tabs": {
+      "pantry": "Pantry",
+      "cook": "Cook",
+      "grocery": "Grocery",
+      "settings": "Settings"
+    },
+    "onboarding": {
+      "title": "Choose your language",
+      "subtitle": "WhatToCook speaks your language. You can change it anytime in Settings.",
+      "continue": "Continue"
+    },
+    "auth": {
+      "title": "Welcome to WhatToCook",
+      "subtitle": "Sign in to sync your pantry, recipes and grocery list.",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "At least 8 characters",
+      "signIn": "Sign In",
+      "signUp": "Create Account",
+      "switchToSignUp": "New here? Create an account",
+      "switchToSignIn": "Already have an account? Sign in",
+      "continueAsGuest": "Continue as Guest",
+      "guestHint": "Start with a pre-stocked demo pantry. No email needed.",
+      "or": "or",
+      "signingIn": "Signing in...",
+      "signingUp": "Creating account...",
+      "guestLoading": "Preparing your kitchen...",
+      "checkEmail": "Check your email to confirm your account, then sign in.",
+      "errorTitle": "Could not sign in",
+      "guestError": "Guest mode is unavailable right now."
+    },
+    "pantry": {
+      "badge": "Kitchen Inventory",
+      "title": "My Pantry",
+      "subtitle": "{{count}} ingredients ready to cook",
+      "empty": "Your pantry is empty",
+      "emptySub": "Add the ingredients you already have to see what you can cook.",
+      "addPlaceholder": "Add an ingredient...",
+      "add": "Add",
+      "noResults": "No matching ingredient",
+      "clearAll": "Clear Pantry",
+      "clearConfirm": "Remove every ingredient from your pantry?",
+      "remove": "Remove",
+      "calories": "{{count}} kcal / 100g",
+      "items": "{{count}} items"
+    },
+    "cook": {
+      "badge": "Zero-Waste Matching",
+      "title": "What Can I Cook?",
+      "subtitle": "Ranked by what is already in your kitchen.",
+      "fullTitle": "Ready to cook",
+      "partialTitle": "Almost there",
+      "empty": "No matches yet",
+      "emptySub": "Add a few more ingredients and we will find dishes you can make right now.",
+      "missing": "Missing {{count}}",
+      "missingOne": "Missing 1 ingredient",
+      "uses": "Uses {{count}} ingredients",
+      "minutes": "{{count}} min",
+      "refresh": "Refresh matches",
+      "full": "{{count}} full matches",
+      "partial": "{{count}} partial matches"
+    },
+    "grocery": {
+      "badge": "Shopping List",
+      "title": "Grocery List",
+      "subtitle": "{{count}} items to buy",
+      "empty": "Nothing to buy",
+      "emptySub": "Add items manually or send missing recipe ingredients here.",
+      "addPlaceholder": "Add an item...",
+      "quantityPlaceholder": "Qty",
+      "add": "Add",
+      "clearChecked": "Clear checked",
+      "checked": "{{count}} checked",
+      "category": "Other"
+    },
+    "settings": {
+      "title": "Settings",
+      "account": "Account",
+      "guest": "Guest chef",
+      "anonymous": "Anonymous session",
+      "email": "Email",
+      "language": "Language",
+      "languageSub": "App language and text direction",
+      "about": "About",
+      "version": "Version {{version}}",
+      "signOut": "Sign Out",
+      "signOutConfirm": "Sign out of WhatToCook?",
+      "restartHint": "Restart the app to fully apply right-to-left layout.",
+      "server": "Connected to Supabase"
+    },
+    "common": {
+      "retry": "Try again",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "delete": "Delete",
+      "save": "Save",
+      "loading": "Loading...",
+      "error": "Something went wrong",
+      "offline": "You are offline"
+    }
   }
 }

@@ -5,7 +5,7 @@
 
 ## Current
 
-**Milestone:** M4 - AI gateway and usage metering (implemented and deployed to staging with the fake provider; real Gemini smoke blocked on H5)
+**Milestone:** M2 - mobile shell, auth and i18n (implemented and bundled for Android; on-device dev-client build pending Android SDK/EAS tooling). M4 - AI gateway (implemented and deployed to staging with the fake provider; real Gemini smoke blocked on H5).
 
 **Provider addendum (2026-10-22):** added a server-side OpenRouter adapter (text, structured JSON,
 streaming, vision) with `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL`
@@ -75,6 +75,31 @@ into the local env files.
 - [x] Telegram modal uses the reference UI; its link endpoint is deferred to M10
 - [x] Typecheck, lint, tests and production build green
 - [x] Headless browser smoke: catalog, guest demo, matcher, pantry, grocery sync
+
+## M2 checklist (mobile shell, auth, i18n)
+
+- [x] `apps/mobile` scaffolded with Expo SDK 58 (`expo-template-default@sdk-58`), React 19.3,
+      React Native 0.88, Expo Router, TypeScript strict, `src/app` layout
+- [x] `app.config.ts`: name/slug `WhatToCook`, scheme `whattocook`, application ID
+      `com.whattocook.app` (ADR-005), adaptive icon, splash plugin, secure-store plugin
+- [x] Design tokens (`colors`, spacing, radius, type, shadows) mirroring the web brand palette
+- [x] Supabase client with `expo-secure-store` session persistence, PKCE, and AppState-aware
+      token refresh; only `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` are bundled
+- [x] Auth: first-launch anonymous session, explicit guest demo with `seed_demo_data()`,
+      email/password sign-in and sign-up, sign-out, friendly auth errors
+- [x] Shared translations moved to `packages/shared/src/locales`; five locales, device-language
+      detection, persisted language choice, RTL direction flag and restart hint
+- [x] Four-tab shell (Pantry, Cook, Grocery, Settings) with Ionicons and brand styling
+- [x] Pantry screen: ingredient search, add, remove, clear, pull-to-refresh
+- [x] Cook screen: `can_cook()` full/partial matches, match %, missing ingredients, images
+- [x] Grocery screen: add, check, delete, clear-checked, pull-to-refresh
+- [x] Settings screen: account, five-language picker, version/server info, sign-out
+- [x] Mobile typecheck, `expo lint`, `expo config` validation and Android Metro export green
+- [x] Shared package tests cover localization helpers and mobile locale key parity (12 tests)
+- [x] Web typecheck and production build green after the shared-translation refactor
+- [ ] On-device/emulator dev-client build (`expo run:android` or EAS) - needs the Android SDK
+      or an EAS login on this machine
+- [ ] Jest/RNTL component tests and a Maestro smoke flow - follow-up to M2
 
 ## M4 checklist (AI gateway)
 
@@ -230,8 +255,10 @@ into the local env files.
   `OPENROUTER_MODEL`; the adapter and config tests are already green, but this machine's
   OpenRouter network access is blocked by a security policy (403) from Cloudflare, so a live
   OpenRouter smoke can only run from an allowed network. LM Studio covers local development in
-  the meantime. The web AI pages remain in their intentional `ai_not_ready` state until WM3
-  wires them to these functions.
+  the meantime. The web AI client already calls the gateway and falls back to `ai_not_ready`
+  only when a function is missing; the new public `ai-models` catalog function could not be
+  deployed to staging because `supabase functions deploy` fails to bundle the shared `zod`
+  import without Docker (relative-import error).
 - M8: create the production Supabase project and a protected production GitHub environment.
 - PR #7 checks: `Typecheck, lint, test, build`, `Secret scan`, and `Local schema and pgTAP`
   pass. The staging deploy job skips on pull requests by design; after merge, verify the first

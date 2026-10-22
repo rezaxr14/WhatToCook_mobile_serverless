@@ -244,5 +244,108 @@
     "sub": "الصفحة التي تبحث عنها غير موجودة أو تم نقلها.",
     "home": "العودة إلى الرحلة",
     "recipes": "تصفح الوصفات"
+  },
+  "mobile": {
+    "tabs": {
+      "pantry": "المخزن",
+      "cook": "الطبخ",
+      "grocery": "البقالة",
+      "settings": "الإعدادات"
+    },
+    "onboarding": {
+      "title": "اختر لغتك",
+      "subtitle": "يتحدث WhatToCook لغتك. يمكنك تغييرها في أي وقت من الإعدادات.",
+      "continue": "متابعة"
+    },
+    "auth": {
+      "title": "مرحبًا بك في WhatToCook",
+      "subtitle": "سجّل الدخول لمزامنة مخزنك ووصفاتك وقائمة البقالة.",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "you@example.com",
+      "password": "كلمة المرور",
+      "passwordPlaceholder": "٨ أحرف على الأقل",
+      "signIn": "تسجيل الدخول",
+      "signUp": "إنشاء حساب",
+      "switchToSignUp": "جديد هنا؟ أنشئ حسابًا",
+      "switchToSignIn": "لديك حساب بالفعل؟ سجّل الدخول",
+      "continueAsGuest": "المتابعة كضيف",
+      "guestHint": "ابدأ بمخزن تجريبي مجهّز. لا حاجة للبريد.",
+      "or": "أو",
+      "signingIn": "جارٍ تسجيل الدخول...",
+      "signingUp": "جارٍ إنشاء الحساب...",
+      "guestLoading": "جارٍ تجهيز مطبخك...",
+      "checkEmail": "تحقق من بريدك لتأكيد حسابك ثم سجّل الدخول.",
+      "errorTitle": "تعذّر تسجيل الدخول",
+      "guestError": "وضع الضيف غير متاح الآن."
+    },
+    "pantry": {
+      "badge": "جرد المطبخ",
+      "title": "مخزني",
+      "subtitle": "{{count}} مكوّنًا جاهزًا للطبخ",
+      "empty": "مخزنك فارغ",
+      "emptySub": "أضف المكوّنات التي لديك لترى ما يمكنك طبخه.",
+      "addPlaceholder": "أضف مكوّنًا...",
+      "add": "إضافة",
+      "noResults": "لا يوجد مكوّن مطابق",
+      "clearAll": "مسح المخزن",
+      "clearConfirm": "هل تريد إزالة كل المكوّنات من مخزنك؟",
+      "remove": "إزالة",
+      "calories": "{{count}} سعرة حرارية / ١٠٠غ",
+      "items": "{{count}} عنصرًا"
+    },
+    "cook": {
+      "badge": "مطابقة بلا هدر",
+      "title": "ماذا أطبخ؟",
+      "subtitle": "مرتبة حسب ما لديك في مطبخك.",
+      "fullTitle": "جاهز للطبخ",
+      "partialTitle": "اقتربنا",
+      "empty": "لا توجد مطابقات بعد",
+      "emptySub": "أضف بعض المكوّنات وسنجد أطباقًا يمكنك تحضيرها الآن.",
+      "missing": "ينقص {{count}}",
+      "missingOne": "ينقص مكوّن واحد",
+      "uses": "يستخدم {{count}} مكوّنًا",
+      "minutes": "{{count}} دقيقة",
+      "refresh": "تحديث المطابقات",
+      "full": "{{count}} مطابقة كاملة",
+      "partial": "{{count}} مطابقة جزئية"
+    },
+    "grocery": {
+      "badge": "قائمة التسوق",
+      "title": "قائمة البقالة",
+      "subtitle": "{{count}} عنصرًا للشراء",
+      "empty": "لا شيء للشراء",
+      "emptySub": "أضف عناصر يدويًا أو أرسل المكوّنات الناقصة للوصفات هنا.",
+      "addPlaceholder": "أضف عنصرًا...",
+      "quantityPlaceholder": "الكمية",
+      "add": "إضافة",
+      "clearChecked": "مسح المحدد",
+      "checked": "{{count}} محدد",
+      "category": "أخرى"
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "account": "الحساب",
+      "guest": "طاهٍ ضيف",
+      "anonymous": "جلسة مجهولة",
+      "email": "البريد الإلكتروني",
+      "language": "اللغة",
+      "languageSub": "لغة التطبيق واتجاه النص",
+      "about": "حول",
+      "version": "الإصدار {{version}}",
+      "signOut": "تسجيل الخروج",
+      "signOutConfirm": "هل تريد تسجيل الخروج من WhatToCook؟",
+      "restartHint": "أعد تشغيل التطبيق لتطبيق التخطيط من اليمين إلى اليسار بالكامل.",
+      "server": "متصل بـ Supabase"
+    },
+    "common": {
+      "retry": "حاول مجددًا",
+      "cancel": "إلغاء",
+      "confirm": "تأكيد",
+      "delete": "حذف",
+      "save": "حفظ",
+      "loading": "جارٍ التحميل...",
+      "error": "حدث خطأ ما",
+      "offline": "أنت غير متصل"
+    }
   }
 }

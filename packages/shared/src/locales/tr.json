@@ -242,5 +242,108 @@
     "sub": "Aradığınız sayfa yok veya taşınmış.",
     "home": "Yolculuğa dön",
     "recipes": "Tariflere göz at"
+  },
+  "mobile": {
+    "tabs": {
+      "pantry": "Kiler",
+      "cook": "Pişir",
+      "grocery": "Market",
+      "settings": "Ayarlar"
+    },
+    "onboarding": {
+      "title": "Dilini seç",
+      "subtitle": "WhatToCook senin dilini konuşur. Ayarlar'dan istediğin zaman değiştirebilirsin.",
+      "continue": "Devam"
+    },
+    "auth": {
+      "title": "WhatToCook'a hoş geldin",
+      "subtitle": "Kilerini, tariflerini ve market listeni eşitlemek için giriş yap.",
+      "email": "E-posta",
+      "emailPlaceholder": "sen@ornek.com",
+      "password": "Şifre",
+      "passwordPlaceholder": "En az 8 karakter",
+      "signIn": "Giriş Yap",
+      "signUp": "Hesap Oluştur",
+      "switchToSignUp": "Yeni misin? Hesap oluştur",
+      "switchToSignIn": "Zaten hesabın var mı? Giriş yap",
+      "continueAsGuest": "Misafir Olarak Devam Et",
+      "guestHint": "Hazır demo kilerle başla. E-posta gerekmez.",
+      "or": "veya",
+      "signingIn": "Giriş yapılıyor...",
+      "signingUp": "Hesap oluşturuluyor...",
+      "guestLoading": "Mutfağın hazırlanıyor...",
+      "checkEmail": "Hesabını onaylamak için e-postanı kontrol et, sonra giriş yap.",
+      "errorTitle": "Giriş yapılamadı",
+      "guestError": "Misafir modu şu anda kullanılamıyor."
+    },
+    "pantry": {
+      "badge": "Mutfak Envanteri",
+      "title": "Kilerim",
+      "subtitle": "{{count}} malzeme pişirmeye hazır",
+      "empty": "Kilerin boş",
+      "emptySub": "Ne pişirebileceğini görmek için elindeki malzemeleri ekle.",
+      "addPlaceholder": "Malzeme ekle...",
+      "add": "Ekle",
+      "noResults": "Eşleşen malzeme yok",
+      "clearAll": "Kileri Temizle",
+      "clearConfirm": "Kilerdeki tüm malzemeler kaldırılsın mı?",
+      "remove": "Kaldır",
+      "calories": "{{count}} kcal / 100g",
+      "items": "{{count}} ürün"
+    },
+    "cook": {
+      "badge": "Sıfır Atık Eşleştirme",
+      "title": "Ne Pişirebilirim?",
+      "subtitle": "Mutfağında olanlara göre sıralandı.",
+      "fullTitle": "Pişirmeye hazır",
+      "partialTitle": "Az kaldı",
+      "empty": "Henüz eşleşme yok",
+      "emptySub": "Birkaç malzeme daha ekle, şimdi yapabileceğin yemekleri bulalım.",
+      "missing": "{{count}} eksik",
+      "missingOne": "1 malzeme eksik",
+      "uses": "{{count}} malzeme kullanır",
+      "minutes": "{{count}} dk",
+      "refresh": "Eşleşmeleri yenile",
+      "full": "{{count}} tam eşleşme",
+      "partial": "{{count}} kısmi eşleşme"
+    },
+    "grocery": {
+      "badge": "Alışveriş Listesi",
+      "title": "Market Listesi",
+      "subtitle": "{{count}} ürün alınacak",
+      "empty": "Alınacak bir şey yok",
+      "emptySub": "Manuel olarak ürün ekle veya eksik tarif malzemelerini buraya gönder.",
+      "addPlaceholder": "Ürün ekle...",
+      "quantityPlaceholder": "Adet",
+      "add": "Ekle",
+      "clearChecked": "İşaretlileri temizle",
+      "checked": "{{count}} işaretli",
+      "category": "Diğer"
+    },
+    "settings": {
+      "title": "Ayarlar",
+      "account": "Hesap",
+      "guest": "Misafir şef",
+      "anonymous": "Anonim oturum",
+      "email": "E-posta",
+      "language": "Dil",
+      "languageSub": "Uygulama dili ve metin yönü",
+      "about": "Hakkında",
+      "version": "Sürüm {{version}}",
+      "signOut": "Çıkış Yap",
+      "signOutConfirm": "WhatToCook'tan çıkış yapılsın mı?",
+      "restartHint": "Sağdan sola düzeni tam uygulamak için uygulamayı yeniden başlat.",
+      "server": "Supabase'e bağlı"
+    },
+    "common": {
+      "retry": "Tekrar dene",
+      "cancel": "İptal",
+      "confirm": "Onayla",
+      "delete": "Sil",
+      "save": "Kaydet",
+      "loading": "Yükleniyor...",
+      "error": "Bir şeyler ters gitti",
+      "offline": "Çevrimdışısın"
+    }
   }
 }

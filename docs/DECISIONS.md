@@ -266,3 +266,26 @@ disables them, and cache hits/idempotent replays are not counted. Structured
 purging is safe but forces the next call to the provider. The cache stores response JSON, never
 uploaded image bytes. `ai_response_cache` keys are constrained to 16-128 characters, and
 `ai_usage_events.request_id` remains a UUID.
+
+## ADR-014 - Expo SDK 58 shell, shared translations, token styling
+
+**Context:** M2 needs a runnable Android shell with auth, five locales and RTL. The plan listed
+NativeWind, but the current Expo default template already ships a token-based StyleSheet setup.
+Adding NativeWind would introduce Babel/Metro configuration and a second styling idiom.
+
+**Decision:** keep the SDK 58 `expo-template-default` layout (`src/app`, `@/*` alias) and use
+StyleSheet design tokens in `apps/mobile/src/constants/theme.ts`. The four-tab shell uses Expo
+Router's JS `Tabs` with `@expo/vector-icons/Ionicons`; `NativeTabs` needs per-tab image assets
+that the starter does not provide. Locale JSON moved to `packages/shared/src/locales` and is
+exported as `translations`, so web and mobile share one copy; mobile-only strings live under
+`mobile.*` in all five locales. Auth and language preference use `expo-secure-store`;
+`react-native-url-polyfill` backs `supabase-js`, and `AppState` suspends token refresh while the
+app is backgrounded. The application ID remains `com.whattocook.app` (ADR-005).
+
+The web app is still React 18 while mobile is React 19. pnpm's hidden hoist resolves
+`@types/react@19` for `react-router` during the web typecheck, so `apps/web/tsconfig.json` maps
+`react` and `react/jsx-runtime` to the web-local `@types/react` 18.
+
+**Consequences:** no NativeWind dependency; screens are plain React Native styles that can be
+migrated later. New mobile copy must be added to every locale; the shared locale test enforces
+mobile key parity. The first Android dev-client build still needs the Android SDK or EAS login.
