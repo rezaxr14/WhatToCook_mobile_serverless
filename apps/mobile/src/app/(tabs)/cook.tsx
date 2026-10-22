@@ -1,9 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { MatchedRecipeCard } from '@/components/matched-recipe-card';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
 import { Loading } from '@/components/ui/loading';
@@ -11,7 +13,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Screen } from '@/components/ui/screen';
 import { SectionHeader } from '@/components/ui/section-header';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useCanCook } from '@/features/cook/use-can-cook';
 import { useLocale } from '@/features/i18n/locale-provider';
@@ -53,6 +55,21 @@ export default function CookScreen() {
         }
       />
 
+      <Pressable onPress={() => router.push('/recipes')}>
+        <Card style={styles.catalogCard}>
+          <View style={[styles.catalogIcon, { backgroundColor: theme.brandSoft }]}>
+            <Ionicons name="book-outline" size={20} color={theme.brandDark} />
+          </View>
+          <View style={styles.catalogCopy}>
+            <ThemedText type="smallBold">{t('mobile.recipes.browseTitle')}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('mobile.recipes.browseSub')}
+            </ThemedText>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+        </Card>
+      </Pressable>
+
       {canCook.isPending ? (
         <Loading label={t('mobile.common.loading')} />
       ) : canCook.isError ? (
@@ -86,7 +103,16 @@ export default function CookScreen() {
                 subtitle={t('mobile.cook.full', { count: result?.totalFull ?? full.length })}
               />
               {full.map((recipe) => (
-                <MatchedRecipeCard key={recipe.id} recipe={recipe} />
+                <MatchedRecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/recipe/[id]',
+                      params: { id: String(recipe.id) },
+                    })
+                  }
+                />
               ))}
             </View>
           ) : null}
@@ -100,7 +126,16 @@ export default function CookScreen() {
                 })}
               />
               {partial.map((recipe) => (
-                <MatchedRecipeCard key={recipe.id} recipe={recipe} />
+                <MatchedRecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/recipe/[id]',
+                      params: { id: String(recipe.id) },
+                    })
+                  }
+                />
               ))}
             </View>
           ) : null}
@@ -121,6 +156,22 @@ export default function CookScreen() {
 const styles = StyleSheet.create({
   section: {
     gap: Spacing.two,
+  },
+  catalogCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  catalogIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  catalogCopy: {
+    flex: 1,
+    gap: 2,
   },
   footerLink: {
     alignItems: 'center',

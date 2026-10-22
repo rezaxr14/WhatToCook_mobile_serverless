@@ -8,12 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native';
 
+import { RecipeChatCard } from '@/components/recipe-chat';
+import { SubstitutePanel } from '@/components/substitute-panel';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -23,12 +23,7 @@ import { Screen } from '@/components/ui/screen';
 import { SectionHeader } from '@/components/ui/section-header';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Radius, Spacing } from '@/constants/theme';
-import type { AIChatMessage } from '@/features/ai/types';
-import {
-  useAiRecipeDetail,
-  useRecipeChat,
-  useSubstitutes,
-} from '@/features/ai/use-ai';
+import { useAiRecipeDetail } from '@/features/ai/use-ai';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useAddGroceryItems } from '@/features/grocery/use-grocery';
 import { useLocale } from '@/features/i18n/locale-provider';
@@ -63,13 +58,9 @@ export default function AIRecipeScreen() {
   const detail = useAiRecipeDetail(name ?? '', model, servings);
   const pantry = usePantry(user?.id, locale);
   const addGrocery = useAddGroceryItems(user?.id);
-  const chat = useRecipeChat();
-  const substitutes = useSubstitutes();
 
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [doneSteps, setDoneSteps] = useState<Record<number, boolean>>({});
-  const [messages, setMessages] = useState<AIChatMessage[]>([]);
-  const [draft, setDraft] = useState('');
   const [swapName, setSwapName] = useState<string | null>(null);
 
   const recipe = detail.data;
@@ -93,50 +84,7 @@ export default function AIRecipeScreen() {
   };
 
   const handleSwap = (ingredientName: string) => {
-    if (swapName === ingredientName) {
-      setSwapName(null);
-      return;
-    }
-    setSwapName(ingredientName);
-    substitutes.mutate({
-      missingIngredient: ingredientName,
-      recipeName: recipe?.name,
-      availableIngredients: (pantry.data ?? []).map((item) => item.name),
-    });
-  };
-
-  const sendMessage = () => {
-    const message = draft.trim();
-    if (!message || !recipe || chat.isPending) return;
-
-    const history = messages.slice(-12);
-    setDraft('');
-    setMessages((current) => [...current, { role: 'user', content: message }]);
-
-    chat.mutate(
-      {
-        recipeName: recipe.name,
-        message,
-        ingredients: recipe.ingredients.map((ingredient) => ingredient.name),
-        instructions: recipe.instructions.map((instruction) => instruction.step),
-        history,
-        model,
-      },
-      {
-        onSuccess: (response) => {
-          setMessages((current) => [
-            ...current,
-            { role: 'assistant', content: response.reply },
-          ]);
-        },
-        onError: (error) => {
-          setMessages((current) => [
-            ...current,
-            { role: 'assistant', content: error.message || t('mobile.recipe.errorSub') },
-          ]);
-        },
-      },
-    );
+    setSwapName((current) => (current === ingredientName ? null : ingredientName));
   };
 
   if (detail.isPending) {
@@ -232,7 +180,11 @@ export default function AIRecipeScreen() {
               {recipe.servings ? (
                 <Badge
                   icon="people-outline"
-                  text={t('mobile.recipe.servingsValue', { count: recipe.servings })}
+                  text={
+                    recipe.servings === 1
+                      ? t('mobile.recipe.servingsValueOne')
+                      : t('mobile.recipe.servingsValue', { count: recipe.servings })
+                  }
                 />
               ) : null}
             </View>
@@ -272,7 +224,11 @@ export default function AIRecipeScreen() {
         <Card style={styles.section}>
           <SectionHeader
             title={t('mobile.recipe.ingredients')}
-            subtitle={t('mobile.recipe.servingsValue', { count: recipe.servings ?? 4 })}
+            subtitle={
+              (recipe.servings ?? 4) === 1
+                ? t('mobile.recipe.servingsValueOne')
+                : t('mobile.recipe.servingsValue', { count: recipe.servings ?? 4 })
+            }
           />
           {recipe.ingredients.map((ingredient, index) => {
             const key = `${ingredient.name}-${index}`;
@@ -315,41 +271,12 @@ export default function AIRecipeScreen() {
           })}
 
           {swapName ? (
-            <View
-              style={[
-                styles.substituteBox,
-                { backgroundColor: theme.backgroundSelected, borderColor: theme.border },
-              ]}>
-              <SectionHeader title={t('mobile.recipe.swapTitle', { name: swapName })} />
-              {substitutes.isPending ? (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {t('mobile.recipe.swapLoading')}
-                </ThemedText>
-              ) : substitutes.isError ? (
-                <ThemedText type="small" themeColor="danger">
-                  {substitutes.error.message}
-                </ThemedText>
-              ) : substitutes.data &&
-                substitutes.data.missing_ingredient.toLowerCase() === swapName.toLowerCase() ? (
-                <>
-                  {substitutes.data.substitutes.map((substitute) => (
-                    <View key={substitute.name} style={styles.substituteRow}>
-                      <ThemedText type="smallBold">{substitute.name}</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {substitute.ratio} — {substitute.notes}
-                      </ThemedText>
-                    </View>
-                  ))}
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {substitutes.data.tip}
-                  </ThemedText>
-                </>
-              ) : (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {t('mobile.recipe.swapEmpty')}
-                </ThemedText>
-              )}
-            </View>
+            <SubstitutePanel
+              key={swapName}
+              ingredientName={swapName}
+              recipeName={recipe.name}
+              availableIngredients={(pantry.data ?? []).map((item) => item.name)}
+            />
           ) : null}
 
           <Button
@@ -429,66 +356,12 @@ export default function AIRecipeScreen() {
           </Card>
         ) : null}
 
-        <Card style={styles.section}>
-          <SectionHeader title={t('mobile.recipe.chatTitle')} />
-          {messages.length === 0 ? (
-            <ThemedText type="small" themeColor="textMuted">
-              {t('mobile.recipe.chatEmpty')}
-            </ThemedText>
-          ) : (
-            <ScrollView style={styles.chatScroll} nestedScrollEnabled>
-              {messages.map((message, index) => (
-                <View
-                  key={`${index}-${message.content.slice(0, 12)}`}
-                  style={[
-                    styles.bubble,
-                    message.role === 'user'
-                      ? { backgroundColor: theme.brandSoft, alignSelf: 'flex-end' }
-                      : { backgroundColor: theme.backgroundElement, alignSelf: 'flex-start' },
-                  ]}>
-                  <ThemedText type="small">{message.content}</ThemedText>
-                </View>
-              ))}
-              {chat.isPending ? (
-                <ThemedText type="small" themeColor="textMuted">
-                  {t('mobile.recipe.thinking')}
-                </ThemedText>
-              ) : null}
-            </ScrollView>
-          )}
-          <View style={styles.chatInputRow}>
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              placeholder={t('mobile.recipe.chatPlaceholder')}
-              placeholderTextColor={theme.textMuted}
-              style={[
-                styles.chatInput,
-                {
-                  backgroundColor: theme.backgroundElement,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              multiline
-              maxLength={4000}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('mobile.recipe.send')}
-              onPress={sendMessage}
-              disabled={chat.isPending || draft.trim().length === 0}
-              style={[
-                styles.sendButton,
-                {
-                  backgroundColor: theme.brand,
-                  opacity: chat.isPending || draft.trim().length === 0 ? 0.45 : 1,
-                },
-              ]}>
-              <Ionicons name="send" size={18} color={theme.brandContrast} />
-            </Pressable>
-          </View>
-        </Card>
+        <RecipeChatCard
+          recipeName={recipe.name}
+          ingredients={recipe.ingredients.map((ingredient) => ingredient.name)}
+          instructions={recipe.instructions.map((instruction) => instruction.step)}
+          model={model}
+        />
       </Screen>
     </KeyboardAvoidingView>
   );
@@ -604,15 +477,6 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     opacity: 0.55,
   },
-  substituteBox: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    padding: Spacing.three,
-    gap: Spacing.two,
-  },
-  substituteRow: {
-    gap: 2,
-  },
   stepRow: {
     flexDirection: 'row',
     gap: Spacing.three,
@@ -640,38 +504,5 @@ const styles = StyleSheet.create({
   },
   tipText: {
     flex: 1,
-  },
-  chatScroll: {
-    maxHeight: 300,
-  },
-  bubble: {
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    marginBottom: Spacing.two,
-    maxWidth: '90%',
-  },
-  chatInputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: Spacing.two,
-  },
-  chatInput: {
-    flex: 1,
-    minHeight: 46,
-    maxHeight: 120,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.two,
-    fontSize: FontSize.md,
-  },
-  sendButton: {
-    width: 46,
-    height: 46,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

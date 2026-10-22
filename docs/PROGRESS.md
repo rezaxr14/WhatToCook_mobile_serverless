@@ -5,7 +5,7 @@
 
 ## Current
 
-**Milestone:** M2 - mobile shell, auth and i18n (implemented and bundled for Android; on-device dev-client build pending Android SDK/EAS tooling). M5 - mobile AI Chef, recipe detail/chat, substitutions and pantry scanner (implemented; on-device testing pending a dev-client build). M4 - AI gateway (implemented and deployed to staging with the fake provider; real Gemini smoke blocked on H5).
+**Milestone:** M2 - mobile shell, auth and i18n (implemented and bundled for Android; on-device dev-client build pending Android SDK/EAS tooling). M5 - mobile AI Chef, recipe detail/chat, substitutions and pantry scanner (implemented; on-device testing pending a dev-client build). M6 - mobile recipe catalog and non-AI recipe detail (implemented; on-device testing pending a dev-client build). M4 - AI gateway (implemented and deployed to staging with the fake provider; real Gemini smoke blocked on H5).
 
 **Provider addendum (2026-10-22):** added a server-side OpenRouter adapter (text, structured JSON,
 streaming, vision) with `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL`
@@ -129,6 +129,33 @@ into the local env files.
 - [ ] On-device AI Chef / scanner walkthrough - needs a dev-client build
 - [ ] Jest/RNTL component tests and a Maestro flow - helper tests exist, component/E2E tests
       do not
+
+## M6 checklist (mobile recipe catalog and detail)
+
+- [x] Catalog data layer (`src/features/recipes/use-recipes.ts`): localized recipe
+      summaries and details, sorted ingredient joins, and instruction parsing
+- [x] `/recipes` catalog screen: search across recipe names, descriptions and ingredients;
+      All / under-20-min / vegetarian / sweet filters; pull-to-refresh; loading, error and
+      empty states
+- [x] `/recipe/[id]` detail screen: hero and meta badges, 1/2/4/6/8 serving scaler,
+      ingredient checklist with "in pantry" tags, inline AI substitutions, missing-only
+      grocery export, step completion and recipe chat
+- [x] Cook tab: recipe-catalog banner and tappable full/partial match cards; catalog and
+      detail routes registered in the root Stack
+- [x] Shared `RecipeChatCard` and `SubstitutePanel` extracted from the AI recipe detail;
+      both AI and catalog detail screens reuse them
+- [x] New `mobile.recipes` copy and extra `mobile.recipe` keys in all five locales; shared
+      locale parity test still passes
+- [x] Mobile typecheck, `expo lint`, helper tests (16), shared tests (12), Expo config and
+      Android Metro export green
+- [x] Headless Chrome smoke of the web export: 12 catalog cards and images render;
+      All / vegetarian / sweet return 12 / 10 / 3 recipes; searching `affogato` returns 1;
+      detail scales 4 -> 2 servings and updates quantities; the substitution panel opens and
+      degrades to the translated not-connected message when browser CORS blocks the function
+      (native requests do not send an Origin)
+- [ ] On-device catalog/detail walkthrough (RTL, serving scale, chat keyboard) - needs a
+      dev-client build
+- [ ] RNTL component tests and Maestro coverage for catalog, detail and substitutions
 
 ## M4 checklist (AI gateway)
 

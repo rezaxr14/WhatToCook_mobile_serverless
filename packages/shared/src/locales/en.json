@@ -411,7 +411,18 @@
       "errorTitle": "Recipe unavailable",
       "errorSub": "The AI chef could not write this recipe.",
       "back": "Back",
-      "step": "Step {{count}}"
+      "step": "Step {{count}}",
+      "prepped": "{{done}} / {{total}} prepped",
+      "portions": "Servings",
+      "optional": "Optional",
+      "inPantry": "In pantry",
+      "addMissing": "Add missing to grocery list",
+      "allStocked": "Everything is already in your pantry.",
+      "steps": "{{count}} steps",
+      "notFound": "Recipe not found",
+      "notFoundSub": "This recipe is no longer in the catalog.",
+      "stepsOne": "1 step",
+      "servingsValueOne": "1 serving"
     },
     "scan": {
       "title": "Scan your pantry",
@@ -436,6 +447,28 @@
       "cancel": "Cancel",
       "selectAll": "Select all",
       "badge": "Pantry Scanner"
+    },
+    "recipes": {
+      "badge": "Recipe Catalog",
+      "title": "All recipes",
+      "subtitle": "Kitchen-tested dishes, ready when you are.",
+      "searchPlaceholder": "Search recipes or ingredients...",
+      "filterAll": "All",
+      "filterQuick": "Under 20 min",
+      "filterVegetarian": "Vegetarian",
+      "filterSweet": "Sweet",
+      "results": "Recipes",
+      "showing": "{{count}} recipes",
+      "empty": "No recipes match",
+      "emptySub": "Try a different search or filter.",
+      "reset": "Clear filters",
+      "view": "View recipe",
+      "browseTitle": "Browse the recipe catalog",
+      "browseSub": "Find a dish and cook it step by step.",
+      "back": "Back",
+      "ingredientsCount": "{{count}} ingredients",
+      "showingOne": "1 recipe",
+      "ingredientsCountOne": "1 ingredient"
     }
   }
 }

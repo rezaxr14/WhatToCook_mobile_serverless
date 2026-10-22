@@ -411,7 +411,18 @@
       "errorTitle": "Receta no disponible",
       "errorSub": "El chef IA no pudo escribir esta receta.",
       "back": "Volver",
-      "step": "Paso {{count}}"
+      "step": "Paso {{count}}",
+      "prepped": "{{done}} / {{total}} preparados",
+      "portions": "Raciones",
+      "optional": "Opcional",
+      "inPantry": "En despensa",
+      "addMissing": "A?adir lo que falta a la compra",
+      "allStocked": "Ya tienes todo en tu despensa.",
+      "steps": "{{count}} pasos",
+      "notFound": "Receta no encontrada",
+      "notFoundSub": "Esta receta ya no est? en el cat?logo.",
+      "stepsOne": "1 paso",
+      "servingsValueOne": "1 raci?n"
     },
     "scan": {
       "title": "Escanea tu despensa",
@@ -436,6 +447,28 @@
       "cancel": "Cancelar",
       "selectAll": "Seleccionar todo",
       "badge": "Escáner de despensa"
+    },
+    "recipes": {
+      "badge": "Cat?logo de recetas",
+      "title": "Todas las recetas",
+      "subtitle": "Platos probados en cocina, listos cuando t? quieras.",
+      "searchPlaceholder": "Busca recetas o ingredientes...",
+      "filterAll": "Todas",
+      "filterQuick": "Menos de 20 min",
+      "filterVegetarian": "Vegetariano",
+      "filterSweet": "Dulce",
+      "results": "Recetas",
+      "showing": "{{count}} recetas",
+      "empty": "No hay recetas coincidentes",
+      "emptySub": "Prueba otra b?squeda o filtro.",
+      "reset": "Borrar filtros",
+      "view": "Ver receta",
+      "browseTitle": "Explora el cat?logo de recetas",
+      "browseSub": "Encuentra un plato y coc?nalo paso a paso.",
+      "back": "Atr?s",
+      "ingredientsCount": "{{count}} ingredientes",
+      "showingOne": "1 receta",
+      "ingredientsCountOne": "1 ingrediente"
     }
   }
 }

@@ -409,7 +409,18 @@
       "errorTitle": "Tarif kullanılamıyor",
       "errorSub": "AI şef bu tarifi yazamadı.",
       "back": "Geri",
-      "step": "Adım {{count}}"
+      "step": "Adım {{count}}",
+      "prepped": "{{done}} / {{total}} haz?r",
+      "portions": "Porsiyon",
+      "optional": "?ste?e ba?l?",
+      "inPantry": "Kilerde",
+      "addMissing": "Eksikleri al??veri?e ekle",
+      "allStocked": "Her ?ey kilerinizde mevcut.",
+      "steps": "{{count}} ad?m",
+      "notFound": "Tarif bulunamad?",
+      "notFoundSub": "Bu tarif art?k katalogda de?il.",
+      "stepsOne": "1 ad?m",
+      "servingsValueOne": "1 porsiyon"
     },
     "scan": {
       "title": "Kilerini tara",
@@ -434,6 +445,28 @@
       "cancel": "İptal",
       "selectAll": "Tümünü seç",
       "badge": "Kiler Tarayıcı"
+    },
+    "recipes": {
+      "badge": "Tarif Katalo?u",
+      "title": "T?m tarifler",
+      "subtitle": "Mutfakta test edilmi?, sizi bekleyen tarifler.",
+      "searchPlaceholder": "Tarif veya malzeme ara...",
+      "filterAll": "T?m?",
+      "filterQuick": "20 dk alt?",
+      "filterVegetarian": "Vejetaryen",
+      "filterSweet": "Tatl?",
+      "results": "Tarifler",
+      "showing": "{{count}} tarif",
+      "empty": "E?le?en tarif yok",
+      "emptySub": "Farkl? bir arama veya filtre deneyin.",
+      "reset": "Filtreleri temizle",
+      "view": "Tarifi g?r",
+      "browseTitle": "Tarif katalo?una g?z at",
+      "browseSub": "Bir yemek bulun ve ad?m ad?m pi?irin.",
+      "back": "Geri",
+      "ingredientsCount": "{{count}} malzeme",
+      "showingOne": "1 tarif",
+      "ingredientsCountOne": "1 malzeme"
     }
   }
 }

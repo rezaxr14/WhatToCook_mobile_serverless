@@ -13,7 +13,7 @@ Expo) and a static web app (React + Vite), both backed by Supabase. No servers t
 
 ```
 apps/web            React + Vite static SPA/PWA
-apps/mobile         Expo SDK 58 Android app (Expo Router, auth, i18n, pantry/cook/grocery, AI Chef, scanner)
+apps/mobile         Expo SDK 58 Android app (Expo Router, auth, i18n, pantry/cook/grocery, recipe catalog/detail, AI Chef, scanner)
 packages/shared     types, shared translations, AI contracts, database types
 supabase/           migrations, seed, tests, catalog images
 docs/               PROGRESS, DECISIONS, porting notes, Supabase runbook
@@ -80,7 +80,15 @@ export, inline substitutions and chat, plus a camera/gallery pantry scanner. The
 call the Edge Functions directly with the same quota and error semantics; missing functions
 degrade to a translated "not connected" state, and `ai-models` falls back to the shared free
 catalog. Staging API smoke and the Android bundle pass; mobile helper tests cover the dish
-photography helper, and the on-device AI/scanner walkthrough still needs a dev-client build. M4 - AI gateway complete and deployed to staging with the
+photography helper, and the on-device AI/scanner walkthrough still needs a dev-client build.
+M6 - mobile recipe catalog: a searchable `/recipes` screen with quick, vegetarian and sweet
+filters, plus a `/recipe/[id]` detail screen with serving scaling, pantry-aware ingredient
+checklists, inline substitutions, missing-only grocery export, step completion and chat. The
+Cook tab links to the catalog and its matched cards open the detail screen. The shared chat
+and substitute panels are reused by the AI recipe detail; typecheck, lint, 16 mobile helper
+tests, 12 shared tests, the Android export and a headless-browser catalog/detail smoke are
+green. The on-device catalog walkthrough and RNTL/Maestro coverage remain.
+M4 - AI gateway complete and deployed to staging with the
 deterministic `fake` provider. The M0/M1 Supabase foundation (RLS, quota RPCs, matcher,
 80-ingredient / 12-recipe catalog, Storage) and the WM1 web parity port are done. The four AI
 Edge Functions cover suggestions, recipe detail, chat, streaming, pantry scans, substitutions,

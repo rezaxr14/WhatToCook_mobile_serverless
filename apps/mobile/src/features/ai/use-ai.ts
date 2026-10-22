@@ -64,20 +64,30 @@ export function useRecipeChat() {
   });
 }
 
+export function useSubstitutesQuery(input: {
+  missingIngredient: string;
+  recipeName?: string;
+  availableIngredients?: string[];
+}) {
+  return useQuery({
+    queryKey: [
+      'substitutes',
+      input.missingIngredient,
+      input.recipeName ?? '',
+      (input.availableIngredients ?? []).join(','),
+      i18n.resolvedLanguage,
+    ],
+    queryFn: () => fetchSubstitutes(input),
+    enabled: Boolean(input.missingIngredient),
+    staleTime: 10 * 60_000,
+    retry: 0,
+  });
+}
+
 export function useScanPantry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: Parameters<typeof scanPantryImage>[0]) => scanPantryImage(input),
-    onSuccess: (data) => {
-      if (data.remaining) queryClient.setQueryData(USAGE_KEY, data.remaining);
-    },
-  });
-}
-
-export function useSubstitutes() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: Parameters<typeof fetchSubstitutes>[0]) => fetchSubstitutes(input),
     onSuccess: (data) => {
       if (data.remaining) queryClient.setQueryData(USAGE_KEY, data.remaining);
     },

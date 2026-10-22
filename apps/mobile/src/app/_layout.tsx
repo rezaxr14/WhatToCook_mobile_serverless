@@ -52,6 +52,8 @@ function RootNavigator() {
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen name="ai-recipe/[name]" />
+      <Stack.Screen name="recipes/index" />
+      <Stack.Screen name="recipe/[id]" />
       <Stack.Screen
         name="scan-pantry"
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
