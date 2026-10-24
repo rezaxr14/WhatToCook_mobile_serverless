@@ -96,9 +96,11 @@ const AppRoutes: React.FC = () => {
 
 // useTransitions={false}: React Router 7 wraps router updates in React.startTransition by default, which would keep the old
 // page on screen (no spinner) while a lazy route chunk loads. Keep the v6 behaviour; opt in on purpose.
+const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
+
 const AppContent: React.FC = () => {
   return (
-    <Router useTransitions={false}>
+    <Router basename={BASENAME} useTransitions={false}>
       <AppRoutes />
     </Router>
   );

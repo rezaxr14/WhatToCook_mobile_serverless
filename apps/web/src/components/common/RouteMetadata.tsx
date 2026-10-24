@@ -38,7 +38,12 @@ export function RouteMetadata() {
     document.title = meta.title;
     setMeta('description', meta.description);
     setMeta('robots', meta.noindex ? 'noindex, nofollow' : 'index, follow');
-    setCanonical(canonicalUrl(window.location.origin, normalizePath(pathname)));
+    setCanonical(
+      canonicalUrl(
+        `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}`,
+        normalizePath(pathname),
+      ),
+    );
   }, [pathname]);
 
   return null;

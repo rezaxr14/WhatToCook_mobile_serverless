@@ -43,3 +43,26 @@ Without it the sitemap is skipped and the build is unchanged.
 `public/_headers` carries the baseline security/caching headers for hosts that
 support the file (Netlify, Cloudflare Pages). A CSP is intentionally left to the
 host because it has to allow the Supabase origin.
+
+## Deploy (GitHub Pages)
+
+`.github/workflows/web-pages.yml` builds the app and publishes `apps/web/dist` to
+GitHub Pages on every push to `main` that touches the web app, shared package or
+lockfile. The live site is:
+
+https://rezaxr14.github.io/WhatToCook_mobile_serverless/
+
+The workflow sets `VITE_BASE_PATH=/WhatToCook_mobile_serverless/` so Vite, React
+Router and `manifest.json` resolve under the project path, and copies
+`index.html` to `404.html` so deep links (`/recipes`, `/recipe/1`) fall back to
+the SPA. It needs two repository secrets: `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY`.
+
+Supabase Auth's site URL and redirect allow list must include the Pages URL;
+that is configured in the dashboard/Management API, not in this repo. Email
+sign-up confirmations return to `window.location.origin + BASE_URL`, so local
+dev (`http://localhost:5173`) keeps working too.
+
+GitHub Pages cannot send custom response headers, so `public/_headers` is unused
+there. Use a host that supports it (Netlify/Cloudflare Pages) if you need HSTS
+or a CSP.

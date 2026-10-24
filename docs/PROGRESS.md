@@ -357,6 +357,25 @@ into the local env files.
       `generate-recipe` is reachable and returns a validation 400 for an empty body.
 - [x] `expo export --platform android` bundles after the menu/share additions.
 
+## GitHub Pages preview (2026-10-24)
+
+- [x] `.github/workflows/web-pages.yml` publishes `apps/web/dist` to
+      https://rezaxr14.github.io/WhatToCook_mobile_serverless/ on pushes to `main`
+      (and via `workflow_dispatch`). Secrets `VITE_SUPABASE_URL` /
+      `VITE_SUPABASE_ANON_KEY` are set in the repository.
+- [x] Base-path support: `VITE_BASE_PATH` feeds Vite `base`, the React Router
+      `basename`, canonical URLs and the build-time sitemap; `index.html` is copied
+      to `404.html` for SPA deep links.
+- [x] Supabase Auth site URL moved from `http://localhost:3000` to the Pages URL and
+      `uri_allow_list` now includes Pages, local dev ports (3000/4173/5173/8081) and
+      the `whattocook://` scheme. Email confirmation redirects use
+      `window.location.origin + BASE_URL`.
+- [x] PWA manifest uses relative URLs and 192/512 icons generated from the mobile
+      icon. GitHub Pages cannot serve `public/_headers` (no custom headers).
+- [x] Local `vite preview` under the base path returns 200 for `/`, `/recipes`,
+      `manifest.json` and hashed assets.
+- [ ] Manual hero/feature comparison against the reference web app (owner).
+
 ## Blocked / waiting on human
 
 - H1: Play Console account (needed later, M7+).

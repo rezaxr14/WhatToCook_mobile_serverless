@@ -74,6 +74,10 @@ export const authApi = {
       email: payload.email,
       password: payload.password,
       options: {
+        // Send confirmation links back to the app that created the account
+        // (root deployment, Pages project site, or local dev), not to a fixed
+        // dashboard URL.
+        emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
         data: {
           username: payload.username,
           locale: i18n.resolvedLanguage || i18n.language || 'en',

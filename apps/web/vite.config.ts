@@ -33,6 +33,9 @@ function manualChunks(id: string): string | undefined {
 }
 
 export default defineConfig({
+  // Project sites (GitHub Pages) are served from `/<repo>/`, so the base path is
+  // injected at build time. Local dev and root deployments keep `/`.
+  base: process.env.VITE_BASE_PATH || '/',
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 1000,
