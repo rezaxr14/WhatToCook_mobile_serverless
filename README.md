@@ -4,6 +4,7 @@ Independent port of WhatToCook to a serverless stack: an Android app (React Nati
 Expo) and a static web app (React + Vite), both backed by Supabase. No servers to operate.
 
 - Reference (read-only): `../WhatToCook-AI-Powered-Recipe-Generator`
+- Live web preview: https://rezaxr14.github.io/WhatToCook_mobile_serverless/
 - Build plan: `implementation_plan.md` (local-only, untracked)
 - Supabase setup: `docs/SUPABASE.md`
 - AI HTTP contract: `docs/api.md`
