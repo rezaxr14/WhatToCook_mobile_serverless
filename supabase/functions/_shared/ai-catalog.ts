@@ -44,8 +44,7 @@ export function buildAICatalog(config: RuntimeConfig, lmStudio: LMStudioStatus):
   const currentModel =
     config.models.suggestions ??
     config.models.scan ??
-    (provider === 'fake' ? 'fake-1' : '') ??
-    '';
+    (provider === 'fake' ? 'fake-1' : '');
   const models = catalogModels(config, lmStudio, currentModel);
 
   if (provider === 'openrouter') {
