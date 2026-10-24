@@ -2,6 +2,7 @@ import type { Database, Json } from '@whattocook/shared';
 import type { Ingredient, RecipeIngredient } from '../types/ingredient';
 import type { CanCookResponse, MatchedRecipe, Recipe } from '../types/recipe';
 import { recipeImageUrl } from './images';
+import { ingredientImageUrl } from './ingredient-images';
 
 type IngredientRow = Database['public']['Tables']['ingredients']['Row'];
 type RecipeRow = Database['public']['Tables']['recipes']['Row'];
@@ -46,19 +47,26 @@ export function localized(value: Json | null | undefined, locale = 'en'): string
 }
 
 export function mapIngredient(row: IngredientRow): Ingredient {
+  const name = localized(row.names) || row.name_en || row.slug;
+  // Photos are looked up by the English/slug name so the same ingredient gets
+  // the same thumbnail in every locale.
+  const lookupName = row.name_en || row.slug;
+
   return {
     id: row.id,
-    name: localized(row.names) || row.name_en || row.slug,
+    name,
     category: row.category,
     calories_per_100g: row.calories_per_100g,
-    image_url: row.image_path ? recipeImageUrl(row.image_path) : undefined,
+    image_url: row.image_path ? recipeImageUrl(row.image_path) : ingredientImageUrl(lookupName),
   };
 }
 
 export function mapRecipe(row: RecipeWithIngredients, locale = 'en'): Recipe {
   const joins = Array.isArray(row.recipe_ingredients) ? row.recipe_ingredients : [];
   const recipeIngredients: RecipeIngredient[] = joins
-    .filter((join): join is RecipeIngredientJoin & { ingredients: IngredientRow } => Boolean(join.ingredients))
+    .filter((join): join is RecipeIngredientJoin & { ingredients: IngredientRow } =>
+      Boolean(join.ingredients),
+    )
     .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
     .map((join) => ({
       id: join.id,

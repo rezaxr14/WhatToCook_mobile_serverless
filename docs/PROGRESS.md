@@ -372,6 +372,10 @@ into the local env files.
       `window.location.origin + BASE_URL`.
 - [x] PWA manifest uses relative URLs and 192/512 icons generated from the mobile
       icon. GitHub Pages cannot serve `public/_headers` (no custom headers).
+- [x] Pantry/search ingredient thumbnails: `ingredients.image_path` is null for the whole
+      seed catalog, so `mapIngredient` now resolves the reference Unsplash name map
+      (87 entries, longest-key match + slug normalization) with a generic fallback;
+      6 tests cover the lookup.
 - [x] Local `vite preview` under the base path returns 200 for `/`, `/recipes`,
       `manifest.json` and hashed assets.
 - [ ] Manual hero/feature comparison against the reference web app (owner).
