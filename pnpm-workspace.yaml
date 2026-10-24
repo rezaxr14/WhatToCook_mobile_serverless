@@ -3,6 +3,8 @@ packages:
   - packages/*
 allowBuilds:
   esbuild: true
+  '@parcel/watcher': true
+  unrs-resolver: true
 minimumReleaseAgeExclude:
   - vite@6.4.5
   - '@expo/cli@58.1.14'

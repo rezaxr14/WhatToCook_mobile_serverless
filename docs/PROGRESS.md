@@ -97,9 +97,11 @@ into the local env files.
 - [x] Mobile typecheck, `expo lint`, `expo config` validation and Android Metro export green
 - [x] Shared package tests cover localization helpers and mobile locale key parity (12 tests)
 - [x] Web typecheck and production build green after the shared-translation refactor
-- [ ] On-device/emulator dev-client build (`expo run:android` or EAS) - needs the Android SDK
-      or an EAS login on this machine
-- [ ] Jest/RNTL component tests and a Maestro smoke flow - follow-up to M2
+- [x] Native debug build on Linux/WSL2 - `./gradlew :app:assembleDebug` (see 2026-10-24)
+- [ ] Install/run that APK on a device or emulator - needs hardware
+- [x] Jest + `jest-expo` + RNTL component tests (12) for the shared UI primitives
+      (`Button`, `Chip`, `EmptyState`, `TextField`); `pnpm test` runs vitest then jest
+- [ ] Maestro smoke flow - needs a device/emulator
 
 ## M5 checklist (mobile AI Chef, recipe detail, scanner)
 
@@ -127,8 +129,8 @@ into the local env files.
 - [x] Mobile typecheck, `expo lint`, shared tests (12), mobile helper tests (5) and Android
       Metro export green
 - [ ] On-device AI Chef / scanner walkthrough - needs a dev-client build
-- [ ] Jest/RNTL component tests and a Maestro flow - helper tests exist, component/E2E tests
-      do not
+- [ ] Screen-level RNTL tests for the AI/scan flows and a Maestro flow - the shared UI
+      primitives are covered, the screens are not yet
 
 ## M6 checklist (mobile recipe catalog and detail)
 
@@ -158,7 +160,7 @@ into the local env files.
       requests do not send an Origin)
 - [ ] On-device catalog/detail walkthrough (RTL, serving scale, chat keyboard) - needs a
       dev-client build
-- [ ] RNTL component tests and Maestro coverage for catalog, detail and substitutions
+- [ ] Screen-level RNTL tests for catalog/detail/substitutions and Maestro coverage
 
 ## M4 checklist (AI gateway)
 
@@ -395,8 +397,7 @@ Expo SDK 58 supplies these defaults in `ExpoRootProjectPlugin`.
 - `core.sshCommand` pointed at `C:/PROGRA~1/Git/usr/bin/ssh.exe`; it was unset and a WSL
   ed25519 key was added to GitHub.
 - ADB bridge: WSL is in NAT mode, Windows host is the default gateway `172.29.176.1`; the
-  Windows server runs `adb -a nodaemon server start` with an inbound firewall rule for TCP
-  5037. Linux adb 37.0.1 matches the Windows 37.0.1 server. No device was attached yet.
+  Windows server runs `adb -a nodaemon server start` with an inbound firewall rule for TCP 5037. Linux adb 37.0.1 matches the Windows 37.0.1 server. No device was attached yet.
 - Metro over that bridge needs a Windows port relay (`netsh interface portproxy` 8081 -> WSL
   IP) because `adb reverse` terminates at the Windows adb server, not in WSL;
   `networkingMode=mirrored` in `.wslconfig` is the alternative.
