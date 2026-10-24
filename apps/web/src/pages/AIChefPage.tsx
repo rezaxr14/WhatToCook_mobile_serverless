@@ -70,26 +70,8 @@ export const AIChefPage: React.FC = () => {
         setSuggestions(res.recipes);
         setGeneratedProvider(res.provider || activeAIProvider);
         aiToast(t('aiChefPage.toastCrafted', { count: res.recipes.length }), t('aiChefPage.toastReadyTitle'));
-      } else if (res.task_id) {
-        // Poll celery task
-        const pollInterval = setInterval(async () => {
-          try {
-            const taskRes = await aiApi.pollTaskStatus(res.task_id!);
-            if (taskRes.status === 'done') {
-              clearInterval(pollInterval);
-              setSuggestions(taskRes.recipes || []);
-              setIsGenerating(false);
-              aiToast(t('aiChefPage.toastComplete'), t('aiChefPage.toastDoneTitle'));
-            } else if (taskRes.status === 'error') {
-              clearInterval(pollInterval);
-              setIsGenerating(false);
-              error(taskRes.error || t('aiChefPage.errHiccup'), t('aiChefPage.errGenTitle'));
-            }
-          } catch (e) {
-            clearInterval(pollInterval);
-            setIsGenerating(false);
-          }
-        }, 2000);
+      } else {
+        error(res.error || t('aiChefPage.errHiccup'), t('aiChefPage.errGenTitle'));
       }
     } catch (err: any) {
       error(err.message || t('aiChefPage.errHiccup'), t('aiChefPage.errGenTitle'));
