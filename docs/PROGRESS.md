@@ -5,7 +5,7 @@
 
 ## Current
 
-**Milestone:** M2 - mobile shell, auth and i18n (implemented and bundled for Android; on-device dev-client build pending Android SDK/EAS tooling). M5 - mobile AI Chef, recipe detail/chat, substitutions and pantry scanner (implemented; on-device testing pending a dev-client build). M6 - mobile recipe catalog and non-AI recipe detail (implemented; on-device testing pending a dev-client build). M4 - AI gateway (implemented and deployed to staging with the fake provider; real Gemini smoke blocked on H5).
+**Milestone:** M2 - mobile shell, auth and i18n (implemented and bundled for Android; debug APK now builds locally on Linux/WSL2 - see the 2026-10-24 section - on-device run pending hardware). M5 - mobile AI Chef, recipe detail/chat, substitutions and pantry scanner (implemented; on-device testing pending a device). M6 - mobile recipe catalog and non-AI recipe detail (implemented; on-device testing pending a device). M4 - AI gateway (implemented and deployed to staging with the fake provider; real Gemini smoke blocked on H5).
 
 **Provider addendum (2026-10-22):** added a server-side OpenRouter adapter (text, structured JSON,
 streaming, vision) with `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL`
@@ -338,3 +338,65 @@ into the local env files.
   pass. The staging deploy job skips on pull requests by design; after merge, verify the first
   `main` run uses the `staging` environment secrets.
 - M0 blockers H2, H3 and H7 are resolved.
+
+## M2/M6 Linux (WSL2) Android toolchain and debug build (2026-10-24)
+
+**Milestone:** the on-device dev-client item is unblocked on the Linux side - the debug APK
+builds locally from the Linux filesystem. Device install/run is still pending hardware (no
+phone/USB and no Windows emulator during this session).
+
+### Toolchain installed (Linux home folder, nothing under `/mnt/c`)
+
+- Ubuntu 26.04 on WSL2 (kernel `6.6.114.1-microsoft-standard-WSL2`); Node 24.22.1 (nvm),
+  pnpm 12.14.0
+- `apt`: unzip, zip, curl, git, OpenJDK 17.0.20.1
+  (`JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64`)
+- Android SDK at `~/Android/Sdk`: cmdline-tools 16111833 (Android CLI 1.0.16625370),
+  platform-tools 37.0.1 (adb 1.0.41), platforms `android-36` r02 + `android-37.0` r02,
+  build-tools 36.0.0 + 37.0.0, NDK 27.1.12297006, CMake 3.22.1; `ANDROID_HOME`,
+  `ANDROID_SDK_ROOT` and `PATH` are exported from `~/.bashrc`
+- Emulator and system images deliberately not installed (the device lives on Windows)
+- `~/.gradle/init.d/android-mirror.gradle` (the known Aliyun/redirector Maven workaround)
+
+### Generated Gradle versions (verified, no mismatch)
+
+AGP 9.2.1 (`@react-native/gradle-plugin` version catalog), Gradle 9.4.1 wrapper, compileSdk 37,
+targetSdk 36, minSdk 24, buildTools 37.0.0, NDK 27.1.12297006, CMake 3.22.1 (AGP default).
+Expo SDK 58 supplies these defaults in `ExpoRootProjectPlugin`.
+
+### Verification
+
+- [x] `pnpm install` clean in the Linux filesystem
+- [x] `npx expo prebuild --platform android` (regenerated `apps/mobile/android`, gitignored)
+- [x] mobile typecheck, `expo lint`, 21 vitest tests green
+- [x] `npx expo export --platform android` (6.4 MB Hermes bundle)
+- [x] `./gradlew :app:assembleDebug`: BUILD SUCCESSFUL, 22m16s cold / 17s incremental
+- [x] APK `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`: 241 MB,
+      `com.whattocook.app` 0.1.0 (versionCode 1), debug-signed, ABIs armeabi-v7a / arm64-v8a /
+      x86 / x86_64, sha256 `aade72ae22bae830075b1a3ee7147daeb4bf7c4caa7a50228a5fb113605d0731`
+- [ ] Install/run on a Windows-side device; on-device checklist (camera + pantry upload, chat
+      keyboard, RTL fa/ar, recipe scaling, timer, AI and catalog flows) - pending hardware
+
+### Environment deviations found on Linux
+
+- `dl.google.com` returns 404 from this network (same as Windows), so `sdkmanager` and the new
+  cmdline-tools bootstrap cannot reach their default URLs. SDK packages were resolved from the
+  official index served by `redirector.gvt1.com/edgedl/android/...`, and the CLI bootstrap was
+  pointed there with `ANDROID_CLI_DOWNLOAD_URL`. The current Android CLI has no
+  `--sdk_url`/`--sdk_index` flags, so packages were unpacked from the index metadata and
+  `package.xml` was generated for `platforms;android-37.0`, `ndk;27.1.12297006` and
+  `cmake;3.22.1` (those zips do not ship one).
+- One Aliyun 502 on a Kotlin plugin marker aborted the first build; that artifact 404s there
+  (it is Maven Central only) and the retry succeeded. A later run hung ~20 min on a stalled
+  HTTP download (CLOSE-WAIT socket, Gradle has no default read timeout); builds now pass
+  `-Dorg.gradle.internal.http.socketTimeout=60000`.
+- Copying the repo from Windows left CRLF endings in 211 tracked files; `core.autocrlf=input`
+  plus a checkout restored the index (LF) bytes, so the tree is clean.
+- `core.sshCommand` pointed at `C:/PROGRA~1/Git/usr/bin/ssh.exe`; it was unset and a WSL
+  ed25519 key was added to GitHub.
+- ADB bridge: WSL is in NAT mode, Windows host is the default gateway `172.29.176.1`; the
+  Windows server runs `adb -a nodaemon server start` with an inbound firewall rule for TCP
+  5037. Linux adb 37.0.1 matches the Windows 37.0.1 server. No device was attached yet.
+- Metro over that bridge needs a Windows port relay (`netsh interface portproxy` 8081 -> WSL
+  IP) because `adb reverse` terminates at the Windows adb server, not in WSL;
+  `networkingMode=mirrored` in `.wslconfig` is the alternative.

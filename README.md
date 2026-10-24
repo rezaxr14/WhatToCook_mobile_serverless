@@ -34,6 +34,55 @@ docs/               PROGRESS, DECISIONS, porting notes, Supabase runbook
 - Never put a service-role key or AI provider key in `VITE_*` or
   `EXPO_PUBLIC_*`; those values are public.
 
+### Android toolchain (Linux / WSL2)
+
+A local debug build works from the Linux home folder; nothing lives under `/mnt/c`.
+Versions are pinned by the generated Gradle files, not by this table.
+
+| Tool                   | Version                                          | Location                             |
+| ---------------------- | ------------------------------------------------ | ------------------------------------ |
+| Ubuntu / kernel        | 26.04 LTS / 6.6.114.1-microsoft-standard-WSL2    | -                                    |
+| Node / pnpm            | 24.22.1 / 12.14.0                                | nvm                                  |
+| JDK                    | OpenJDK 17.0.20.1                                | `/usr/lib/jvm/java-17-openjdk-amd64` |
+| Android SDK            | cmdline-tools 16111833, Android CLI 1.0.16625370 | `~/Android/Sdk`                      |
+| platform-tools / adb   | 37.0.1 (adb 1.0.41)                              | `~/Android/Sdk/platform-tools`       |
+| Platforms              | android-36 (r02), android-37.0 (r02)             | `~/Android/Sdk/platforms`            |
+| Build-tools            | 36.0.0, 37.0.0                                   | `~/Android/Sdk/build-tools`          |
+| NDK / CMake            | 27.1.12297006 / 3.22.1                           | `~/Android/Sdk/{ndk,cmake}`          |
+| Gradle (wrapper) / AGP | 9.4.1 / 9.2.1                                    | project                              |
+
+`~/.bashrc` exports `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT` and puts
+`cmdline-tools/latest/bin` and `platform-tools` on `PATH`.
+
+Build the debug APK:
+
+```bash
+cd apps/mobile && npx expo prebuild --platform android
+cd android && ./gradlew :app:assembleDebug
+# apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk (all 4 ABIs)
+```
+
+Install on a device that is visible to the Windows adb server (WSL2 NAT mode):
+
+```bash
+# Windows (PowerShell): adb kill-server; adb -a nodaemon server start
+# Windows (admin, once): New-NetFirewallRule -DisplayName "WSL ADB 5037" `
+#   -Direction Inbound -Protocol TCP -LocalPort 5037 -Action Allow
+export ADB_SERVER_SOCKET=tcp:$(ip route show default | awk '{print $3}'):5037
+adb devices
+adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+`adb reverse` targets the Windows adb server, not WSL, so Metro needs either a
+Windows `netsh interface portproxy` relay to the WSL IP or
+`networkingMode=mirrored` in `%UserProfile%\.wslconfig`.
+
+Network workarounds in this environment (details in `docs/PROGRESS.md`):
+`dl.google.com` returns 404, so SDK packages come from `redirector.gvt1.com` and
+Maven artifacts from the Aliyun mirrors configured in
+`~/.gradle/init.d/android-mirror.gradle`. Gradle distributions come from
+`services.gradle.org` and are unaffected.
+
 ## Commands
 
 ```bash
@@ -46,8 +95,7 @@ pnpm dev:web
 
 # mobile (Expo)
 pnpm dev:mobile            # Metro / Expo Go
-pnpm android               # Metro + open on a connected Android device/emulator
-cd apps/mobile && npx expo run:android   # native dev client (needs Android SDK)
+pnpm android               # expo run:android (native debug build + install, needs the SDK)
 cd apps/mobile && npx expo export --platform android   # bundle smoke test
 
 # local Supabase (Docker optional; see ADR-006)
