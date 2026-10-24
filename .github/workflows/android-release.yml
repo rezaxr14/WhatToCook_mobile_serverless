@@ -45,7 +45,7 @@ jobs:
     env:
       APP_VARIANT: ${{ github.event_name == 'workflow_dispatch' && inputs.variant || 'production' }}
       APP_VERSION_CODE: ${{ github.run_number }}
-      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/release.keystore
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
