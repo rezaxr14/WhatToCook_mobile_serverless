@@ -75,6 +75,11 @@ into the local env files.
 - [x] Telegram modal uses the reference UI; its link endpoint is deferred to M10
 - [x] Typecheck, lint, tests and production build green
 - [x] Headless browser smoke: catalog, guest demo, matcher, pantry, grocery sync
+- [x] Route metadata (title/description/robots/canonical) kept in sync per route; authenticated
+      and AI-result routes are `noindex`
+- [x] `robots.txt` always emitted at build time, `sitemap.xml` when `VITE_SITE_URL` is set
+- [x] `public/_headers`: nosniff, frame DENY, referrer policy, permissions policy, HSTS, asset
+      caching (CSP stays host-owned because it depends on the Supabase origin)
 
 ## M2 checklist (mobile shell, auth, i18n)
 

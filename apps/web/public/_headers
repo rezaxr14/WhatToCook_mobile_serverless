@@ -1,0 +1,19 @@
+/*
+  Security headers for hosts that support a `_headers` file (Netlify, Cloudflare
+  Pages). GitHub Pages cannot set response headers - see docs/runbook.md.
+
+  No Content-Security-Policy here on purpose: the deploy target owns it because
+  it depends on the Supabase project URL and the font/style origins.
+*/
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.html
+  Cache-Control: no-cache

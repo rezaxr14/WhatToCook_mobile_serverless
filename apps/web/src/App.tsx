@@ -8,6 +8,7 @@ import { PantryProvider } from './context/PantryContext';
 import { ShoppingListProvider } from './context/ShoppingListContext';
 import { Navbar } from './components/common/Navbar';
 import { Footer } from './components/common/Footer';
+import { RouteMetadata } from './components/common/RouteMetadata';
 import { PWAInstallBanner } from './components/common/PWAInstallBanner';
 import { QuickActionsWidget } from './components/common/QuickActionsWidget';
 import { LandingPage } from './pages/LandingPage';
@@ -48,6 +49,7 @@ const AppRoutes: React.FC = () => {
 
   return (
     <>
+      <RouteMetadata />
       <div className={`min-h-screen flex flex-col bg-warmgray-50 text-stone-900 selection:bg-brand-500 selection:text-white transition-all duration-300 ${
  isAnyModalOpen ? 'blur-[3px] brightness-90 transition-all duration-300' : ''
  }`}>

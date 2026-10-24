@@ -26,10 +26,20 @@ The reference React UI is in place and reads real Supabase catalog data:
   `seed_demo_data()`.
 - Pantry: read/add/remove/clear against `pantry_items` under RLS.
 - Matcher: `can_cook()` RPC, preserving the reference `missing_count <= 2 OR
-  match_pct >= 50` semantics.
+match_pct >= 50` semantics.
 - Grocery list: `grocery_items` sync with localStorage fallback and recipe source
   links.
 - AI Chef / fridge scanner / sous-chef pages are ported, but the M4 AI gateway is
   not deployed yet. They fail with a friendly `ai_not_ready` state instead of
   calling a missing server.
 - Telegram bot is a planned M10 feature; the modal explains the current status.
+
+## Build
+
+`pnpm build` typechecks, bundles, then writes `dist/robots.txt` and - when
+`VITE_SITE_URL` is set (for example `https://whattocook.app`) - `dist/sitemap.xml`.
+Without it the sitemap is skipped and the build is unchanged.
+
+`public/_headers` carries the baseline security/caching headers for hosts that
+support the file (Netlify, Cloudflare Pages). A CSP is intentionally left to the
+host because it has to allow the Supabase origin.
