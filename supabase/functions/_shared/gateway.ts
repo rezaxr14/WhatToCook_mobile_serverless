@@ -6,6 +6,7 @@ import {
 import { isFreeOpenRouterModel } from '../../../packages/shared/src/ai-models.ts';
 import { assertAllowedOrigin, preflightResponse } from './cors.ts';
 import { buildCacheKey, buildIdempotencyCacheKey } from './cache.ts';
+import { clientIpHash } from './client-ip.ts';
 import {
   aiDisabled,
   AppError,
@@ -228,6 +229,7 @@ export async function reserveUsage(
   deps: GatewayDeps,
   auth: AuthContext,
   input: {
+    request: Request;
     requestId: string;
     feature: AIFeature;
     estimateMicroUsd: number;
@@ -236,7 +238,13 @@ export async function reserveUsage(
     rateLimits: RateLimits;
   },
 ): Promise<ReserveResult> {
-  await deps.quota.checkRateLimit({ ...input.rateLimits, now: deps.now() });
+  await deps.quota.checkRateLimit({
+    ...input.rateLimits,
+    now: deps.now(),
+    userId: auth.userId,
+    planId: auth.plan.id,
+    ipKey: await clientIpHash(input.request),
+  });
   return deps.quota.reserve({
     userId: auth.userId,
     requestId: input.requestId,

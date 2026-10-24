@@ -149,6 +149,7 @@ export async function handleSuggestSubstitution(
       maxOutputTokens: outputBudget('substitution'),
     });
     const reserve = await reserveUsage(deps, auth, {
+      request: request,
       requestId: idempotency.requestId,
       feature: 'substitution',
       estimateMicroUsd: reserveEstimate,

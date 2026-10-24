@@ -380,6 +380,11 @@ with the service role. Clients cannot call them. `remaining` is the caller's
   reservation. RPM overflow returns `429 rate_limited`; RPD overflow returns
   `429 quota_exceeded` with `resets_at` at the next UTC midnight. Cache hits and
   idempotent replays do not count against either guard.
+- Per-client guards run in the same place: `AI_USER_RPM_LIMIT` (default 20/min),
+  `AI_ANON_RPM_LIMIT` (default 8/min) and `AI_IP_RPM_LIMIT` (default 40/min per
+  hashed client IP). Overflow returns `429 rate_limited` with `Retry-After` at
+  the end of the current one-minute window. An env var that is present but blank
+  disables that guard; an absent client IP skips the IP guard.
 - `AI_PROVIDER=fake` uses deterministic output and zero price; it is the
   supported staging/test configuration.
 

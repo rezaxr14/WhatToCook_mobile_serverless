@@ -104,6 +104,12 @@ export function parseRuntimeConfig(row: AppConfigRow | null, env: Env): RuntimeC
     rateLimits: {
       rpm: parseRequestLimit(env.AI_RPM_LIMIT, 'AI_RPM_LIMIT'),
       rpd: parseRequestLimit(env.AI_RPD_LIMIT, 'AI_RPD_LIMIT'),
+      // Per-client guards are on by default so a new deployment cannot be
+      // hammered before anyone tunes the environment. An explicitly blank value
+      // (set but empty) disables the guard.
+      userRpm: parseLimitOrDefault(env.AI_USER_RPM_LIMIT, DEFAULT_USER_RPM, 'AI_USER_RPM_LIMIT'),
+      anonRpm: parseLimitOrDefault(env.AI_ANON_RPM_LIMIT, DEFAULT_ANON_RPM, 'AI_ANON_RPM_LIMIT'),
+      ipRpm: parseLimitOrDefault(env.AI_IP_RPM_LIMIT, DEFAULT_IP_RPM, 'AI_IP_RPM_LIMIT'),
     },
     models,
     allowedModels,
@@ -183,4 +189,23 @@ function parseRequestLimit(value: string | undefined, name: string): number | nu
     throw providerError(`${name} must be a non-negative integer.`);
   }
   return parsed;
+}
+
+/** Defaults for the per-user/per-IP gateway guards (requests per minute). */
+const DEFAULT_USER_RPM = 20;
+const DEFAULT_ANON_RPM = 8;
+const DEFAULT_IP_RPM = 40;
+
+/**
+ * Unset env keeps the secure default; an env var that is present but blank
+ * disables the guard (returns null). `0` is a real value that blocks every
+ * request, matching the global RPM semantics.
+ */
+function parseLimitOrDefault(
+  value: string | undefined,
+  fallback: number,
+  name: string,
+): number | null {
+  if (value === undefined) return fallback;
+  return parseRequestLimit(value, name);
 }

@@ -169,6 +169,7 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
       maxOutputTokens: outputBudget(feature),
     });
     const reserve = await reserveUsage(deps, auth, {
+      request: request,
       requestId: idempotency.requestId,
       feature,
       estimateMicroUsd: reserveEstimate,

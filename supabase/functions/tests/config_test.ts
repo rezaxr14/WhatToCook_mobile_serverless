@@ -36,22 +36,62 @@ Deno.test('config: reads routing, flags, caps, and deduplicated fallbacks', () =
   assertEquals(config.models.substitution, 'gemini-lite');
   assertEquals(config.fallbacks.text, ['fallback-a', 'fallback-b']);
   assertEquals(config.fallbacks.vision, ['vision-fallback']);
-  assertEquals(config.rateLimits, { rpm: null, rpd: null });
+  assertEquals(config.rateLimits, {
+    rpm: null,
+    rpd: null,
+    userRpm: 20,
+    anonRpm: 8,
+    ipRpm: 40,
+  });
   assertEquals(config.allowedModels, []);
   assertEquals(config.allowedOrigins, []);
 });
 
 Deno.test('config: parses global RPM and RPD request limits', () => {
   const config = parseRuntimeConfig(baseRow, { AI_RPM_LIMIT: '60', AI_RPD_LIMIT: '2000' });
-  assertEquals(config.rateLimits, { rpm: 60, rpd: 2000 });
+  assertEquals(config.rateLimits, {
+    rpm: 60,
+    rpd: 2000,
+    userRpm: 20,
+    anonRpm: 8,
+    ipRpm: 40,
+  });
 
   const disabled = parseRuntimeConfig(baseRow, { AI_RPM_LIMIT: '0', AI_RPD_LIMIT: '' });
-  assertEquals(disabled.rateLimits, { rpm: 0, rpd: null });
+  assertEquals(disabled.rateLimits, {
+    rpm: 0,
+    rpd: null,
+    userRpm: 20,
+    anonRpm: 8,
+    ipRpm: 40,
+  });
+});
+
+Deno.test('config: parses per-user, anonymous and per-IP limits', () => {
+  const config = parseRuntimeConfig(baseRow, {
+    AI_USER_RPM_LIMIT: '30',
+    AI_ANON_RPM_LIMIT: '4',
+    AI_IP_RPM_LIMIT: '100',
+  });
+  assertEquals(config.rateLimits.userRpm, 30);
+  assertEquals(config.rateLimits.anonRpm, 4);
+  assertEquals(config.rateLimits.ipRpm, 100);
+
+  const disabled = parseRuntimeConfig(baseRow, {
+    AI_USER_RPM_LIMIT: '',
+    AI_ANON_RPM_LIMIT: '',
+    AI_IP_RPM_LIMIT: '',
+  });
+  assertEquals(disabled.rateLimits.userRpm, null);
+  assertEquals(disabled.rateLimits.anonRpm, null);
+  assertEquals(disabled.rateLimits.ipRpm, null);
 });
 
 Deno.test('config: rejects malformed request limits', () => {
   assertThrows(() => parseRuntimeConfig(baseRow, { AI_RPM_LIMIT: '60.5' }), 'AI_RPM_LIMIT');
   assertThrows(() => parseRuntimeConfig(baseRow, { AI_RPD_LIMIT: '-1' }), 'AI_RPD_LIMIT');
+  assertThrows(() => parseRuntimeConfig(baseRow, { AI_USER_RPM_LIMIT: '-2' }), 'AI_USER_RPM_LIMIT');
+  assertThrows(() => parseRuntimeConfig(baseRow, { AI_IP_RPM_LIMIT: 'x' }), 'AI_IP_RPM_LIMIT');
 });
 
 Deno.test('config: env overrides provider, text models, vision model, and origins', () => {
@@ -152,7 +192,13 @@ Deno.test('config: supports flat routing keys and defaults missing rows safely',
   assertEquals(defaults.models, {});
   assertEquals(defaults.allowedModels, []);
   assertEquals(defaults.fallbacks, { text: [], vision: [] });
-  assertEquals(defaults.rateLimits, { rpm: null, rpd: null });
+  assertEquals(defaults.rateLimits, {
+    rpm: null,
+    rpd: null,
+    userRpm: 20,
+    anonRpm: 8,
+    ipRpm: 40,
+  });
   assertEquals(defaults.allowedOrigins, []);
 });
 

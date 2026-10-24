@@ -28,7 +28,9 @@ Deno.test('generate-recipe: suggestions happy path', async () => {
 });
 
 Deno.test('generate-recipe: passes RPM/RPD limits to the quota gate before reserving', async () => {
-  const harness = createHarness({ rateLimits: { rpm: 5, rpd: 50 } });
+  const harness = createHarness({
+    rateLimits: { rpm: 5, rpd: 50, userRpm: null, anonRpm: null, ipRpm: null },
+  });
   const response = await handleGenerateRecipe(
     jsonRequest(suggestionsBody, { idempotencyKey: 'rate-limit-key-1' }),
     harness.deps,
@@ -45,7 +47,13 @@ Deno.test(
   'generate-recipe: a rate-limit rejection does not reserve or call the provider',
   async () => {
     const harness = createHarness({
-      rateLimits: { rpm: 1, rpd: null },
+      rateLimits: {
+        rpm: 1,
+        rpd: null,
+        userRpm: null,
+        anonRpm: null,
+        ipRpm: null,
+      },
       quota: { rateLimitError: rateLimited('Too many AI requests.', 60) },
     });
     const response = await handleGenerateRecipe(

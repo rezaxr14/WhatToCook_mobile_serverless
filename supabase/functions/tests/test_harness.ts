@@ -5,6 +5,7 @@ import type {
   GatewayDeps,
   ModelPrice,
   QuotaGateway,
+  RateLimitInput,
   RateLimits,
   ReserveInput,
   ReserveResult,
@@ -46,7 +47,7 @@ export class MemoryQuota implements QuotaGateway {
   readonly reservations: ReserveInput[] = [];
   readonly settled: SettleInput[] = [];
   readonly refunded: string[] = [];
-  readonly rateLimitChecks: Array<RateLimits & { now: Date }> = [];
+  readonly rateLimitChecks: RateLimitInput[] = [];
   cacheHitRecords = 0;
   dailyUsed: number;
   monthlyUsed: number;
@@ -62,7 +63,7 @@ export class MemoryQuota implements QuotaGateway {
     this.globalUsed = options.globalUsed ?? 0;
   }
 
-  async checkRateLimit(input: RateLimits & { now: Date }): Promise<void> {
+  async checkRateLimit(input: RateLimitInput): Promise<void> {
     this.rateLimitChecks.push(input);
     if (this.options.rateLimitError) throw this.options.rateLimitError;
   }
@@ -278,7 +279,13 @@ export function createHarness(
       substitution: true,
     },
     globalDailyCapMicroUsd: 5_000_000,
-    rateLimits: options.rateLimits ?? { rpm: null, rpd: null },
+    rateLimits: options.rateLimits ?? {
+      rpm: null,
+      rpd: null,
+      userRpm: null,
+      anonRpm: null,
+      ipRpm: null,
+    },
     models: {
       suggestions: 'fake-lite',
       recipe: 'fake-flash',

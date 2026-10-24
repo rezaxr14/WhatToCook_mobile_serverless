@@ -6,7 +6,7 @@ import {
 import type {
   AuthContext,
   QuotaGateway,
-  RateLimits,
+  RateLimitInput,
   ReserveInput,
   ReserveResult,
   SettleInput,
@@ -39,10 +39,13 @@ export function createQuotaGateway(
   userClientFor: (auth: AuthContext) => DbClient,
 ): QuotaGateway {
   return {
-    async checkRateLimit(input: RateLimits & { now: Date }): Promise<void> {
+    async checkRateLimit(input: RateLimitInput): Promise<void> {
       const rpm = normalizeLimit(input.rpm);
       const rpd = normalizeLimit(input.rpd);
-      if (rpm === null && rpd === null) return;
+      const userLimit = normalizeLimit(
+        input.planId === 'anonymous' ? input.anonRpm : input.userRpm,
+      );
+      const ipLimit = normalizeLimit(input.ipRpm);
 
       if (rpd !== null) {
         const day = input.now.toISOString().slice(0, 10);
@@ -72,6 +75,29 @@ export function createQuotaGateway(
         if (Number(count ?? 0) >= rpm) {
           throw rateLimited('Too many AI requests. Please wait a minute and try again.', 60);
         }
+      }
+
+      if (userLimit === null && ipLimit === null) return;
+
+      const { data, error } = await serviceDb.rpc('check_ai_rate_limit', {
+        p_user_id: input.userId,
+        p_ip_hash: input.ipKey,
+        p_user_limit: userLimit,
+        p_ip_limit: ipLimit,
+        p_window_seconds: 60,
+        p_now: input.now.toISOString(),
+      });
+      if (error) throw mapDatabaseError(error.message, error);
+
+      const row = (data ?? {}) as { allowed?: boolean; scope?: string; retry_after?: number };
+      if (row.allowed === false) {
+        const retry = Math.max(1, Math.min(60, Math.round(Number(row.retry_after ?? 60))));
+        throw rateLimited(
+          row.scope === 'ip'
+            ? 'Too many AI requests from this network. Please wait a minute and try again.'
+            : 'Too many AI requests. Please wait a minute and try again.',
+          retry,
+        );
       }
     },
 

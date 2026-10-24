@@ -43,6 +43,20 @@ export interface RateLimits {
   rpm: number | null;
   /** Global provider requests per UTC day; null disables this guard. */
   rpd: number | null;
+  /** Provider requests per fixed one-minute window for a signed-in user. */
+  userRpm: number | null;
+  /** Provider requests per fixed one-minute window for an anonymous account. */
+  anonRpm: number | null;
+  /** Provider requests per fixed one-minute window per hashed client IP. */
+  ipRpm: number | null;
+}
+
+export interface RateLimitInput extends RateLimits {
+  now: Date;
+  userId: string;
+  planId: string;
+  /** SHA-256 of the client IP, or null when the proxy did not expose one. */
+  ipKey: string | null;
 }
 
 export interface RuntimeConfig {
@@ -142,7 +156,7 @@ export interface CacheSetInput {
 }
 
 export interface QuotaGateway {
-  checkRateLimit(input: RateLimits & { now: Date }): Promise<void>;
+  checkRateLimit(input: RateLimitInput): Promise<void>;
   reserve(input: ReserveInput): Promise<ReserveResult>;
   settle(input: SettleInput): Promise<void>;
   refund(eventId: string, errorCode: string): Promise<void>;

@@ -169,6 +169,7 @@ export async function handleScanPantry(request: Request, deps: GatewayDeps): Pro
     });
 
     const reserve = await reserveUsage(deps, auth, {
+      request: request,
       requestId: idempotency.requestId,
       feature: 'scan',
       estimateMicroUsd: reserveEstimate,
