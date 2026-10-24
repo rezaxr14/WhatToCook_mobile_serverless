@@ -140,12 +140,16 @@ pnpm exec supabase secrets set AI_PROVIDER=fake `
 # LM Studio is local-only: hosted functions cannot reach your machine, so keep
 # AI_PROVIDER=fake or openrouter in staging/prod and use lmstudio locally only.
 
-pnpm exec supabase functions deploy generate-recipe --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
-pnpm exec supabase functions deploy scan-pantry --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
-pnpm exec supabase functions deploy suggest-substitution --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
-pnpm exec supabase functions deploy ai-models --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
+pnpm exec supabase functions deploy generate-recipe --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt --use-api --import-map supabase/functions/deno.json
+pnpm exec supabase functions deploy scan-pantry --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt --use-api --import-map supabase/functions/deno.json
+pnpm exec supabase functions deploy suggest-substitution --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt --use-api --import-map supabase/functions/deno.json
+pnpm exec supabase functions deploy ai-models --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt --use-api --import-map supabase/functions/deno.json
 pnpm exec supabase functions deploy cache-ingredient-images --project-ref $env:SUPABASE_PROJECT_ID --use-api
 ```
+
+The AI functions import `zod` through `supabase/functions/deno.json`. Without `--import-map` the
+server-side bundler fails with `Relative import path "zod" not prefixed with / or ./ or ../`
+because `packages/shared` sits outside the functions directory.
 
 `verify_jwt = false` is also committed in `supabase/config.toml`; the explicit flag keeps the
 deploy independent of CLI defaults. Re-run the local smoke checklist against the staging URL.
@@ -398,6 +402,13 @@ Unset env uses the defaults above; a variable that is present but blank disables
 `429 rate_limited` with a `Retry-After` header pointing at the end of the current window. The
 client IP is stored only as a SHA-256 hash; when the proxy exposes no client address the IP guard
 is skipped, so the per-user guard is the backstop.
+
+Staging smoke (2026-10-24): nine `generate-recipe` calls inside one minute from a fresh anonymous
+session returned 200 eight times and then `429 rate_limited` with `Retry-After: 48`. The edge proxy
+sends the client address in `cf-connecting-ip` with `x-forwarded-for` as
+`client,client,proxy`; `normalizeIp` strips a source port if a proxy ever appends one. A client
+whose egress address rotates (VPN pool, carrier NAT) legitimately lands in several IP buckets, so
+the per-user limit is the reliable guard.
 
 ```sql
 -- Who is hitting the limits right now?

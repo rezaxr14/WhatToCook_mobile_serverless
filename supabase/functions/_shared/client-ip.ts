@@ -11,12 +11,28 @@
  */
 const FORWARDED_HEADERS = ['cf-connecting-ip', 'x-real-ip', 'x-forwarded-for'] as const;
 
+/**
+ * Reduce a forwarded value to a bare address. Supabase sends a plain IP today,
+ * but a proxy that appends the source port would give every connection its own
+ * bucket and silently disable the IP guard, so normalize defensively.
+ */
+export function normalizeIp(raw: string): string {
+  const value = raw.trim();
+  if (!value) return '';
+  const bracketed = /^\[([^\]]+)\](?::\d+)?$/.exec(value);
+  if (bracketed?.[1]) return bracketed[1].toLowerCase();
+  const v4 = /^(\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/.exec(value);
+  if (v4?.[1]) return v4[1];
+  return value.toLowerCase();
+}
+
 export function clientIp(request: Request): string | null {
   for (const header of FORWARDED_HEADERS) {
     const value = request.headers.get(header)?.trim();
     if (!value) continue;
     const candidate = header === 'x-forwarded-for' ? value.split(',')[0]?.trim() : value;
-    if (candidate) return candidate;
+    const normalized = candidate ? normalizeIp(candidate) : '';
+    if (normalized) return normalized;
   }
   return null;
 }

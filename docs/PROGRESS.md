@@ -427,7 +427,12 @@ into the local env files.
       guard. Cache hits and idempotent replays are exempt (same as the global RPM guard).
 - [x] Deno unit tests for limit parsing, the RPC payload/scope/retry mapping and IP hashing;
       pgTAP coverage for the table, privileges and window behaviour.
-- [ ] Deploy the migration and smoke-test the limits on staging.
+- [x] Migration applied to staging and the three AI functions redeployed. Smoke test: nine
+      anonymous `generate-recipe` calls in one window gave 8x `200` then `429 rate_limited` with
+      `Retry-After: 48`. Verified the stored hashes match SHA-256 of the client address the edge
+      reports in `cf-connecting-ip` (a rotating VPN egress legitimately uses several buckets).
+- [x] `normalizeIp` strips a source port from forwarded values so a proxy that appends one cannot
+      silently split the IP bucket per connection.
 - [ ] Remaining M8 items: Play Integrity, cost review, security checklist, backups/DR,
       legal pages, prod environment.
 
