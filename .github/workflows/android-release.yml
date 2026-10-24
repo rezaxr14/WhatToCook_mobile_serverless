@@ -1,0 +1,116 @@
+name: Android release
+
+# Build an Android App Bundle (and an installable APK) for internal testing.
+#
+# - Tag push `v*`: production variant, requires the release keystore secrets.
+# - workflow_dispatch: pick the variant, optionally upload the AAB to the Play
+#   internal track. Staging builds can run without a keystore (debug signing) so
+#   they are useful for device smoke tests.
+#
+# Required secrets for a signed production build (all in the protected
+# production environment when one exists):
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+#   ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+# Optional (Play upload):
+#   PLAY_SERVICE_ACCOUNT_JSON
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: App variant
+        type: choice
+        options: [production, staging]
+        default: production
+      upload_to_play:
+        description: Upload the signed AAB to the Play internal track
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build AAB
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.variant || 'production' }}
+    env:
+      APP_VARIANT: ${{ github.event_name == 'workflow_dispatch' && inputs.variant || 'production' }}
+      APP_VERSION_CODE: ${{ github.run_number }}
+      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/release.keystore
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v4
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore release keystore
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$ANDROID_KEYSTORE_PATH"
+          chmod 600 "$ANDROID_KEYSTORE_PATH"
+
+      - name: Require a keystore for production
+        if: env.APP_VARIANT == 'production' && env.ANDROID_KEYSTORE_BASE64 == ''
+        run: |
+          echo "::error::Production builds need ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD in the production environment."
+          exit 1
+
+      - name: Expo prebuild
+        run: pnpm --filter @whattocook/mobile exec expo prebuild --platform android --clean --no-install
+
+      - name: Gradle bundleRelease
+        working-directory: apps/mobile/android
+        run: >-
+          ./gradlew :app:bundleRelease :app:assembleRelease --no-daemon
+          -Dorg.gradle.internal.http.socketTimeout=120000
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: android-${{ env.APP_VARIANT }}-${{ github.run_number }}
+          path: |
+            apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+            apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload to Play internal track
+        if: >-
+          inputs.upload_to_play && env.APP_VARIANT == 'production' &&
+          env.PLAY_SERVICE_ACCOUNT_JSON != ''
+        uses: r0adkll/upload-google-play@v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ env.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.whattocook.app
+          releaseFiles: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: draft
