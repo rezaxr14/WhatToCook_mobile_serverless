@@ -433,7 +433,8 @@
       "timerRunning": "Cocinando...",
       "timerPaused": "En pausa",
       "timerReady": "Listo",
-      "timerDone": "?Se acab? el tiempo!"
+      "timerDone": "?Se acab? el tiempo!",
+      "share": "Compartir receta"
     },
     "scan": {
       "title": "Escanea tu despensa",
@@ -479,7 +480,12 @@
       "back": "Atr?s",
       "ingredientsCount": "{{count}} ingredientes",
       "showingOne": "1 receta",
-      "ingredientsCountOne": "1 ingrediente"
+      "ingredientsCountOne": "1 ingrediente",
+      "sort": "Ordenar",
+      "sortTitle": "Ordenar recetas",
+      "sortRecommended": "Recomendado",
+      "sortQuickest": "Más rápidas primero",
+      "sortName": "Nombre (A–Z)"
     }
   }
 }

@@ -145,6 +145,9 @@ into the local env files.
 - [x] `/recipes` catalog screen: search across recipe names, descriptions and ingredients;
       All / under-20-min / vegetarian / sweet filters; pull-to-refresh; loading, error and
       empty states
+- [x] `/recipes` sort menu (bottom-sheet `ActionMenu`): recommended, quickest first, name A-Z;
+      pure `sortRecipes` helper covered by 5 tests
+- [x] Native share sheet from the catalog and AI recipe detail (name, description, deep link)
 - [x] `/recipe/[id]` detail screen: hero and meta badges, 1/2/4/6/8 serving scaler,
       ingredient checklist with "in pantry" tags, inline AI substitutions, missing-only
       grocery export, step completion, in-app step timer and recipe chat
@@ -156,8 +159,8 @@ into the local env files.
       both AI and catalog detail screens reuse them
 - [x] New `mobile.recipes` copy and extra `mobile.recipe` keys in all five locales; shared
       locale parity test still passes
-- [x] Mobile typecheck, `expo lint`, helper tests (21), shared tests (12), Expo config and
-      Android Metro export green
+- [x] Mobile typecheck, `expo lint`, helper tests (26), component tests (19), shared tests
+      (12), Expo config and Android Metro export green
 - [x] Headless Chrome smoke of the web export: 12 catalog cards and images render;
       All / vegetarian / sweet return 12 / 10 / 3 recipes; searching `affogato` returns 1;
       detail scales 4 -> 2 servings and updates quantities; the timer starts at 15:00,
@@ -338,6 +341,21 @@ into the local env files.
   `sitemap.xml` lists the three public routes without per-locale alternates and without recipe
   detail URLs (they come from Supabase). Prerendering and `hreflang` need the locale-URL decision
   from WM4.
+
+## CI and cross-client verification (2026-10-24)
+
+- [x] GitHub Actions green on `e9e9939`: CI (typecheck, lint, tests, Deno check/lint/test,
+      web build) and Supabase (local stack, `db lint`, pgTAP). The earlier red CI was a real
+      `TS2869` in `_shared/ai-catalog.ts`, fixed in `e9e9939`.
+- [x] Web parity audit against the read-only reference `frontend/src`: every page, component
+      and asset is present; 23 files differ, and all of them are the intentional Django REST ->
+      Supabase port (API clients, contexts, generated types, image URLs, shared translations)
+      plus the new SEO/metadata module. No reference UI or feature is missing.
+- [x] Supabase staging E2E with the anon key from `apps/web/.env.local` and
+      `apps/mobile/.env.local` (same project): catalog reads, anonymous sign-in, pantry and
+      grocery writes under RLS, `can_cook()`, role/aud claims in the JWT, and session sign-out.
+      `generate-recipe` is reachable and returns a validation 400 for an empty body.
+- [x] `expo export --platform android` bundles after the menu/share additions.
 
 ## Blocked / waiting on human
 

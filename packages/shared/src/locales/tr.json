@@ -431,7 +431,8 @@
       "timerRunning": "Pi?iyor...",
       "timerPaused": "Duraklat?ld?",
       "timerReady": "Haz?r",
-      "timerDone": "S?re doldu!"
+      "timerDone": "S?re doldu!",
+      "share": "Tarifi paylaş"
     },
     "scan": {
       "title": "Kilerini tara",
@@ -477,7 +478,12 @@
       "back": "Geri",
       "ingredientsCount": "{{count}} malzeme",
       "showingOne": "1 tarif",
-      "ingredientsCountOne": "1 malzeme"
+      "ingredientsCountOne": "1 malzeme",
+      "sort": "Sırala",
+      "sortTitle": "Tarifleri sırala",
+      "sortRecommended": "Önerilen",
+      "sortQuickest": "En hızlı önce",
+      "sortName": "İsim (A–Z)"
     }
   }
 }

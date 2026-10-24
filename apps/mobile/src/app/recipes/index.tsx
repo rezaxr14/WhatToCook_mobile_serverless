@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { CatalogRecipeCard } from '@/components/catalog-recipe-card';
+import { ActionMenu } from '@/components/ui/action-menu';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -16,6 +17,7 @@ import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
 import { useLocale } from '@/features/i18n/locale-provider';
 import { filterRecipes, RECIPE_FILTERS, type RecipeFilter } from '@/features/recipes/filter';
+import { RECIPE_SORTS, sortRecipes, type RecipeSort } from '@/features/recipes/sort';
 import { useRecipes } from '@/features/recipes/use-recipes';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -24,6 +26,18 @@ const FILTER_LABELS: Record<RecipeFilter, string> = {
   quick: 'mobile.recipes.filterQuick',
   vegetarian: 'mobile.recipes.filterVegetarian',
   sweet: 'mobile.recipes.filterSweet',
+};
+
+const SORT_LABELS: Record<RecipeSort, string> = {
+  recommended: 'mobile.recipes.sortRecommended',
+  quickest: 'mobile.recipes.sortQuickest',
+  name: 'mobile.recipes.sortName',
+};
+
+const SORT_ICONS: Record<RecipeSort, React.ComponentProps<typeof IconButton>['icon']> = {
+  recommended: 'sparkles-outline',
+  quickest: 'flash-outline',
+  name: 'text-outline',
 };
 
 export default function RecipesScreen() {
@@ -35,15 +49,18 @@ export default function RecipesScreen() {
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<RecipeFilter>('all');
+  const [sort, setSort] = useState<RecipeSort>('recommended');
+  const [sortOpen, setSortOpen] = useState(false);
 
   const filtered = useMemo(
-    () => filterRecipes(recipes.data ?? [], query, filter),
-    [filter, query, recipes.data],
+    () => sortRecipes(filterRecipes(recipes.data ?? [], query, filter), sort),
+    [filter, query, recipes.data, sort],
   );
 
   const reset = () => {
     setQuery('');
     setFilter('all');
+    setSort('recommended');
   };
 
   return (
@@ -55,7 +72,8 @@ export default function RecipesScreen() {
           tintColor={theme.brand}
           colors={[theme.brand]}
         />
-      }>
+      }
+    >
       <View style={styles.topBar}>
         <IconButton
           icon="arrow-back"
@@ -68,6 +86,13 @@ export default function RecipesScreen() {
         badge={t('mobile.recipes.badge')}
         title={t('mobile.recipes.title')}
         subtitle={t('mobile.recipes.subtitle')}
+        right={
+          <IconButton
+            icon="swap-vertical-outline"
+            accessibilityLabel={t('mobile.recipes.sort')}
+            onPress={() => setSortOpen(true)}
+          />
+        }
       />
 
       <TextField
@@ -82,7 +107,8 @@ export default function RecipesScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipRow}>
+        contentContainerStyle={styles.chipRow}
+      >
         {RECIPE_FILTERS.map((option) => (
           <Chip
             key={option}
@@ -138,6 +164,20 @@ export default function RecipesScreen() {
           ))}
         </>
       )}
+
+      <ActionMenu
+        visible={sortOpen}
+        title={t('mobile.recipes.sortTitle')}
+        cancelLabel={t('mobile.common.cancel')}
+        onClose={() => setSortOpen(false)}
+        items={RECIPE_SORTS.map((option) => ({
+          key: option,
+          label: t(SORT_LABELS[option]),
+          icon: SORT_ICONS[option],
+          selected: sort === option,
+          onPress: () => setSort(option),
+        }))}
+      />
     </Screen>
   );
 }

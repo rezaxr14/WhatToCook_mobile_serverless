@@ -3,14 +3,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { CookingTimer } from '@/components/cooking-timer';
 import { RecipeChatCard } from '@/components/recipe-chat';
@@ -30,6 +23,7 @@ import { useAddGroceryItems } from '@/features/grocery/use-grocery';
 import { useLocale } from '@/features/i18n/locale-provider';
 import { usePantry } from '@/features/pantry/use-pantry';
 import { useTheme } from '@/hooks/use-theme';
+import { shareRecipe } from '@/lib/share';
 import { getDishImageUrl } from '@/lib/dish-images';
 
 function firstParam(value: string | string[] | undefined): string | undefined {
@@ -78,7 +72,8 @@ export default function AIRecipeScreen() {
           '1',
       })),
       {
-        onSuccess: () => Alert.alert(t('mobile.recipe.addToGrocery'), t('mobile.recipe.addedToGrocery')),
+        onSuccess: () =>
+          Alert.alert(t('mobile.recipe.addToGrocery'), t('mobile.recipe.addedToGrocery')),
         onError: (error) => Alert.alert(t('mobile.common.error'), error.message),
       },
     );
@@ -140,7 +135,8 @@ export default function AIRecipeScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.fill}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <Screen>
         <View style={styles.topBar}>
           <IconButton
@@ -148,28 +144,46 @@ export default function AIRecipeScreen() {
             accessibilityLabel={t('mobile.recipe.back')}
             onPress={() => router.back()}
           />
-          <View style={styles.topMeta}>
-            {recipe.cached ? (
-              <View style={[styles.pill, { backgroundColor: theme.backgroundElement }]}>
-                <Ionicons name="save-outline" size={12} color={theme.textMuted} />
-                <ThemedText type="small" themeColor="textMuted">
-                  {t('mobile.ai.cached')}
-                </ThemedText>
-              </View>
-            ) : null}
-            {remaining !== null && remaining !== undefined ? (
-              <View style={[styles.pill, { backgroundColor: theme.accentSoft }]}>
-                <Ionicons name="flash" size={12} color={theme.accent} />
-                <ThemedText type="small" themeColor="textSecondary">
-                  {t('mobile.ai.remaining', { count: remaining })}
-                </ThemedText>
-              </View>
-            ) : null}
+          <View style={styles.topActions}>
+            <View style={styles.topMeta}>
+              {recipe.cached ? (
+                <View style={[styles.pill, { backgroundColor: theme.backgroundElement }]}>
+                  <Ionicons name="save-outline" size={12} color={theme.textMuted} />
+                  <ThemedText type="small" themeColor="textMuted">
+                    {t('mobile.ai.cached')}
+                  </ThemedText>
+                </View>
+              ) : null}
+              {remaining !== null && remaining !== undefined ? (
+                <View style={[styles.pill, { backgroundColor: theme.accentSoft }]}>
+                  <Ionicons name="flash" size={12} color={theme.accent} />
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {t('mobile.ai.remaining', { count: remaining })}
+                  </ThemedText>
+                </View>
+              ) : null}
+            </View>
+            <IconButton
+              icon="share-social-outline"
+              accessibilityLabel={t('mobile.recipe.share')}
+              onPress={() =>
+                void shareRecipe({
+                  name: recipe.name,
+                  description: recipe.description,
+                  url: `whattocook://ai-recipe/${encodeURIComponent(recipe.name)}?servings=${servings}`,
+                })
+              }
+            />
           </View>
         </View>
 
         <Card padded={false}>
-          <Image source={{ uri: heroImage }} style={styles.hero} contentFit="cover" transition={200} />
+          <Image
+            source={{ uri: heroImage }}
+            style={styles.hero}
+            contentFit="cover"
+            transition={200}
+          />
           <View style={styles.heroBody}>
             <View style={styles.badgeRow}>
               <Badge icon="globe-outline" text={recipe.cuisine} />
@@ -249,13 +263,12 @@ export default function AIRecipeScreen() {
                       backgroundColor: checked ? theme.success : 'transparent',
                       borderColor: checked ? theme.success : theme.borderStrong,
                     },
-                  ]}>
+                  ]}
+                >
                   {checked ? <Ionicons name="checkmark" size={14} color="#ffffff" /> : null}
                 </Pressable>
                 <View style={styles.ingredientCopy}>
-                  <ThemedText
-                    type="smallBold"
-                    style={checked ? styles.checkedText : undefined}>
+                  <ThemedText type="smallBold" style={checked ? styles.checkedText : undefined}>
                     {ingredient.name}
                   </ThemedText>
                   <ThemedText type="small" themeColor="textMuted">
@@ -284,7 +297,8 @@ export default function AIRecipeScreen() {
             variant="secondary"
             icon="cart-outline"
             loading={addGrocery.isPending}
-            onPress={handleGrocery}>
+            onPress={handleGrocery}
+          >
             {t('mobile.recipe.addToGrocery')}
           </Button>
         </Card>
@@ -296,17 +310,17 @@ export default function AIRecipeScreen() {
             return (
               <Pressable
                 key={`${index}-${instruction.step.slice(0, 20)}`}
-                onPress={() =>
-                  setDoneSteps((current) => ({ ...current, [index]: !done }))
-                }
-                style={({ pressed }) => [styles.stepRow, pressed && { opacity: 0.8 }]}>
+                onPress={() => setDoneSteps((current) => ({ ...current, [index]: !done }))}
+                style={({ pressed }) => [styles.stepRow, pressed && { opacity: 0.8 }]}
+              >
                 <View
                   style={[
                     styles.stepNumber,
                     {
                       backgroundColor: done ? theme.success : theme.brandSoft,
                     },
-                  ]}>
+                  ]}
+                >
                   {done ? (
                     <Ionicons name="checkmark" size={14} color="#ffffff" />
                   ) : (
@@ -316,9 +330,7 @@ export default function AIRecipeScreen() {
                   )}
                 </View>
                 <View style={styles.stepCopy}>
-                  <ThemedText
-                    type="small"
-                    style={done ? styles.checkedText : undefined}>
+                  <ThemedText type="small" style={done ? styles.checkedText : undefined}>
                     {instruction.step}
                   </ThemedText>
                   {instruction.time_minutes ? (
@@ -399,6 +411,12 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   topMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    flexShrink: 1,
+  },
+  topActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,

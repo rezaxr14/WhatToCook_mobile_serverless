@@ -433,7 +433,8 @@
       "timerRunning": "?? ??? ???...",
       "timerPaused": "?????",
       "timerReady": "?????",
-      "timerDone": "???? ???? ??!"
+      "timerDone": "???? ???? ??!",
+      "share": "اشتراک‌گذاری دستور"
     },
     "scan": {
       "title": "انبارت را اسکن کن",
@@ -479,7 +480,12 @@
       "back": "??????",
       "ingredientsCount": "{{count}} ????",
       "showingOne": "? ?????",
-      "ingredientsCountOne": "? ????"
+      "ingredientsCountOne": "? ????",
+      "sort": "مرتب‌سازی",
+      "sortTitle": "مرتب‌سازی دستورها",
+      "sortRecommended": "پیشنهادی",
+      "sortQuickest": "سریع‌ترین اول",
+      "sortName": "نام (الف–ی)"
     }
   }
 }

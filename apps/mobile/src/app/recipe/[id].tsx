@@ -25,6 +25,7 @@ import { usePantry } from '@/features/pantry/use-pantry';
 import { scaleQuantity } from '@/features/recipes/scale';
 import { useRecipe } from '@/features/recipes/use-recipes';
 import { useTheme } from '@/hooks/use-theme';
+import { shareRecipe } from '@/lib/share';
 
 const SERVING_OPTIONS = [1, 2, 4, 6, 8] as const;
 
@@ -122,9 +123,7 @@ export default function RecipeDetailScreen() {
   const multiplier = servings / data.baseServings;
   const pantryIds = new Set((pantry.data ?? []).map((item) => item.ingredientId));
   const missing = data.recipeIngredients.filter((item) => !pantryIds.has(item.ingredientId));
-  const swapIngredient = data.recipeIngredients.find(
-    (item) => item.recipeIngredientId === swapId,
-  );
+  const swapIngredient = data.recipeIngredients.find((item) => item.recipeIngredientId === swapId);
   const prepped = Object.values(checked).filter(Boolean).length;
 
   const addMissingToGrocery = () => {
@@ -157,23 +156,42 @@ export default function RecipeDetailScreen() {
           tintColor={theme.brand}
           colors={[theme.brand]}
         />
-      }>
+      }
+    >
       <View style={styles.topBar}>
         <IconButton
           icon="arrow-back"
           accessibilityLabel={t('mobile.recipe.back')}
           onPress={() => router.back()}
         />
-        <View style={[styles.catalogPill, { backgroundColor: theme.backgroundElement }]}>
-          <Ionicons name="book-outline" size={12} color={theme.textMuted} />
-          <ThemedText type="small" themeColor="textMuted">
-            {t('mobile.recipes.badge')}
-          </ThemedText>
+        <View style={styles.topActions}>
+          <View style={[styles.catalogPill, { backgroundColor: theme.backgroundElement }]}>
+            <Ionicons name="book-outline" size={12} color={theme.textMuted} />
+            <ThemedText type="small" themeColor="textMuted">
+              {t('mobile.recipes.badge')}
+            </ThemedText>
+          </View>
+          <IconButton
+            icon="share-social-outline"
+            accessibilityLabel={t('mobile.recipe.share')}
+            onPress={() =>
+              void shareRecipe({
+                name: data.name,
+                description: data.description,
+                url: `whattocook://recipe/${data.id}`,
+              })
+            }
+          />
         </View>
       </View>
 
       <Card padded={false}>
-        <Image source={{ uri: data.imageUrl }} style={styles.hero} contentFit="cover" transition={200} />
+        <Image
+          source={{ uri: data.imageUrl }}
+          style={styles.hero}
+          contentFit="cover"
+          transition={200}
+        />
         <View style={styles.heroBody}>
           <View style={styles.badgeRow}>
             {data.cookingTime ? (
@@ -256,15 +274,14 @@ export default function RecipeDetailScreen() {
                     backgroundColor: isChecked ? theme.success : 'transparent',
                     borderColor: isChecked ? theme.success : theme.borderStrong,
                   },
-                ]}>
+                ]}
+              >
                 {isChecked ? <Ionicons name="checkmark" size={14} color="#ffffff" /> : null}
               </Pressable>
 
               <View style={styles.ingredientCopy}>
                 <View style={styles.ingredientNameRow}>
-                  <ThemedText
-                    type="smallBold"
-                    style={isChecked ? styles.checkedText : undefined}>
+                  <ThemedText type="smallBold" style={isChecked ? styles.checkedText : undefined}>
                     {item.name}
                   </ThemedText>
                   {item.optional ? (
@@ -288,9 +305,14 @@ export default function RecipeDetailScreen() {
                 </View>
               ) : (
                 <Pressable
-                  onPress={() => setSwapId((current) => (current === item.recipeIngredientId ? null : item.recipeIngredientId))}
+                  onPress={() =>
+                    setSwapId((current) =>
+                      current === item.recipeIngredientId ? null : item.recipeIngredientId,
+                    )
+                  }
                   hitSlop={6}
-                  accessibilityRole="button">
+                  accessibilityRole="button"
+                >
                   <ThemedText type="small" themeColor="brandDark">
                     {t('mobile.recipe.swap')}
                   </ThemedText>
@@ -313,7 +335,8 @@ export default function RecipeDetailScreen() {
           variant="secondary"
           icon="cart-outline"
           loading={addGrocery.isPending}
-          onPress={addMissingToGrocery}>
+          onPress={addMissingToGrocery}
+        >
           {t('mobile.recipe.addMissing')}
         </Button>
       </Card>
@@ -333,12 +356,14 @@ export default function RecipeDetailScreen() {
             <Pressable
               key={`${index}-${step.slice(0, 20)}`}
               onPress={() => setDoneSteps((current) => ({ ...current, [index]: !done }))}
-              style={({ pressed }) => [styles.stepRow, pressed && { opacity: 0.8 }]}>
+              style={({ pressed }) => [styles.stepRow, pressed && { opacity: 0.8 }]}
+            >
               <View
                 style={[
                   styles.stepNumber,
                   { backgroundColor: done ? theme.success : theme.brandSoft },
-                ]}>
+                ]}
+              >
                 {done ? (
                   <Ionicons name="checkmark" size={14} color="#ffffff" />
                 ) : (
@@ -347,7 +372,10 @@ export default function RecipeDetailScreen() {
                   </ThemedText>
                 )}
               </View>
-              <ThemedText type="small" style={[styles.stepText, done ? styles.checkedText : undefined]}>
+              <ThemedText
+                type="small"
+                style={[styles.stepText, done ? styles.checkedText : undefined]}
+              >
                 {step}
               </ThemedText>
             </Pressable>
@@ -390,6 +418,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.three,
+  },
+  topActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
   catalogPill: {
     flexDirection: 'row',

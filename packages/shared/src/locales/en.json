@@ -433,7 +433,8 @@
       "timerRunning": "Cooking...",
       "timerPaused": "Paused",
       "timerReady": "Ready",
-      "timerDone": "Time is up!"
+      "timerDone": "Time is up!",
+      "share": "Share recipe"
     },
     "scan": {
       "title": "Scan your pantry",
@@ -479,7 +480,12 @@
       "back": "Back",
       "ingredientsCount": "{{count}} ingredients",
       "showingOne": "1 recipe",
-      "ingredientsCountOne": "1 ingredient"
+      "ingredientsCountOne": "1 ingredient",
+      "sort": "Sort",
+      "sortTitle": "Sort recipes",
+      "sortRecommended": "Recommended",
+      "sortQuickest": "Quickest first",
+      "sortName": "Name (A–Z)"
     }
   }
 }
