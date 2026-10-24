@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - 'supabase/**'
+      - 'packages/shared/src/ingredient-images.ts'
       - '.github/workflows/supabase.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/**'
+      - 'packages/shared/src/ingredient-images.ts'
       - '.github/workflows/supabase.yml'
   workflow_dispatch:
 
@@ -77,6 +79,12 @@ jobs:
       - name: Push migrations
         if: steps.gate.outputs.configured == 'true'
         run: supabase db push --password "$SUPABASE_DB_PASSWORD" --yes
+
+      - name: Deploy maintenance functions
+        if: steps.gate.outputs.configured == 'true'
+        run: >-
+          supabase functions deploy cache-ingredient-images
+          --project-ref "$SUPABASE_PROJECT_ID" --use-api
 
       - name: Upload catalog images
         if: steps.gate.outputs.configured == 'true'

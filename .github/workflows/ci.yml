@@ -52,6 +52,7 @@ jobs:
             supabase/functions/generate-recipe/index.ts \
             supabase/functions/scan-pantry/index.ts \
             supabase/functions/suggest-substitution/index.ts \
+            supabase/functions/cache-ingredient-images/index.ts \
             supabase/functions/tests/test_harness.ts \
             supabase/functions/tests/*_test.ts
 

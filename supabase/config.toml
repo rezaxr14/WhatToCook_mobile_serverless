@@ -131,6 +131,13 @@ public = false
 file_size_limit = "5MiB"
 allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
 
+# Public ingredient thumbnails cached from the reference photography map by the
+# cache-ingredient-images Edge Function.
+[storage.buckets.ingredient-images]
+public = true
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "image/avif"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true
@@ -409,6 +416,12 @@ verify_jwt = false
 # Public, secret-free catalog for the client model selector. It reports the
 # active provider and models only; it never exposes provider API keys.
 [functions.ai-models]
+verify_jwt = false
+
+# Admin/maintenance job. It downloads ingredient photos and writes them to
+# Storage, so it authenticates the `Authorization: Bearer` token against the
+# service-role key itself (the same pattern as the AI gateway functions).
+[functions.cache-ingredient-images]
 verify_jwt = false
 
 # [edge_runtime.secrets]

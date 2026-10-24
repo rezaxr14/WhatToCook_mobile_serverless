@@ -26,3 +26,17 @@ export function recipeImageUrl(pathOrUrl?: string | null): string {
   if (pathOrUrl.startsWith('/')) return pathOrUrl;
   return storagePublicUrl('recipe-images', pathOrUrl);
 }
+
+/**
+ * Ingredient photos cached by the `cache-ingredient-images` Edge Function live
+ * in the public `ingredient-images` bucket. Returns null when the row has no
+ * cached path so callers can use the shared source map instead.
+ */
+export function ingredientStorageUrl(pathOrUrl?: string | null): string | null {
+  if (!pathOrUrl) return null;
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  if (pathOrUrl.startsWith('/media/')) {
+    return storagePublicUrl('ingredient-images', pathOrUrl.replace(/^\/media\//, ''));
+  }
+  return storagePublicUrl('ingredient-images', pathOrUrl.replace(/^\/+/, ''));
+}

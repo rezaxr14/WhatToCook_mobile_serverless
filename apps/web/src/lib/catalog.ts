@@ -1,7 +1,7 @@
 import type { Database, Json } from '@whattocook/shared';
 import type { Ingredient, RecipeIngredient } from '../types/ingredient';
 import type { CanCookResponse, MatchedRecipe, Recipe } from '../types/recipe';
-import { recipeImageUrl } from './images';
+import { ingredientStorageUrl, recipeImageUrl } from './images';
 import { ingredientImageUrl } from './ingredient-images';
 
 type IngredientRow = Database['public']['Tables']['ingredients']['Row'];
@@ -49,15 +49,17 @@ export function localized(value: Json | null | undefined, locale = 'en'): string
 export function mapIngredient(row: IngredientRow): Ingredient {
   const name = localized(row.names) || row.name_en || row.slug;
   // Photos are looked up by the English/slug name so the same ingredient gets
-  // the same thumbnail in every locale.
+  // the same thumbnail in every locale. Rows cached by the Edge Function point
+  // at Storage; the rest fall back to the source map until the next cache run.
   const lookupName = row.name_en || row.slug;
+  const cached = ingredientStorageUrl(row.image_path);
 
   return {
     id: row.id,
     name,
     category: row.category,
     calories_per_100g: row.calories_per_100g,
-    image_url: row.image_path ? recipeImageUrl(row.image_path) : ingredientImageUrl(lookupName),
+    image_url: cached ?? ingredientImageUrl(lookupName),
   };
 }
 

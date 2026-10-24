@@ -144,12 +144,55 @@ pnpm exec supabase functions deploy generate-recipe --project-ref $env:SUPABASE_
 pnpm exec supabase functions deploy scan-pantry --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
 pnpm exec supabase functions deploy suggest-substitution --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
 pnpm exec supabase functions deploy ai-models --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
+pnpm exec supabase functions deploy cache-ingredient-images --project-ref $env:SUPABASE_PROJECT_ID --use-api
 ```
 
 `verify_jwt = false` is also committed in `supabase/config.toml`; the explicit flag keeps the
 deploy independent of CLI defaults. Re-run the local smoke checklist against the staging URL.
 `supabase secrets list` shows digests, not values. The web bundle never receives
 `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, or any server-only variable.
+
+### Ingredient image cache
+
+`cache-ingredient-images` copies the curated photos in
+`packages/shared/src/ingredient-images.ts` into the public `ingredient-images`
+Storage bucket and writes `ingredients.image_path`. Both clients resolve that
+path through Storage; the source URL is only a pre-cache fallback.
+
+- Object key: `ingredients/<slug>-<sha256 prefix>.<ext>`.
+- `cacheControl` is one year (31536000 seconds) and the key is content-hashed,
+  so a changed photo gets a new URL. No cache invalidation is needed.
+- Rows whose object still exists are skipped. Pass `{"force":true}` to
+  re-download every photo, or `{"slugs":["garlic"]}` to refresh a subset.
+- The function requires `Authorization: Bearer <service-role/secret key>`; it
+  compares the token with the key Supabase injects into Edge Functions.
+
+Manual run (never echo the key):
+
+```bash
+curl --fail-with-body -X POST \
+  "https://$SUPABASE_PROJECT_ID.supabase.co/functions/v1/cache-ingredient-images" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"force":false}'
+```
+
+Or run the **Ingredient images (cache)** workflow from the Actions tab
+(`workflow_dispatch`, optional `force` and comma-separated `slugs`). It uses the
+staging environment secret `SUPABASE_SERVICE_ROLE_KEY`.
+
+To change one photo, edit its key in `packages/shared/src/ingredient-images.ts`,
+redeploy the function, then run the job with
+`{"slugs":["<slug>"],"force":true}`. The response reports `cached`, `skipped`,
+and `failed` (with reasons); a non-200 status means at least one step failed.
+
+Check coverage:
+
+```sql
+select count(*) as total,
+       count(*) filter (where image_path is not null) as cached
+from public.ingredients;
+```
 
 ### Applying the M4 migration
 

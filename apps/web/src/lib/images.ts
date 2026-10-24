@@ -21,6 +21,20 @@ export function storagePublicUrl(bucket: string, path: string): string {
   return `${supabaseUrl}/storage/v1/object/public/${bucket}/${encoded}`;
 }
 
+/**
+ * Ingredient thumbnails are cached by the `cache-ingredient-images` Edge
+ * Function in the public `ingredient-images` bucket. Paths are content-hashed
+ * (`ingredients/<slug>-<hash>.jpg`), so long-lived immutable caching is safe.
+ */
+export function ingredientStorageUrl(pathOrUrl?: string | null): string | null {
+  if (!pathOrUrl) return null;
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  if (pathOrUrl.startsWith('/media/')) {
+    return storagePublicUrl('ingredient-images', pathOrUrl.replace(/^\/media\//, ''));
+  }
+  return storagePublicUrl('ingredient-images', pathOrUrl.replace(/^\/+/, ''));
+}
+
 export function recipeImageUrl(pathOrUrl?: string | null): string {
   if (!pathOrUrl) return DEFAULT_RECIPE_IMAGE;
   if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;

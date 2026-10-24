@@ -376,6 +376,12 @@ into the local env files.
       seed catalog, so `mapIngredient` now resolves the reference Unsplash name map
       (87 entries, longest-key match + slug normalization) with a generic fallback;
       6 tests cover the lookup.
+- [x] Ingredient photos cached server-side: `cache-ingredient-images` downloads the
+      shared map, stores content-hashed objects in the public `ingredient-images`
+      bucket with `max-age=31536000`, and fills `ingredients.image_path` (80/80).
+      Web and mobile resolve the cached path first; the source map remains the
+      pre-cache fallback. Manual refresh: `workflow_dispatch` on
+      `.github/workflows/ingredient-images.yml` (`force`, optional slugs).
 - [x] Local `vite preview` under the base path returns 200 for `/`, `/recipes`,
       `manifest.json` and hashed assets.
 - [ ] Manual hero/feature comparison against the reference web app (owner).

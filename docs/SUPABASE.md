@@ -190,6 +190,10 @@ pnpm exec supabase storage cp <file> "ss:///recipe-images/recipes/<name>" \
 `image_path` values are `recipes/<file>.jpg`, and the objects live under the same `recipes/`
 prefix in the bucket.
 
+`ingredient-images` is also public-read. The `cache-ingredient-images` Edge Function fills it
+with content-hashed thumbnails (`ingredients/<slug>-<hash>.<ext>`) and updates
+`ingredients.image_path`; see the runbook for the manual refresh command and workflow.
+
 ### Auth and demo
 
 Anonymous sign-ins are enabled in local config and must stay enabled in staging Auth settings.

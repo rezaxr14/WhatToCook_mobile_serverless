@@ -1,7 +1,8 @@
 import type { Database } from '@whattocook/shared';
+import { ingredientImageUrl, localizeJson } from '@whattocook/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { localizeJson, recipeImageUrl } from '@/lib/catalog';
+import { ingredientStorageUrl } from '@/lib/catalog';
 import { supabase } from '@/lib/supabase';
 
 type IngredientRow = Database['public']['Tables']['ingredients']['Row'];
@@ -30,7 +31,7 @@ function mapRow(row: IngredientRow, locale: string): PantryItem {
     category: row.category,
     calories: row.calories_per_100g,
     slug: row.slug,
-    imageUrl: recipeImageUrl(row.image_path),
+    imageUrl: ingredientStorageUrl(row.image_path) ?? ingredientImageUrl(row.name_en || row.slug),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -49,11 +50,16 @@ export async function fetchPantry(userId: string, locale: string): Promise<Pantr
 
   const rows = (data ?? []) as Array<{ updated_at: string; ingredients: IngredientRow | null }>;
   return rows
-    .filter((row): row is { updated_at: string; ingredients: IngredientRow } => Boolean(row.ingredients))
+    .filter((row): row is { updated_at: string; ingredients: IngredientRow } =>
+      Boolean(row.ingredients),
+    )
     .map((row) => ({ ...mapRow(row.ingredients, locale), updatedAt: row.updated_at }));
 }
 
-export async function searchIngredients(query: string, locale: string): Promise<IngredientOption[]> {
+export async function searchIngredients(
+  query: string,
+  locale: string,
+): Promise<IngredientOption[]> {
   const term = query.trim();
   if (term.length < 2) return [];
 

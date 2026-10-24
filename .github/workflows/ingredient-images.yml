@@ -1,0 +1,65 @@
+name: Ingredient images (cache)
+
+# Manual revalidation for the `cache-ingredient-images` Edge Function.
+#
+# The job copies every source photo in packages/shared/src/ingredient-images.ts
+# into the public `ingredient-images` Storage bucket and updates
+# `ingredients.image_path`. Cached rows are skipped unless `force` is true.
+#
+# Requires the staging environment secret SUPABASE_SERVICE_ROLE_KEY (the
+# function compares the bearer token with the service-role/secret key that
+# Supabase injects into Edge Functions).
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Re-download images even when a cached object already exists
+        type: boolean
+        default: false
+      slugs:
+        description: Comma-separated ingredient slugs (blank = all)
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  cache:
+    name: Run cache job
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      FORCE: ${{ inputs.force }}
+      SLUGS: ${{ inputs.slugs }}
+    steps:
+      - name: Check secrets
+        run: |
+          if [ -z "$SUPABASE_PROJECT_ID" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::error::Add SUPABASE_PROJECT_ID and SUPABASE_SERVICE_ROLE_KEY to the staging environment secrets."
+            exit 1
+          fi
+
+      - name: Invoke cache-ingredient-images
+        run: |
+          payload="$(jq -n --argjson force "$FORCE" --arg slugs "$SLUGS" '
+            { force: $force }
+            + (if ($slugs | length) == 0 then {}
+               else { slugs: ($slugs | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))) }
+               end)')"
+          echo "payload: $payload"
+          curl --fail-with-body --show-error --silent \
+            --retry 2 --retry-delay 5 \
+            -X POST "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/cache-ingredient-images" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            | tee response.json | jq .
+
+      - name: Fail on per-image errors
+        run: |
+          jq -e '.ok == true and (.failed | length) == 0' response.json >/dev/null
