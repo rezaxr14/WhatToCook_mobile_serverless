@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { Clock, ChefHat, Check, AlertCircle, ArrowRight } from 'lucide-react';
 import { Recipe, MatchedRecipe } from '../../types/recipe';
 import { DEFAULT_RECIPE_IMAGE, recipeImageUrl } from '../../lib/images';
+import { dishPoster } from '../../utils/imageUtils';
 import { StyledCard } from '../common/StyledCard';
 import { Badge } from '../common/Badge';
 
@@ -10,24 +11,6 @@ interface RecipeCardProps {
   recipe: Recipe | MatchedRecipe;
   isMatched?: boolean;
 }
-
-// Distinct storage-backed fallbacks — if a photo ever fails to load, each card
-// still gets its own image (never a shared one, so a grid can't look alike).
-const FALLBACK_POOL = [
-  recipeImageUrl('recipes/carbonara.jpg'),
-  recipeImageUrl('recipes/avocado_toast.jpg'),
-  recipeImageUrl('recipes/pancakes.jpg'),
-  recipeImageUrl('recipes/garlic_shrimp.jpg'),
-  recipeImageUrl('recipes/omelette.jpg'),
-  recipeImageUrl('recipes/penne_pomodoro.jpg'),
-  recipeImageUrl('recipes/grilled_cheese.jpg'),
-];
-
-const fallbackFor = (name: string): string => {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
-  return FALLBACK_POOL[Math.abs(h) % FALLBACK_POOL.length];
-};
 
 export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isMatched }) => {
   const matchedRecipe = recipe as MatchedRecipe;
@@ -38,7 +21,6 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isMatched }) => 
     if (recipe.image) return recipeImageUrl(recipe.image);
     return DEFAULT_RECIPE_IMAGE;
   };
-  const fallbackUrl = fallbackFor(recipe.name);
 
   return (
     <StyledCard $interactive $padded={false} className="group flex flex-col h-full bg-white">
@@ -50,8 +32,9 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isMatched }) => 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           onError={(e) => {
             const t = e.target as HTMLImageElement;
-            if (t.src !== fallbackUrl) t.src = fallbackUrl;
-            else if (t.src !== DEFAULT_RECIPE_IMAGE) t.src = DEFAULT_RECIPE_IMAGE;
+            if (t.dataset.poster) return;
+            t.dataset.poster = '1';
+            t.src = dishPoster(recipe.name);
           }}
         />
         <div className="absolute inset-0 bg-linear-to-t/srgb from-stone-900/70 via-stone-900/20 to-transparent opacity-90 transition-opacity group-hover:opacity-100" />

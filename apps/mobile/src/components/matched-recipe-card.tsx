@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -7,6 +6,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { MatchedRecipe } from '@/features/cook/use-can-cook';
 
+import { DishImage } from './dish-image';
 import { Card } from './ui/card';
 import { ThemedText } from './themed-text';
 
@@ -29,12 +29,7 @@ export function MatchedRecipeCard({
       disabled={!onPress}
       style={({ pressed }) => (pressed && onPress ? { opacity: 0.9 } : undefined)}>
       <Card padded={false}>
-        <Image
-          source={{ uri: recipe.imageUrl }}
-          style={styles.image}
-          contentFit="cover"
-          transition={200}
-        />
+        <DishImage uri={recipe.imageUrl} name={recipe.name} style={styles.image} />
         <View style={styles.body}>
           <View style={styles.titleRow}>
             <ThemedText type="smallBold" style={styles.title} numberOfLines={2}>

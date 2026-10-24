@@ -10,7 +10,7 @@ import { StyledButton } from '../components/common/StyledButton';
 import { StyledCard } from '../components/common/StyledCard';
 import { LoadingChef } from '../components/common/LoadingChef';
 import { AIProviderSwitcher } from '../components/common/AIProviderSwitcher';
-import { assignUniqueDishPhotos } from '../utils/imageUtils';
+import { assignUniqueDishPhotos, dishPoster } from '../utils/imageUtils';
 
 export const AIChefPage: React.FC = () => {
   const { t } = useTranslation();
@@ -257,10 +257,9 @@ export const AIChefPage: React.FC = () => {
                       alt={dish.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
-                        const fallback = dishPhotos[(index + 1) % dishPhotos.length];
-                        if (fallback && (e.target as HTMLImageElement).src !== fallback) {
-                          (e.target as HTMLImageElement).src = fallback;
-                        }
+                        const img = e.target as HTMLImageElement;
+                        const poster = dishPoster(dish.name);
+                        if (img.src !== poster) img.src = poster;
                       }}
                     />
                     <div className="absolute inset-0 bg-linear-to-t/srgb from-stone-900/70 via-transparent to-transparent opacity-80" />

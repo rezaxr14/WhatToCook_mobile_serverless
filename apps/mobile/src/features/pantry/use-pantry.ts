@@ -1,5 +1,5 @@
 import type { Database } from '@whattocook/shared';
-import { ingredientImageUrl, localizeJson } from '@whattocook/shared';
+import { localizeJson } from '@whattocook/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { ingredientStorageUrl } from '@/lib/catalog';
@@ -13,7 +13,8 @@ export interface PantryItem {
   category: string;
   calories: number | null;
   slug: string;
-  imageUrl: string;
+  /** Cached Supabase Storage photo; null until the cache job has run. */
+  imageUrl: string | null;
   updatedAt: string;
 }
 
@@ -31,7 +32,10 @@ function mapRow(row: IngredientRow, locale: string): PantryItem {
     category: row.category,
     calories: row.calories_per_100g,
     slug: row.slug,
-    imageUrl: ingredientStorageUrl(row.image_path) ?? ingredientImageUrl(row.name_en || row.slug),
+    // Never hotlink the photo CDN: several networks block it. The cache job
+    // mirrors every catalog photo into Storage; anything missing falls back to
+    // the local ingredient tile.
+    imageUrl: ingredientStorageUrl(row.image_path),
     updatedAt: new Date().toISOString(),
   };
 }
