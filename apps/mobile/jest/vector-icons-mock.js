@@ -1,9 +1,12 @@
-// jest-expo does not load icon fonts, so render icon names as text instead.
-const React = require('react');
-const { Text } = require('react-native');
+// jest-expo does not load icon fonts. Icons are decorative (no accessible
+// name of their own), so render nothing and let the surrounding text/roles
+// carry the accessibility tree.
+const Icon = () => null;
 
-function Icon({ name, ...props }) {
-  return React.createElement(Text, { ...props, testID: `icon-${name}` }, name);
-}
-
-module.exports = { Ionicons: Icon, FontAwesome: Icon, MaterialIcons: Icon };
+module.exports = {
+  Ionicons: Icon,
+  FontAwesome: Icon,
+  MaterialIcons: Icon,
+  __esModule: true,
+  default: Icon,
+};

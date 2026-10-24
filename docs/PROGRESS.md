@@ -104,8 +104,9 @@ into the local env files.
 - [x] Web typecheck and production build green after the shared-translation refactor
 - [x] Native debug build on Linux/WSL2 - `./gradlew :app:assembleDebug` (see 2026-10-24)
 - [ ] Install/run that APK on a device or emulator - needs hardware
-- [x] Jest + `jest-expo` + RNTL component tests (12) for the shared UI primitives
-      (`Button`, `Chip`, `EmptyState`, `TextField`); `pnpm test` runs vitest then jest
+- [x] Jest + `jest-expo` + RNTL component tests (16) for the shared UI primitives
+      (`Button`, `Chip`, `EmptyState`, `TextField`) and `CookingTimer` (start/pause/resume,
+      add time, reset); `pnpm test` runs vitest then jest
 - [ ] Maestro smoke flow - needs a device/emulator
 
 ## M5 checklist (mobile AI Chef, recipe detail, scanner)
