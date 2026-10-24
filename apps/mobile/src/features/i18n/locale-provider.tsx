@@ -83,5 +83,8 @@ export function useLocale(): LocaleContextValue {
  * this to flip their own alignment immediately when the language changes.
  */
 export function useIsRtl(): boolean {
-  return isRtlLocale(useLocale().locale);
+  const context = useContext(LocaleContext);
+  // Components such as TextField are also rendered in isolation by tests and
+  // storybook-style harnesses; default to LTR when there is no provider.
+  return context ? isRtlLocale(context.locale) : false;
 }
