@@ -5,7 +5,13 @@
 
 ## Current
 
-**Milestone:** M2 - mobile shell, auth and i18n (implemented and bundled for Android; debug APK now builds locally on Linux/WSL2 - see the 2026-10-24 section - on-device run pending hardware). M5 - mobile AI Chef, recipe detail/chat, substitutions and pantry scanner (implemented; on-device testing pending a device). M6 - mobile recipe catalog and non-AI recipe detail (implemented; on-device testing pending a device). M4 - AI gateway (implemented and deployed to staging with the fake provider; real Gemini smoke blocked on H5).
+**Milestone:** M2 - mobile shell, auth and i18n (implemented; release APK validated on a physical
+Android 14 device on 2026-10-24). M5 - mobile AI Chef, recipe detail/chat, substitutions and
+pantry scanner (implemented; validated on-device with the staging fake provider). M6 - mobile
+recipe catalog and non-AI recipe detail (implemented; validated on-device). M7 - release pipeline
+scaffolding (authored; H8/H9 blocked on the keystore and Play Console). M8 - gateway rate limits
+(implemented and unit-tested; migration deploy + staging smoke pending). M4 - AI gateway
+(implemented and deployed to staging with the fake provider; real Gemini smoke blocked on H5).
 
 **Provider addendum (2026-10-22):** added a server-side OpenRouter adapter (text, structured JSON,
 streaming, vision) with `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and `OPENROUTER_MODEL`
@@ -104,6 +110,9 @@ into the local env files.
 - [x] Web typecheck and production build green after the shared-translation refactor
 - [x] Native debug build on Linux/WSL2 - `./gradlew :app:assembleDebug` (see 2026-10-24)
 - [ ] Install/run that APK on a device or emulator - needs hardware
+- [x] Release APK installed and run on a physical Android 14 device (2026-10-24): guest session,
+      five-tab shell, pantry/cook/catalog/AI/scanner/Settings walkthrough, `fa` RTL after restart
+      and back to `en`
 - [x] Jest + `jest-expo` + RNTL component tests (16) for the shared UI primitives
       (`Button`, `Chip`, `EmptyState`, `TextField`) and `CookingTimer` (start/pause/resume,
       add time, reset); `pnpm test` runs vitest then jest
@@ -134,7 +143,10 @@ into the local env files.
       2 steps), chat, scan (5 detected / 4 matched), substitution (2), and `get_my_usage`
 - [x] Mobile typecheck, `expo lint`, shared tests (12), mobile helper tests (5) and Android
       Metro export green
-- [ ] On-device AI Chef / scanner walkthrough - needs a dev-client build
+- [x] On-device AI Chef / scanner walkthrough (2026-10-24, staging fake provider): suggestions,
+      AI recipe detail, substitutions, chat, and a gallery-image scan that detected 4 ingredients
+      and added 2 new pantry items
+- [ ] On-device camera capture path (only the photo-library path was exercised)
 - [ ] Screen-level RNTL tests for the AI/scan flows and a Maestro flow - the shared UI
       primitives are covered, the screens are not yet
 
@@ -167,8 +179,8 @@ into the local env files.
       pauses/resumes, adds time and resets; the substitution panel opens and degrades to the
       translated not-connected message when browser CORS blocks the function (native
       requests do not send an Origin)
-- [ ] On-device catalog/detail walkthrough (RTL, serving scale, chat keyboard) - needs a
-      dev-client build
+- [x] On-device catalog/detail walkthrough (2026-10-24): 12 recipes with Storage images, recipe
+      detail, servings and swap panel, Persian right-to-left layout after restart
 - [ ] Screen-level RNTL tests for catalog/detail/substitutions and Maestro coverage
 
 ## M4 checklist (AI gateway)
@@ -386,6 +398,76 @@ into the local env files.
       `manifest.json` and hashed assets.
 - [ ] Manual hero/feature comparison against the reference web app (owner).
 
+## M7 release pipeline scaffolding (2026-10-24)
+
+- [x] `APP_VARIANT=staging|production` selects the display name, Android package and iOS
+      bundle id (`com.whattocook.app[.staging]`), so staging and production installs can
+      coexist. `APP_VERSION_CODE` drives `versionCode`/`buildNumber`.
+- [x] `.github/workflows/android-release.yml`: tag `v*` builds production; manual dispatch can
+      build production or staging and optionally upload the AAB to the Play internal track as a
+      draft. It prebuilds with JDK 17 + Android SDK, runs `bundleRelease`/`assembleRelease`, and
+      uploads the AAB + APK as artifacts.
+- [x] `apps/mobile/plugins/with-release-signing.js` switches the release build type to a real
+      keystore only when `ANDROID_KEYSTORE_PATH` exists; local release builds keep Expo's debug
+      signing.
+- [ ] H8: generate the upload keystore and add `ANDROID_KEYSTORE_*` secrets to the production
+      environment.
+- [ ] H9: Play Console account + service account (`PLAY_SERVICE_ACCOUNT_JSON`), then run a tag
+      build end to end and verify the internal-track install.
+
+## M8 hardening: gateway rate limits (2026-10-24)
+
+- [x] `public.ai_rate_windows` + `public.check_ai_rate_limit(...)` keep atomic fixed-window
+      counters per user and per hashed client IP (RLS on, no policies, service role only).
+- [x] Gateway now applies `AI_USER_RPM_LIMIT` (default 20/min), `AI_ANON_RPM_LIMIT` (default
+      8/min) and `AI_IP_RPM_LIMIT` (default 40/min) before each provider attempt, on top of the
+      global RPM/RPD and per-plan quotas. Over-limit responses are `429 rate_limited` with a
+      window-aligned `Retry-After`.
+- [x] Only SHA-256 hashes of client IPs are stored; requests without a proxy IP skip the IP
+      guard. Cache hits and idempotent replays are exempt (same as the global RPM guard).
+- [x] Deno unit tests for limit parsing, the RPC payload/scope/retry mapping and IP hashing;
+      pgTAP coverage for the table, privileges and window behaviour.
+- [ ] Deploy the migration and smoke-test the limits on staging.
+- [ ] Remaining M8 items: Play Integrity, cost review, security checklist, backups/DR,
+      legal pages, prod environment.
+
+## On-device validation and RTL fix (2026-10-24)
+
+**Device:** POCO X5 Pro 5G (`22101320G`, `bca32b3e`), Android 14, connected through the Windows
+ADB server over TCP. Release APK `com.whattocook.app` 0.1.0 (versionCode 1), 101 MB,
+`assembleRelease` 36m58s cold / 57s incremental with the generated `repo1.maven.org` mirror and
+`-x lintVital*`.
+
+### Verified on device
+
+- Anonymous guest session created on first launch; Settings shows the guest account and
+  "Connected to Supabase".
+- Pantry: search, add (Tomato / Onion / Garlic), remove, clear-all, nutrition rows.
+- Cook: partial-match ranking, missing-ingredient list, Storage-backed recipe images.
+- Catalog: 12 recipes, search; recipe detail with servings and swap panel.
+- AI Chef (staging fake provider): suggestions, AI recipe detail, substitution panel, recipe chat,
+  daily-usage counter decrementing.
+- Pantry scanner (photo-library path): 4 detections, 3 matched catalog entries, 2 new items added.
+- Language switch to `fa`: Persian strings plus right-to-left layout after an app restart, then
+  back to `en` with a left-to-right layout.
+
+### Bug found and fixed: RTL direction was reset on every launch
+
+`src/i18n/index.ts` called `applyDirection(deviceLocale())` at module init, before the stored
+locale was loaded. On a device set to English, every launch forced LTR and overwrote the Persian
+choice, so the restart hint never produced an RTL layout. `I18nManager.isRTL` also keeps
+reporting the launch-time value, so a second call in the same session could flip the stored
+preference again.
+
+Fix: `applyDirection` remembers the last value it forced, and `LocaleProvider` applies the
+direction exactly once from the effective locale (stored choice, else device locale). Verified by
+forcing `fa`, restarting (RTL), then switching back to `en` and restarting (LTR).
+
+Known data gap: ingredient and recipe names without a localized row fall back to English inside
+an RTL layout. `adb exec-out screencap` intermittently produces tiled frames on this device;
+`uiautomator` dumps and later captures are correct, so it is a capture artifact, not a rendering
+bug.
+
 ## Blocked / waiting on human
 
 - H1: Play Console account (needed later, M7+).
@@ -441,8 +523,9 @@ Expo SDK 58 supplies these defaults in `ExpoRootProjectPlugin`.
 - [x] APK `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`: 241 MB,
       `com.whattocook.app` 0.1.0 (versionCode 1), debug-signed, ABIs armeabi-v7a / arm64-v8a /
       x86 / x86_64, sha256 `aade72ae22bae830075b1a3ee7147daeb4bf7c4caa7a50228a5fb113605d0731`
-- [ ] Install/run on a Windows-side device; on-device checklist (camera + pantry upload, chat
-      keyboard, RTL fa/ar, recipe scaling, timer, AI and catalog flows) - pending hardware
+- [x] Install/run on a Windows-side device over the TCP ADB bridge (2026-10-24): camera + pantry
+      upload via the photo picker, chat keyboard, RTL fa/ar, recipe scaling, timer, AI and catalog
+      flows. Camera capture itself is still pending.
 
 ### Environment deviations found on Linux
 

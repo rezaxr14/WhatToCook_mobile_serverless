@@ -17,7 +17,12 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'fa', name: 'Persian', nativeName: 'فارسی', flag: '🇮🇷' },
   { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦' },
   { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
-] as const satisfies ReadonlyArray<{ code: Locale; name: string; nativeName: string; flag: string }>;
+] as const satisfies ReadonlyArray<{
+  code: Locale;
+  name: string;
+  nativeName: string;
+  flag: string;
+}>;
 
 function deviceLocale(): Locale {
   const code = getLocales()[0]?.languageCode ?? DEFAULT_LOCALE;
@@ -25,15 +30,21 @@ function deviceLocale(): Locale {
 }
 
 /**
- * Native RTL changes only take effect after a reload. We still flip the flag so
- * the next launch is laid out correctly; Settings shows a restart hint.
+ * Native layout direction is read once per launch, so forcing a change only
+ * shows up after the app restarts (Settings shows a restart hint). Remember
+ * what we last asked for because `I18nManager.isRTL` keeps reporting the
+ * value from launch time and would otherwise flip the preference back.
  */
+let forcedRtl: boolean | null = null;
+
 export function applyDirection(locale: Locale): void {
   const rtl = isRtlLocale(locale);
-  I18nManager.allowRTL(true);
-  if (I18nManager.isRTL !== rtl) {
+  const current = forcedRtl ?? I18nManager.isRTL;
+  if (current !== rtl) {
+    I18nManager.allowRTL(true);
     I18nManager.forceRTL(rtl);
   }
+  forcedRtl = rtl;
 }
 
 const initialLocale = deviceLocale();
@@ -50,7 +61,6 @@ if (!i18n.isInitialized) {
     returnEmptyString: false,
     initAsync: false,
   });
-  applyDirection(initialLocale);
 }
 
 export default i18n;

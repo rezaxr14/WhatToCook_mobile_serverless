@@ -381,6 +381,36 @@ Purge only expired cache rows during normal operation:
 delete from ai_response_cache where expires_at < now();
 ```
 
+### Per-user and per-IP request guards
+
+`check_ai_rate_limit` keeps fixed one-minute counters in `ai_rate_windows` and is called by
+the gateway before each provider attempt (cache hits and idempotent replays are exempt). It runs
+alongside the global provider RPM/RPD guards and the per-plan daily quotas:
+
+| Guard          | Default | Env override        |
+| -------------- | ------- | ------------------- |
+| Signed-in user | 20/min  | `AI_USER_RPM_LIMIT` |
+| Anonymous user | 8/min   | `AI_ANON_RPM_LIMIT` |
+| Client IP      | 40/min  | `AI_IP_RPM_LIMIT`   |
+
+Unset env uses the defaults above; a variable that is present but blank disables that guard.
+`AI_RPM_LIMIT` / `AI_RPD_LIMIT` remain the global provider-wide guards. Over-limit requests get
+`429 rate_limited` with a `Retry-After` header pointing at the end of the current window. The
+client IP is stored only as a SHA-256 hash; when the proxy exposes no client address the IP guard
+is skipped, so the per-user guard is the backstop.
+
+```sql
+-- Who is hitting the limits right now?
+select subject, subject_key, hits, window_start
+from ai_rate_windows
+where window_start = to_timestamp(floor(extract(epoch from now()) / 60) * 60)
+order by hits desc
+limit 20;
+
+-- Clear counters after changing limits (optional; rows expire with the window).
+delete from ai_rate_windows where window_start < now() - interval '10 minutes';
+```
+
 Purging a live cache entry is safe but forces the next request to call the provider. To recover a
 stuck `reserved` event, inspect it first and refund only when no provider response was settled:
 
@@ -475,3 +505,42 @@ Staging smoke on 2026-10-22 (project `lderdvhteofqemiivosz`, `AI_PROVIDER=fake`)
 Real Gemini smoke remains blocked on H5. The Gemini key field is blank; real traffic must not be
 enabled until the key is present and the model/pricing rows are verified against current Google
 documentation. The planned M4 prices are listed in section 3.
+
+## 10. Android release build
+
+Variants are selected with `APP_VARIANT` (default `production`):
+
+| `APP_VARIANT` | Display name       | Android package / iOS bundle id |
+| ------------- | ------------------ | ------------------------------- |
+| `production`  | WhatToCook         | `com.whattocook.app`            |
+| `staging`     | WhatToCook Staging | `com.whattocook.app.staging`    |
+
+`APP_VERSION_CODE` sets `android.versionCode` and `ios.buildNumber` (CI uses
+`github.run_number`). Both apps can be installed side by side.
+
+Local staging APK for device testing (debug-signed, JS bundle embedded):
+
+```bash
+cd apps/mobile
+APP_VARIANT=staging EXPO_PUBLIC_SUPABASE_URL=... EXPO_PUBLIC_SUPABASE_ANON_KEY=... \
+  pnpm exec expo prebuild --platform android --clean
+cd android
+./gradlew :app:assembleRelease -Dorg.gradle.internal.http.socketTimeout=120000
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+`.github/workflows/android-release.yml` builds the same artifacts in CI:
+
+- Tag push `v*` builds production, requires the release keystore secrets.
+- `workflow_dispatch` lets you pick `production` or `staging` and optionally upload the AAB to
+  the Play **internal** track (`status: draft`).
+- Secrets (production environment): `ANDROID_KEYSTORE_BASE64`,
+  `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+- Optional: `PLAY_SERVICE_ACCOUNT_JSON` for the Play upload.
+
+The `apps/mobile/plugins/with-release-signing.js` config plugin adds a real release signing
+config only when `ANDROID_KEYSTORE_PATH` points at an existing file. Without it, `assembleRelease`
+keeps Expo's debug keystore so local testing works.
+
+Rollback: Play Console → Internal testing → previous release → promote/roll out again. AABs are
+kept as workflow artifacts for 14 days; re-run the tag workflow to rebuild.

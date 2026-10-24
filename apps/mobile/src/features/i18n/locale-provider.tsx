@@ -36,13 +36,17 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const stored = await getStoredLocale();
       if (!active) return;
+
+      // The direction has to come from the locale the app will actually use.
+      // Applying the device locale here would reset the stored choice.
+      const effective = stored ?? currentLocale();
       if (stored) {
         await i18n.changeLanguage(stored);
-        applyDirection(stored);
         if (!active) return;
-        setLocaleState(stored);
-        setHasChosenLanguage(true);
       }
+      applyDirection(effective);
+      setLocaleState(effective);
+      setHasChosenLanguage(Boolean(stored));
       setReady(true);
     })();
     return () => {
