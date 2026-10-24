@@ -40,10 +40,13 @@ try {
   await shot('landing');
 
   // Guest demo stocks the pantry and creates the anonymous session the AI
-  // functions require.
+  // functions require. Two buttons can match (navbar + form), so use the first
+  // and wait for the authenticated navbar rather than a specific redirect.
   await page.goto(`${base}/auth`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: /guest demo/i }).click();
-  await page.waitForURL(/\/recipes/, { timeout: 30_000 });
+  await page.getByRole('button', { name: /guest demo/i }).first().click();
+  await page.getByLabel('Logout').waitFor({ timeout: 30_000 });
+
+  await page.goto(`${base}/recipes`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1500);
   await shot('recipes');
 
