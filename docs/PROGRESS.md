@@ -327,6 +327,18 @@ into the local env files.
 - Reference repo lives at `../WhatToCook-AI-Powered-Recipe-Generator` (commit `2e8fa3f`)
   and is strictly read-only.
 
+## Known / deferred
+
+- `expo-doctor` (2026-10-24): 18/20 checks pass. The config-schema check errors because
+  the schema URL returns HTML on this network, and the version check reports six patch-level
+  drifts inside SDK 58 (`expo` 58.0.17 vs 58.0.19, `expo-router` 58.0.25 vs 58.0.26, `@expo/ui`,
+  `expo-font`, `expo-glass-effect`, `expo-image`). Not upgraded here because a patch bump needs a
+  fresh prebuild plus a verified native rebuild/device run.
+- Web public pages are client-rendered and locale is a preference, not a URL segment, so
+  `sitemap.xml` lists the three public routes without per-locale alternates and without recipe
+  detail URLs (they come from Supabase). Prerendering and `hreflang` need the locale-URL decision
+  from WM4.
+
 ## Blocked / waiting on human
 
 - H1: Play Console account (needed later, M7+).
