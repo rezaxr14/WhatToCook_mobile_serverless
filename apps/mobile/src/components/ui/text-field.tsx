@@ -3,6 +3,7 @@ import { StyleSheet, TextInput, View, type StyleProp, type TextInputProps, type 
 import type { ReactNode } from 'react';
 
 import { FontSize, Radius, Spacing } from '@/constants/theme';
+import { useIsRtl } from '@/features/i18n/locale-provider';
 import { useTheme } from '@/hooks/use-theme';
 
 import { ThemedText } from '../themed-text';
@@ -25,6 +26,11 @@ export function TextField({
   ...rest
 }: TextFieldProps) {
   const theme = useTheme();
+  const isRtl = useIsRtl();
+  const direction = {
+    textAlign: isRtl ? ('right' as const) : ('left' as const),
+    writingDirection: isRtl ? ('rtl' as const) : ('ltr' as const),
+  };
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -44,7 +50,7 @@ export function TextField({
         {icon ? <Ionicons name={icon} size={18} color={theme.textMuted} /> : null}
         <TextInput
           placeholderTextColor={theme.textMuted}
-          style={[styles.input, { color: theme.text }, style]}
+          style={[styles.input, direction, { color: theme.text }, style]}
           {...rest}
         />
         {right}

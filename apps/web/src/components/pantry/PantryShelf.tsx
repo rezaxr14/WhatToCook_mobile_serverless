@@ -1,6 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, Plus, ShoppingBag, X, Camera, Apple } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { ingredientCategoryKey } from '@whattocook/shared';
 import { Ingredient } from '../../types/ingredient';
 import { StyledCard } from '../common/StyledCard';
 import { StyledButton } from '../common/StyledButton';
@@ -20,6 +22,8 @@ export const PantryShelf: React.FC<PantryShelfProps> = ({
   onOpenPicker,
   onOpenScanner,
 }) => {
+  const { t } = useTranslation();
+
   if (ingredients.length === 0) {
     return (
       <StyledCard className="p-10 text-center border-dashed border-2 border-stone-300 bg-white/60">
@@ -140,7 +144,9 @@ export const PantryShelf: React.FC<PantryShelfProps> = ({
                   {ing.name}
                 </div>
                 <div className="flex items-center justify-between text-[10px] text-stone-500 mt-0.5">
-                  <span className="truncate text-stone-400">{ing.category || 'General'}</span>
+                  <span className="truncate text-stone-400">
+                    {t(ingredientCategoryKey(ing.category))}
+                  </span>
                   {ing.calories_per_100g !== null && ing.calories_per_100g !== undefined && (
                     <span className="font-semibold text-amber-700">{ing.calories_per_100g} kcal</span>
                   )}

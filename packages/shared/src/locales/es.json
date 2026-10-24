@@ -120,7 +120,8 @@
     "loading": "Cargando...",
     "close": "Cerrar",
     "search": "Buscar",
-    "total": "Total"
+    "total": "Total",
+    "all": "Todos"
   },
   "aiChefPage": {
     "badge": "Estudio Culinario con IA Generativa",
@@ -487,5 +488,16 @@
       "sortQuickest": "Más rápidas primero",
       "sortName": "Nombre (A–Z)"
     }
+  },
+  "categories": {
+    "produce": "Frutas y verduras",
+    "dairyEggs": "Lácteos y huevos",
+    "meatSeafood": "Carne y marisco",
+    "grainsPasta": "Cereales y pasta",
+    "pantrySpices": "Despensa y especias",
+    "other": "Otros",
+    "condiments": "Condimentos",
+    "bakery": "Panadería",
+    "beverage": "Bebidas"
   }
 }

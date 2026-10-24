@@ -118,7 +118,8 @@
     "loading": "Yükleniyor...",
     "close": "Kapat",
     "search": "Ara",
-    "total": "Toplam"
+    "total": "Toplam",
+    "all": "Tümü"
   },
   "aiChefPage": {
     "badge": "Üretken Yapay Zekâ Mutfak Stüdyosu",
@@ -485,5 +486,16 @@
       "sortQuickest": "En hızlı önce",
       "sortName": "İsim (A–Z)"
     }
+  },
+  "categories": {
+    "produce": "Meyve & Sebze",
+    "dairyEggs": "Süt Ürünleri & Yumurta",
+    "meatSeafood": "Et & Deniz Ürünleri",
+    "grainsPasta": "Tahıllar & Makarna",
+    "pantrySpices": "Kiler & Baharatlar",
+    "other": "Diğer",
+    "condiments": "Çeşniler",
+    "bakery": "Fırın Ürünleri",
+    "beverage": "İçecekler"
   }
 }

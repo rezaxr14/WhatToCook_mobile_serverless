@@ -1,3 +1,4 @@
+import { ingredientCategoryKey } from '@whattocook/shared';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -121,7 +122,7 @@ export default function PantryScreen() {
                 <View style={styles.suggestionCopy}>
                   <ThemedText type="smallBold">{option.name}</ThemedText>
                   <ThemedText type="small" themeColor="textMuted">
-                    {option.category}
+                    {t(ingredientCategoryKey(option.category))}
                   </ThemedText>
                 </View>
                 <Ionicons name="add-circle" size={22} color={theme.brand} />
@@ -175,7 +176,7 @@ export default function PantryScreen() {
                 <ThemedText type="small" themeColor="textMuted" numberOfLines={1}>
                   {item.calories
                     ? t('mobile.pantry.calories', { count: item.calories })
-                    : item.category}
+                    : t(ingredientCategoryKey(item.category))}
                 </ThemedText>
               </View>
               <IconButton

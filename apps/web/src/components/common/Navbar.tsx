@@ -65,9 +65,13 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl 2xl:max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand Logo */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
-          <div className="w-10 h-10 rounded-2xl bg-linear-to-tr/srgb from-brand-600 via-orange-500 to-amber-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform duration-300">
-            <ChefHat className="w-5 h-5" />
-          </div>
+          <img
+            src={`${import.meta.env.BASE_URL}logo.svg`}
+            alt=""
+            width={40}
+            height={40}
+            className="w-10 h-10 rounded-2xl shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform duration-300"
+          />
           <div className="flex flex-col">
             <span className="font-extrabold text-stone-900 tracking-tight text-base sm:text-lg leading-tight flex items-center gap-1.5">
               WhatToCook

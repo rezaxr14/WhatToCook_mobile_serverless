@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Plus, Check, Sparkles, Wand2, Apple } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { INGREDIENT_CATEGORIES, ingredientCategoryKey } from '@whattocook/shared';
 import { Ingredient } from '../../types/ingredient';
 import { StyledButton } from '../common/StyledButton';
 
@@ -24,14 +26,7 @@ const POPULAR_BUNDLE = [
   'Olive Oil',
 ];
 
-const CATEGORIES = [
-  'All',
-  'Produce',
-  'Dairy & Eggs',
-  'Meat & Seafood',
-  'Grains & Pasta',
-  'Pantry & Spices',
-];
+const CATEGORIES = ['All', ...INGREDIENT_CATEGORIES] as const;
 
 export const IngredientPicker: React.FC<IngredientPickerProps> = ({
   availableIngredients,
@@ -40,6 +35,7 @@ export const IngredientPicker: React.FC<IngredientPickerProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const { t } = useTranslation();
 
   // Filtered ingredients
   const filtered = useMemo(() => {
@@ -110,7 +106,7 @@ export const IngredientPicker: React.FC<IngredientPickerProps> = ({
  : 'bg-stone-100 text-stone-600 hover:bg-stone-200/80 hover:text-stone-900'
  }`}
             >
-              {cat}
+              {cat === 'All' ? t('common.all') : t(ingredientCategoryKey(cat))}
             </button>
           );
         })}
@@ -185,7 +181,7 @@ export const IngredientPicker: React.FC<IngredientPickerProps> = ({
                     {ing.name}
                   </div>
                   <div className="text-[10px] text-stone-500 truncate mt-0.5">
-                    {ing.category || 'General'}
+                    {t(ingredientCategoryKey(ing.category))}
                   </div>
                 </div>
               </button>

@@ -10,7 +10,7 @@ import {
 
 import { applyDirection, default as i18n } from '@/i18n';
 import { getStoredLocale, storeLocale } from '@/lib/locale-store';
-import { DEFAULT_LOCALE, isLocale, type Locale } from '@whattocook/shared';
+import { DEFAULT_LOCALE, isLocale, isRtlLocale, type Locale } from '@whattocook/shared';
 
 interface LocaleContextValue {
   ready: boolean;
@@ -74,4 +74,14 @@ export function useLocale(): LocaleContextValue {
   const context = useContext(LocaleContext);
   if (!context) throw new Error('useLocale must be used inside LocaleProvider');
   return context;
+}
+
+/**
+ * True when the active locale writes right-to-left.
+ *
+ * Native layout direction only changes after a restart, so text inputs use
+ * this to flip their own alignment immediately when the language changes.
+ */
+export function useIsRtl(): boolean {
+  return isRtlLocale(useLocale().locale);
 }
