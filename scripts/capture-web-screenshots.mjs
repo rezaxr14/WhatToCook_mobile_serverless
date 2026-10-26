@@ -43,7 +43,9 @@ try {
   // functions require. Use the form button (the navbar copy can be covered by
   // the install banner) and wait for the authenticated navbar.
   await page.goto(`${base}/auth`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: /1-click guest demo/i }).click();
+  // dispatchEvent avoids the decorative cursor/banner overlays that can swallow
+  // a real pointer click in headless Chromium.
+  await page.getByRole('button', { name: /1-click guest demo/i }).dispatchEvent('click');
   await page.getByLabel('Logout').waitFor({ timeout: 30_000 });
 
   await page.goto(`${base}/recipes`, { waitUntil: 'networkidle' });
