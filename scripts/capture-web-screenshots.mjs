@@ -61,11 +61,13 @@ try {
   await shot('can-cook');
 
   await page.goto(`${base}/ai-chef`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: /generate chef recipes/i }).click();
+  await page
+    .getByRole('button', { name: /generate chef recipes/i })
+    .dispatchEvent('click');
   await page.getByText('Chef Creations').waitFor({ timeout: 60_000 });
   await shot('ai-chef');
 
-  await page.getByText('Cook Full Recipe').first().click();
+  await page.getByText('Cook Full Recipe').first().dispatchEvent('click');
   await page.waitForURL(/\/ai-recipe\//, { timeout: 30_000 });
   await page.waitForTimeout(4000);
   await shot('ai-recipe');
