@@ -15,6 +15,8 @@ import {
   Eye,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { useTranslation } from 'react-i18next';
+import { ingredientCategoryKey } from '@whattocook/shared';
 import { ScannedIngredient } from '../../types/ingredient';
 import { pantryApi } from '../../api/pantryApi';
 import { usePantry } from '../../context/PantryContext';
@@ -34,6 +36,7 @@ const SAMPLE_COUNTER_URL =
 export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, onClose }) => {
   const { refreshPantry, activeAIProvider } = usePantry();
   const { success, error, aiToast } = useToast();
+  const { t } = useTranslation();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -426,7 +429,7 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
                                 {item.display_name || item.name}
                               </div>
                               <div className="text-[10px] text-stone-400">
-                                {item.category} {item.estimated_quantity && `• ${item.estimated_quantity}`}
+                                {t(ingredientCategoryKey(item.category))} {item.estimated_quantity && `• ${item.estimated_quantity}`}
                               </div>
                             </div>
                           </div>

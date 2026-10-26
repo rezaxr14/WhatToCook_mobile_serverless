@@ -120,7 +120,8 @@
     "loading": "در حال بارگذاری...",
     "close": "بستن",
     "search": "جستجو",
-    "total": "کل"
+    "total": "کل",
+    "all": "همه"
   },
   "aiChefPage": {
     "badge": "استودیوی آشپزی با هوش مصنوعی مولد",
@@ -487,5 +488,16 @@
       "sortQuickest": "سریع‌ترین اول",
       "sortName": "نام (الف–ی)"
     }
+  },
+  "categories": {
+    "produce": "میوه و سبزیجات",
+    "dairyEggs": "لبنیات و تخم‌مرغ",
+    "meatSeafood": "گوشت و غذای دریایی",
+    "grainsPasta": "غلات و پاستا",
+    "pantrySpices": "خواروبار و ادویه",
+    "other": "سایر",
+    "condiments": "چاشنی‌ها",
+    "bakery": "نانوایی",
+    "beverage": "نوشیدنی‌ها"
   }
 }

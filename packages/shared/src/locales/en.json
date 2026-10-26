@@ -120,7 +120,8 @@
     "loading": "Loading...",
     "close": "Close",
     "search": "Search",
-    "total": "Total"
+    "total": "Total",
+    "all": "All"
   },
   "aiChefPage": {
     "badge": "Generative AI Culinary Studio",
@@ -487,5 +488,16 @@
       "sortQuickest": "Quickest first",
       "sortName": "Name (A–Z)"
     }
+  },
+  "categories": {
+    "produce": "Produce",
+    "dairyEggs": "Dairy & Eggs",
+    "meatSeafood": "Meat & Seafood",
+    "grainsPasta": "Grains & Pasta",
+    "pantrySpices": "Pantry & Spices",
+    "other": "Other",
+    "condiments": "Condiments",
+    "bakery": "Bakery",
+    "beverage": "Beverages"
   }
 }
