@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { DishImage } from '@/components/dish-image';
 import { Card } from '@/components/ui/card';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
@@ -27,12 +27,7 @@ export function CatalogRecipeCard({ recipe, onPress }: CatalogRecipeCardProps) {
       onPress={onPress}
       style={({ pressed }) => (pressed ? styles.pressed : undefined)}>
       <Card padded={false}>
-        <Image
-          source={{ uri: recipe.imageUrl }}
-          style={styles.image}
-          contentFit="cover"
-          transition={200}
-        />
+        <DishImage uri={recipe.imageUrl} name={recipe.name} style={styles.image} />
         <View style={styles.body}>
           <View style={styles.titleRow}>
             <ThemedText type="smallBold" style={styles.title} numberOfLines={2}>

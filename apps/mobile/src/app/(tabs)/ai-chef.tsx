@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
+import { DishImage } from '@/components/dish-image';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Loading } from '@/components/ui/loading';
 import { PageHeader } from '@/components/ui/page-header';
@@ -353,12 +353,7 @@ export default function AIChefScreen() {
               }
               style={({ pressed }) => [pressed && { opacity: 0.88 }]}>
               <Card padded={false} style={styles.dishCard}>
-                <Image
-                  source={{ uri: photos[index] }}
-                  style={styles.dishImage}
-                  contentFit="cover"
-                  transition={200}
-                />
+                <DishImage uri={photos[index]} name={dish.name} style={styles.dishImage} />
                 <View style={styles.dishBody}>
                   <View style={styles.dishTitleRow}>
                     <ThemedText type="smallBold" style={styles.dishTitle}>

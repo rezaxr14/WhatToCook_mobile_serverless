@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DishImage } from '@/components/dish-image';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
 import { Loading } from '@/components/ui/loading';
@@ -165,9 +166,13 @@ export default function PantryScreen() {
         <View style={styles.list}>
           {items.map((item) => (
             <Card key={item.ingredientId} style={styles.item}>
-              <View style={[styles.itemIcon, { backgroundColor: theme.brandSoft }]}>
-                <Ionicons name="leaf" size={18} color={theme.brandDark} />
-              </View>
+              <DishImage
+                uri={item.imageUrl}
+                name={item.name}
+                icon="leaf-outline"
+                showLabel={false}
+                style={[styles.itemIcon, { backgroundColor: theme.brandSoft }]}
+              />
               <View style={styles.itemCopy}>
                 <ThemedText type="smallBold" numberOfLines={1}>
                   {item.name}
