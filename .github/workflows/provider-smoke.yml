@@ -78,5 +78,5 @@ jobs:
           text = re.sub(r'\s+', ' ', text)
           for needle in ('Gemini 3.5 Flash Lite', 'Gemini 3.5 Flash', 'Gemini 3.6 Flash'):
               index = text.find(needle)
-              print(needle, '=>', text[index:index + 260] if index >= 0 else 'not found')
+              print(needle, '=>', text[index:index + 900] if index >= 0 else 'not found')
           PY
