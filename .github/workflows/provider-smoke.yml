@@ -95,6 +95,10 @@ jobs:
               -H "Content-Type: application/json" \
               -d '{"contents":[{"role":"user","parts":[{"text":"Write two sentences about pasta."}]}],"generationConfig":{"maxOutputTokens":2200}}')
             elapsed=$(( $(date +%s) - started ))
+            if [ "$status" = "429" ]; then
+              echo "model=$model http=429 rate_limited (warning only; fallback model)"
+              continue
+            fi
             MODEL="$model" STATUS="$status" ELAPSED="$elapsed" python3 - <<'PY'
           import json, os
           model = os.environ['MODEL']
@@ -150,7 +154,7 @@ jobs:
             -H "Content-Type: application/json" \
             -H "HTTP-Referer: https://rezaxr14.github.io/WhatToCook_mobile_serverless/" \
             -H "X-Title: WhatToCook" \
-            -d "{\"model\":\"$OPENROUTER_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly: OK\"}],\"max_tokens\":64}")
+            -d "{\"model\":\"$OPENROUTER_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly: OK\"}],\"max_tokens\":2048}")
           echo "generate_http=$status"
           python3 - <<'PY'
           import json, os
@@ -165,6 +169,9 @@ jobs:
           print('finish:', choice.get('finish_reason'))
           print('usage:', data.get('usage'))
           print('reply:', text.strip()[:120] or '(empty)')
+          if not text.strip():
+              print('message_keys:', sorted(((choice.get('message') or {}).keys())))
+              print('reasoning:', str((choice.get('message') or {}).get('reasoning'))[:200])
           if not text.strip():
               raise SystemExit(1)
           PY
