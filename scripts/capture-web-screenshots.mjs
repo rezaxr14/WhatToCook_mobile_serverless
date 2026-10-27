@@ -97,7 +97,15 @@ try {
   await page.getByText('Cook Full Recipe').first().dispatchEvent('click');
   await page.waitForURL(/\/ai-recipe\//, { timeout: 30_000 });
   await page.waitForTimeout(4000);
-  await page.evaluate(() => window.scrollTo(0, 0));
+  // The detail page can land on the sous-chef chat; the app scrolls inside a
+  // div rather than the window, so reset every scroll container.
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    for (const element of document.querySelectorAll('*')) {
+      if (element.scrollTop > 0) element.scrollTop = 0;
+    }
+  });
+  await page.waitForTimeout(800);
   await shot('ai-recipe');
 
   console.log(`screenshots written to ${outDir}`);
