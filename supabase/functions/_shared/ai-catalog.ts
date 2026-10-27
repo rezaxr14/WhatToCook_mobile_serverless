@@ -42,9 +42,7 @@ export interface LMStudioStatus {
 export function buildAICatalog(config: RuntimeConfig, lmStudio: LMStudioStatus): AICatalogResponse {
   const provider = config.providerId;
   const currentModel =
-    config.models.suggestions ??
-    config.models.scan ??
-    (provider === 'fake' ? 'fake-1' : '');
+    config.models.suggestions ?? config.models.scan ?? (provider === 'fake' ? 'fake-1' : '');
   const models = catalogModels(config, lmStudio, currentModel);
 
   if (provider === 'openrouter') {
@@ -175,20 +173,24 @@ function catalogModels(
         description: 'Local model served by LM Studio',
       };
     }
+    if (config.providerId === 'fake') {
+      return {
+        id,
+        displayName: id,
+        description: 'Deterministic demo provider',
+      };
+    }
     return {
       id,
       displayName: id,
-      description: config.providerId === 'fake' ? 'Deterministic demo provider' : 'Gemini model',
+      description:
+        id === currentModel ? 'Default Gemini model for every feature' : 'Gemini fallback model',
     };
   });
 }
 
 function unique(values: Array<string | undefined>): string[] {
   return [
-    ...new Set(
-      values
-        .map((value) => value?.trim() ?? '')
-        .filter((value) => value.length > 0),
-    ),
+    ...new Set(values.map((value) => value?.trim() ?? '').filter((value) => value.length > 0)),
   ];
 }

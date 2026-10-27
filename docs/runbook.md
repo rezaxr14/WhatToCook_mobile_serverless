@@ -222,22 +222,42 @@ order by model;
 
 ## 3. Real Gemini enablement
 
-Real traffic is **not enabled** until a key is stored server-side and the model ids/prices below
-are verified against current Google documentation. The historical M1 price row uses provider
-`google`; runtime requests use provider `gemini`.
+Real traffic is enabled on staging with a server-side function secret (2026-10-27). The key is
+never in the bundle; the same key is stored as the repository secret used by the manual
+`Provider smoke` workflow. Gemini 2.5 Flash is no longer available to new API keys, so the
+routing below uses Flash-Lite only.
 
-Planned routing and active M4 rows:
+| Feature                | Model                   | Input / output micro-USD per 1M tokens |
+| ---------------------- | ----------------------- | -------------------------------------- |
+| all features (primary) | `gemini-3.5-flash-lite` | 300,000 / 2,500,000                    |
+| fallback text/vision   | `gemini-3.1-flash-lite` | 300,000 / 2,500,000                    |
 
-| Feature                    | Model                   | Input / output micro-USD per 1M tokens |
-| -------------------------- | ----------------------- | -------------------------------------- |
-| suggestions, substitution  | `gemini-2.5-flash-lite` | 100,000 / 400,000                      |
-| detail, chat, stream, scan | `gemini-2.5-flash`      | 300,000 / 2,500,000                    |
-| fallback text/vision       | `gemini-2.0-flash`      | 100,000 / 400,000                      |
-| fallback (not default)     | `gemini-2.5-pro`        | 1,250,000 / 10,000,000                 |
+Flash-Lite is the default for every feature because it is cheaper and much faster than the
+thinking models, and it streamed a full recipe in ~6s. Non-Lite Flash models are deactivated:
+3.8 was dropped after repeated `503 UNAVAILABLE` responses, and 3.6 is no longer used because
+the fallback must stay in the Flash-Lite family. The 3.1 price mirrors the current Flash-Lite
+list price; update that row when Google publishes a different price for the older generation.
+Add a new effective-dated price row instead of editing an existing one. Verify the ids and prices
+whenever Google publishes a new model generation; migrations
+`20261027120000_gemini_3_models.sql`, `20261027130000_flash_lite_routing.sql`, and
+`20261027140000_lite_only_routing.sql` are the current source.
 
-Before enabling:
+`ai-models` exposes the routed model plus its fallbacks, and the client model dropdown may
+request any of them. The server accepts a client-chosen model only when it is in that catalog, so
+selecting `gemini-3.1-flash-lite` changes the model for the next request instead of silently
+using the default. Every selectable model needs an active price row.
 
-1. Confirm each model id is available to the project and the active prices are correct.
+When `AI_FALLBACK_PROVIDER=openrouter` and `OPENROUTER_API_KEY` is set, a Gemini failure before
+any output is retried on `OPENROUTER_MODEL` (staging uses the free `openrouter/free` router). The
+fallback request raises the output budget to 4,096 tokens because the free router may spend part
+of it on reasoning. Free models are billed at $0, so `ai_usage_events` records a zero cost for
+those calls. Pantry photos stay on Gemini unless `AI_FALLBACK_VISION=true`; the free router
+returned invalid output for the pantry-scan schema in testing.
+
+Before enabling on a new project:
+
+1. Confirm each model id is available to the project (`Provider smoke` workflow) and the active
+   prices are correct.
 2. Add `GEMINI_API_KEY` as a Supabase function secret, without echoing it:
    ```powershell
    pnpm exec supabase secrets set "GEMINI_API_KEY=$env:GEMINI_API_KEY"
@@ -257,6 +277,17 @@ Before enabling:
    micro-USD cost, and that `get_my_usage()` reflects the spend.
 7. Raise the cap only after the first-day totals match the budget model.
 
+Staging smoke on 2026-10-27: `ai-models` reports `gemini-3.5-flash-lite` as the current model and
+exposes `gemini-3.5-flash-lite` / `gemini-3.1-flash-lite`. With every feature routed to
+Flash-Lite, `suggestions`, `detail`, `chat`, `stream`, and `scan` all returned
+`provider: "gemini"` with one Lite model and costs between 475 and 2,841 micro-USD. Selecting
+the fallback model in the AI Chef picker returns `model_used: "gemini-3.1-flash-lite"` for
+suggestions, detail, chat, stream, and scan. Forcing the
+Gemini routing to an unavailable model produced `provider: "openrouter"`,
+`model_used: "openrouter/free"`, five valid recipes, and `cost_micro_usd: 0`. Google blocks this
+network from `generativelanguage.googleapis.com`, so direct key checks run in the `Provider
+smoke` GitHub workflow; the Edge Function itself reaches Google from Supabase's network.
+
 If the provider returns `429`, the client sees `429 rate_limited`; do not retry more than once
 without checking the provider quota. If the provider returns `502 provider_error`, check the
 function logs for `gemini_http_<status>` and the model/pricing configuration.
@@ -267,17 +298,30 @@ OpenRouter is the second real provider. It uses the OpenAI-compatible chat-compl
 the same adapter covers text, structured JSON, streaming, and vision. The key is read only in the
 Edge Function process; it must never be exposed through `VITE_*` or `EXPO_PUBLIC_*`.
 
-1. Put the key and model id in the root `.env.local` and in `supabase/functions/.env`:
+The recommended staging setup keeps Gemini Flash-Lite as the primary provider and uses the free
+OpenRouter router only as a fallback:
+
+```dotenv
+AI_PROVIDER=gemini
+GEMINI_API_KEY=...
+AI_FALLBACK_PROVIDER=openrouter
+OPENROUTER_API_KEY=...
+OPENROUTER_MODEL=openrouter/free
+```
+
+1. To use OpenRouter as the primary provider instead, put the key and model id in the root
+   `.env.local` and in `supabase/functions/.env`:
    ```dotenv
    AI_PROVIDER=openrouter
    OPENROUTER_API_KEY=...
-   OPENROUTER_MODEL=openai/gpt-4o-mini
+   OPENROUTER_MODEL=openrouter/free
    # Optional multimodal model for pantry scans:
-   # OPENROUTER_VISION_MODEL=openai/gpt-4o
+   # OPENROUTER_VISION_MODEL=...
    ```
-   The model id is the exact id from <https://openrouter.ai/models>. `OPENROUTER_MODEL` is used
-   for every feature, including scans, unless `OPENROUTER_VISION_MODEL` is set. If the model is
-   text-only, set a multimodal vision model or disable the `scan` feature flag.
+   The model id is the exact id from <https://openrouter.ai/models>. `openrouter/free` and any
+   `*:free` id are billed at $0. `OPENROUTER_MODEL` is used for every feature, including scans,
+   unless `OPENROUTER_VISION_MODEL` is set. If the model is text-only, set a multimodal vision
+   model, set `AI_FALLBACK_VISION=false`, or disable the `scan` feature flag.
 2. Set a deliberately low global cap before the first call, as in the Gemini procedure:
    ```sql
    update app_config
@@ -293,15 +337,17 @@ Edge Function process; it must never be exposed through `VITE_*` or `EXPO_PUBLIC
    pnpm exec supabase secrets set AI_PROVIDER=openrouter
    pnpm exec supabase secrets set "OPENROUTER_API_KEY=$env:OPENROUTER_API_KEY"
    pnpm exec supabase secrets set "OPENROUTER_MODEL=$env:OPENROUTER_MODEL"
+   # Optional: keep Gemini primary and use OpenRouter only as a fallback.
+   # pnpm exec supabase secrets set AI_FALLBACK_PROVIDER=openrouter
    # Optional: match the RPM/RPD shown for your OpenRouter model.
    # pnpm exec supabase secrets set AI_RPM_LIMIT=... AI_RPD_LIMIT=...
    ```
 4. Pricing: the gateway first looks for an active `ai_model_prices` row for
-   `provider='openrouter'` and the exact model. If none exists, it uses the conservative
-   defaults `OPENROUTER_INPUT_MICRO_USD_PER_MILLION=1000000` /
-   `OPENROUTER_OUTPUT_MICRO_USD_PER_MILLION=3000000` (USD 1 / USD 3 per 1M tokens). These are
-   estimates; set the env overrides or insert the model's current price before production
-   traffic.
+   `provider='openrouter'` and the exact model. Free ids (`openrouter/free` and `*:free`) are
+   priced at $0. Any other model falls back to the conservative defaults
+   `OPENROUTER_INPUT_MICRO_USD_PER_MILLION=1000000` /
+   `OPENROUTER_OUTPUT_MICRO_USD_PER_MILLION=3000000` (USD 1 / USD 3 per 1M tokens); set the env
+   overrides or insert the model's current price before production traffic.
 5. Run one low-cost request per feature and verify `provider: "openrouter"`, the exact
    `model_used`, token counts, and `ai_usage_events` cost. Remember that the gateway ignores a
    client-supplied `provider`/`model`; routing is server-side.
@@ -525,9 +571,9 @@ Hosted-origin follow-up on 2026-10-27 (same project, `AI_PROVIDER=fake`):
 - An anonymous signup plus a `suggestions` request from the Pages origin returned
   `status: "done"` with five recipes and no key material in the response.
 
-Real Gemini smoke remains blocked on H5. The Gemini key field is blank; real traffic must not be
-enabled until the key is present and the model/pricing rows are verified against current Google
-documentation. The planned M4 prices are listed in section 3.
+Real Gemini smoke completed on 2026-10-27; see section 3. The staging functions now run with
+`AI_PROVIDER=gemini`, and the model routing/prices are in
+`20261027120000_gemini_3_models.sql`.
 
 ## 10. Android release build
 

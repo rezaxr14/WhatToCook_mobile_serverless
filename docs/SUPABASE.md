@@ -27,6 +27,8 @@ Local endpoints: API `http://127.0.0.1:54321`, DB `127.0.0.1:54322`, Studio
 Seeded catalog: 80 ingredients, 12 recipes, 65 recipe-ingredient rows, 3 plans. The 12 JPGs in
 `supabase/seed-images/recipes/` are uploaded by the local stack to
 `recipe-images/recipes/<file>` when `objects_path` is configured in `supabase/config.toml`.
+The 15 extra WebP photos in `supabase/seed-images/dishes/` give AI suggestions that have no
+catalog recipe a real food image; they are uploaded to `recipe-images/dishes/<file>`.
 
 ## Environment and secrets
 
@@ -64,9 +66,16 @@ Supabase secrets remotely:
 - `AI_PROVIDER` - `fake` (default for tests/staging), `gemini`, `openrouter`, or `lmstudio`.
 - `GEMINI_API_KEY` - required only when `AI_PROVIDER=gemini`.
 - `GEMINI_MODEL` / `GEMINI_VISION_MODEL` - optional Gemini overrides; normal routing comes from
-  `app_config.model_routing`.
-- `OPENROUTER_API_KEY` - required only when `AI_PROVIDER=openrouter`; server-side only.
-- `OPENROUTER_MODEL` - required when `AI_PROVIDER=openrouter`; one model id for all features.
+  `app_config.model_routing`. Gemini uses Flash-Lite only (`gemini-3.5-flash-lite` default,
+  `gemini-3.1-flash-lite` fallback), and both are selectable in the client model picker.
+- `OPENROUTER_API_KEY` - required when `AI_PROVIDER=openrouter` or `AI_FALLBACK_PROVIDER=openrouter`;
+  server-side only.
+- `AI_FALLBACK_PROVIDER` - optional `openrouter`; retries Gemini failures (before any streamed
+  output) on `OPENROUTER_MODEL`. Free models cost $0. Off when empty.
+- `AI_FALLBACK_VISION` - optional `true` to also send pantry photos to the fallback; off by
+  default because free routers may not offer a vision model.
+- `OPENROUTER_MODEL` - required when `AI_PROVIDER=openrouter`, and used by the fallback; one model
+  id for all features. `openrouter/free` routes across free models.
 - `OPENROUTER_VISION_MODEL` - optional scan override; defaults to `OPENROUTER_MODEL`.
 - `OPENROUTER_ALLOWED_MODELS` - optional comma-separated allowlist for client-selected models;
   free `*:free` ids are always selectable.
@@ -132,8 +141,9 @@ pnpm exec supabase db lint --local --schema public --level warning --fail-on err
 - `SUPABASE_DB_PASSWORD`
 
 It runs `supabase link`, `supabase db push --yes`, then uploads each catalog image to
-`recipe-images`. Storage uploads remove the object first because `storage cp` is experimental
-and does not upsert. Missing secrets produce a warning and skip the deploy.
+`recipe-images` (`recipes/` and `dishes/`). Storage uploads remove the object first because
+`storage cp` is experimental and does not upsert. Missing secrets produce a warning and skip the
+deploy.
 
 **Deploy-path decision:** this workflow is the single owner of staging and production
 migrations. The Supabase GitHub integration is connected (`Supabase Preview` appears on pull
@@ -193,7 +203,9 @@ pnpm exec supabase storage cp <file> "ss:///recipe-images/recipes/<name>" \
 
 `recipe-images` is public-read; `scan-uploads` is private and owner-folder-scoped. Catalog
 `image_path` values are `recipes/<file>.jpg`, and the objects live under the same `recipes/`
-prefix in the bucket.
+prefix in the bucket. AI-discovered dishes reuse those photos plus `dishes/<file>.webp`; both
+clients resolve dishes through `packages/shared/src/dish-photos.ts` and only fall back to a local
+poster when even Storage fails.
 
 `ingredient-images` is also public-read. The `cache-ingredient-images` Edge Function fills it
 with content-hashed thumbnails (`ingredients/<slug>-<hash>.<ext>`) and updates

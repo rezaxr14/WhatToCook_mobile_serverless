@@ -59,7 +59,7 @@ export default function AIRecipeScreen() {
   const [swapName, setSwapName] = useState<string | null>(null);
 
   const recipe = detail.data;
-  const heroImage = recipe ? getDishImageUrl(recipe.name, recipe.image) : undefined;
+  const heroImage = recipe ? getDishImageUrl(recipe.name, recipe.image, recipe.cuisine) : undefined;
   const remaining = recipe?.remaining?.daily.suggestions?.remaining;
 
   const handleGrocery = () => {

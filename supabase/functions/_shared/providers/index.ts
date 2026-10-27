@@ -1,5 +1,7 @@
 import { providerError } from '../errors.ts';
+import { DEFAULT_OPENROUTER_MODEL } from '../../../../packages/shared/src/ai-models.ts';
 import { FakeProvider } from './fake.ts';
+import { FallbackProvider } from './fallback.ts';
 import { GeminiProvider } from './gemini.ts';
 import { OpenRouterProvider } from './openrouter.ts';
 import type { AIProvider, RuntimeConfig } from '../types.ts';
@@ -36,7 +38,34 @@ export function createProvider(
       config.models.scan,
       config.models.recipe,
     ]);
-    return new GeminiProvider({ apiKey, textFallbacks, visionFallbacks });
+    const primary = new GeminiProvider({ apiKey, textFallbacks, visionFallbacks });
+
+    // Optional cross-provider fallback: keep serving from OpenRouter's free
+    // model when Gemini is unavailable or the key hits its quota. Opt-in so a
+    // deployment never silently sends prompts to a second vendor.
+    if (env.AI_FALLBACK_PROVIDER?.trim().toLowerCase() === 'openrouter') {
+      const openRouterKey = env.OPENROUTER_API_KEY?.trim();
+      if (openRouterKey) {
+        return new FallbackProvider(
+          primary,
+          new OpenRouterProvider({
+            apiKey: openRouterKey,
+            textFallbacks: [],
+            visionFallbacks: [],
+            siteUrl: env.OPENROUTER_SITE_URL?.trim() || undefined,
+            appName: env.OPENROUTER_APP_NAME?.trim() || 'WhatToCook',
+            jsonMode: env.OPENROUTER_JSON_MODE !== 'false',
+            timeoutMs: 60_000,
+            streamTimeoutMs: 120_000,
+          }),
+          env.OPENROUTER_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL,
+          env.AI_FALLBACK_VISION === 'true',
+        );
+      }
+      console.warn('ai_fallback_skipped', 'OPENROUTER_API_KEY is not configured');
+    }
+
+    return primary;
   }
 
   if (providerId === 'openrouter') {

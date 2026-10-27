@@ -210,7 +210,19 @@ model and fallback settings, because their model ids are namespaced and cannot r
 routing. A client-supplied `provider` is accepted for compatibility but ignored; a client
 `model` is honored only when it is server-allowlisted (OpenRouter additionally accepts free
 `*:free` ids). `fake` is a deterministic, zero-cost adapter used in Deno tests and staging; LM
-Studio is a local-only, zero-cost provider for development. All user text and image-derived
+Studio is a local-only, zero-cost provider for development.
+
+Gemini routes every feature to `gemini-3.5-flash-lite`, with `gemini-3.1-flash-lite` as the
+single fallback. Only Flash-Lite models are used: Lite is cheaper and far faster than the
+thinking models, 3.8 was dropped after repeated `503 UNAVAILABLE` responses, and 3.6 is disabled
+so the fallback stays in the same family. `ai-models` exposes the routed model plus its
+fallbacks, and a client `model` from that catalog is honored, so the AI Chef dropdown changes the
+model rather than only the label. When `AI_FALLBACK_PROVIDER=openrouter` is set and an
+OpenRouter key exists, a Gemini failure before any output is retried on `OPENROUTER_MODEL`
+(staging uses the free `openrouter/free`). The fallback request raises the output budget to 4,096
+because the free router may spend part of it on reasoning, free ids settle at $0, and pantry
+photos stay on Gemini unless `AI_FALLBACK_VISION=true` because the free router did not satisfy
+the scan schema in testing. All user text and image-derived
 labels are untrusted data, never instructions; structured output is schema-validated with at
 most one repair attempt.
 

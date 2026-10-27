@@ -18,10 +18,17 @@ The provider (`gemini`, `openrouter`, `lmstudio`, or `fake`) and model are
 selected server-side from `app_config.model_routing`, with `AI_PROVIDER`,
 `GEMINI_MODEL`, `GEMINI_VISION_MODEL`, `OPENROUTER_MODEL`,
 `OPENROUTER_VISION_MODEL`, and `LMSTUDIO_MODEL` / `LMSTUDIO_VISION_MODEL` as
-deploy-time overrides. When `AI_PROVIDER=openrouter`, `OPENROUTER_MODEL` selects
-the model for every feature and replaces the Gemini routing from
-`app_config.model_routing`; optional OpenRouter fallback model ids are read from
-`OPENROUTER_FALLBACK_MODELS` / `OPENROUTER_VISION_FALLBACK_MODELS`. When
+deploy-time overrides. Gemini routes every feature to `gemini-3.5-flash-lite`
+with `gemini-3.1-flash-lite` as the only fallback; non-Lite Flash models are
+disabled. `ai-models` lists the routed model and its fallbacks, and a request
+may select one of those ids with `model`. When `AI_PROVIDER=openrouter`,
+`OPENROUTER_MODEL` selects the model for every feature and replaces the Gemini
+routing from `app_config.model_routing`; optional OpenRouter fallback model ids
+are read from `OPENROUTER_FALLBACK_MODELS` /
+`OPENROUTER_VISION_FALLBACK_MODELS`. `AI_FALLBACK_PROVIDER=openrouter` keeps
+Gemini primary and retries a failed text/stream/chat call on `OPENROUTER_MODEL`
+(staging uses the free `openrouter/free`, billed at $0); pantry photos only
+follow the fallback when `AI_FALLBACK_VISION=true`. When
 `AI_PROVIDER=lmstudio`, LM Studio's OpenAI-compatible server at
 `LMSTUDIO_BASE_URL` (default `http://127.0.0.1:1234/v1`) serves every feature
 with `LMSTUDIO_MODEL`; `LMSTUDIO_FALLBACK_MODELS` /
@@ -117,14 +124,14 @@ Response:
       "prep_time": "20 mins",
       "image_hint": "eggs",
       "provider": "gemini",
-      "model_used": "gemini-2.5-flash-lite"
+      "model_used": "gemini-3.5-flash-lite"
     }
   ],
-  "model": "gemini-2.5-flash-lite",
+  "model": "gemini-3.5-flash-lite",
   "cached": false,
   "duplicate": false,
   "provider": "gemini",
-  "model_used": "gemini-2.5-flash-lite",
+  "model_used": "gemini-3.5-flash-lite",
   "rate_limited_models": [],
   "usage": { "input_tokens": 123, "output_tokens": 456, "cost_micro_usd": 1180 },
   "remaining": { "plan_id": "free", "daily": {}, "monthly": {}, "resets_at": "..." }
@@ -245,7 +252,7 @@ Response:
   "cached": false,
   "duplicate": false,
   "provider": "gemini",
-  "model_used": "gemini-2.5-flash",
+  "model_used": "gemini-3.5-flash-lite",
   "rate_limited_models": [],
   "usage": { "input_tokens": 1234, "output_tokens": 180, "cost_micro_usd": 820 },
   "remaining": { "plan_id": "free", "daily": {}, "monthly": {}, "resets_at": "..." }
@@ -284,7 +291,7 @@ Response:
   "cached": false,
   "duplicate": false,
   "provider": "gemini",
-  "model_used": "gemini-2.5-flash-lite",
+  "model_used": "gemini-3.5-flash-lite",
   "rate_limited_models": [],
   "usage": { "input_tokens": 210, "output_tokens": 160, "cost_micro_usd": 85 },
   "remaining": { "plan_id": "free", "daily": {}, "monthly": {}, "resets_at": "..." }

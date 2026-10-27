@@ -4,7 +4,7 @@ create extension if not exists pgtap with schema extensions;
 begin;
 set search_path = public, extensions;
 
-select plan(31);
+select plan(32);
 
 select has_table('public', 'plans', 'plans table exists');
 select has_table('public', 'profiles', 'profiles table exists');
@@ -74,8 +74,14 @@ select ok(
 );
 
 select is((
-  select count(*)::integer from storage.objects where bucket_id = 'recipe-images'
+  select count(*)::integer from storage.objects
+  where bucket_id = 'recipe-images' and name like 'recipes/%'
 ), 12, '12 recipe images uploaded to Storage');
+
+select is((
+  select count(*)::integer from storage.objects
+  where bucket_id = 'recipe-images' and name like 'dishes/%'
+), 15, '15 AI dish images uploaded to Storage');
 
 select is((
   select count(*)::integer

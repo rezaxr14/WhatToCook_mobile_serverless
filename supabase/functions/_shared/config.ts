@@ -94,6 +94,13 @@ export function parseRuntimeConfig(row: AppConfigRow | null, env: Env): RuntimeC
     }
     const envVisionModel = env.GEMINI_VISION_MODEL?.trim() || envTextModel;
     if (envVisionModel) models.scan = envVisionModel;
+
+    // Gemini ignores unknown client choices by design. The models exposed by
+    // the `ai-models` catalog (the routed models plus their fallbacks) are the
+    // ones the client may request, so the model selector actually changes the
+    // model instead of silently falling back to the routed default. Pricing is
+    // still resolved server-side, so a model without a price row is rejected.
+    allowedModels = uniqueStrings([...Object.values(models), ...textFallbacks, ...visionFallbacks]);
   }
 
   return {
@@ -176,6 +183,17 @@ function commaList(value: string | undefined): string[] {
       (value ?? '')
         .split(',')
         .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function uniqueStrings(values: Array<string | undefined>): string[] {
+  return [
+    ...new Set(
+      values
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim())
         .filter(Boolean),
     ),
   ];

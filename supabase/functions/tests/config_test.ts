@@ -36,6 +36,16 @@ Deno.test('config: reads routing, flags, caps, and deduplicated fallbacks', () =
   assertEquals(config.models.substitution, 'gemini-lite');
   assertEquals(config.fallbacks.text, ['fallback-a', 'fallback-b']);
   assertEquals(config.fallbacks.vision, ['vision-fallback']);
+  assertEquals(config.allowedModels, [
+    'gemini-lite',
+    'gemini-detail',
+    'gemini-chat',
+    'gemini-stream',
+    'gemini-vision',
+    'fallback-a',
+    'fallback-b',
+    'vision-fallback',
+  ]);
   assertEquals(config.rateLimits, {
     rpm: null,
     rpd: null,
@@ -43,7 +53,6 @@ Deno.test('config: reads routing, flags, caps, and deduplicated fallbacks', () =
     anonRpm: 8,
     ipRpm: 40,
   });
-  assertEquals(config.allowedModels, []);
   assertEquals(config.allowedOrigins, []);
 });
 

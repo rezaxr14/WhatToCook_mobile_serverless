@@ -99,3 +99,13 @@ jobs:
               --cache-control "public, max-age=31536000, immutable" \
               --experimental --yes
           done
+          # Extra dish photos used for AI suggestions that have no catalog recipe.
+          for file in supabase/seed-images/dishes/*.webp; do
+            name="$(basename "$file")"
+            supabase storage rm "ss:///recipe-images/dishes/$name" \
+              --project-ref "$SUPABASE_PROJECT_ID" --experimental --yes >/dev/null 2>&1 || true
+            supabase storage cp "$file" "ss:///recipe-images/dishes/$name" \
+              --project-ref "$SUPABASE_PROJECT_ID" \
+              --cache-control "public, max-age=31536000, immutable" \
+              --experimental --yes
+          done

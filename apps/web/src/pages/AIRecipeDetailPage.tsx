@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router';
-import { ArrowLeft, Sparkles, ChefHat, Clock, Check, Flame, Award, Lightbulb, ShoppingCart } from 'lucide-react';
+import {
+  ArrowLeft,
+  Sparkles,
+  ChefHat,
+  Clock,
+  Check,
+  Flame,
+  Award,
+  Lightbulb,
+  ShoppingCart,
+} from 'lucide-react';
 import { AIRecipeDetail, AIRecipeInstruction } from '../types/ai';
 import { aiApi } from '../api/aiApi';
 import { useShoppingList } from '../context/ShoppingListContext';
@@ -17,6 +27,11 @@ export const AIRecipeDetailPage: React.FC = () => {
   const { name } = useParams<{ name: string }>();
   const [searchParams] = useSearchParams();
   const provider = (searchParams.get('provider') as any) || 'gemini';
+  const { isInPantry, activeModel, handleRateLimitedModels } = usePantry();
+  // The AI Chef page puts the chosen model in the URL so a reload or a shared
+  // link keeps the selection; the context value is the fallback for direct
+  // navigation.
+  const selectedModel = searchParams.get('model') || activeModel;
 
   const [recipe, setRecipe] = useState<AIRecipeDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,14 +42,13 @@ export const AIRecipeDetailPage: React.FC = () => {
   const [selectedSubIngredient, setSelectedSubIngredient] = useState('');
 
   const { addMultipleItems } = useShoppingList();
-  const { isInPantry, activeModel, handleRateLimitedModels } = usePantry();
 
   useEffect(() => {
     const fetchDetail = async () => {
       if (!name) return;
       setIsLoading(true);
       try {
-        const data = await aiApi.getRecipeDetail(name, provider, activeModel);
+        const data = await aiApi.getRecipeDetail(name, provider, selectedModel);
         setRecipe(data);
         if (data.rate_limited_models && data.rate_limited_models.length > 0) {
           handleRateLimitedModels(data.rate_limited_models);
@@ -46,17 +60,17 @@ export const AIRecipeDetailPage: React.FC = () => {
       }
     };
     fetchDetail();
-  }, [name, provider, activeModel, handleRateLimitedModels]);
+  }, [name, provider, selectedModel, handleRateLimitedModels]);
 
   const toggleStep = (idx: number) => {
     setCompletedSteps((prev) =>
-      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
+      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx],
     );
   };
 
   const toggleIngredient = (ingName: string) => {
     setCheckedIngredients((prev) =>
-      prev.includes(ingName) ? prev.filter((i) => i !== ingName) : [...prev, ingName]
+      prev.includes(ingName) ? prev.filter((i) => i !== ingName) : [...prev, ingName],
     );
   };
 
@@ -77,7 +91,10 @@ export const AIRecipeDetailPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="py-12">
-        <LoadingChef message={`Master Chef is writing the complete recipe for ${name}...`} provider={provider} />
+        <LoadingChef
+          message={`Master Chef is writing the complete recipe for ${name}...`}
+          provider={provider}
+        />
       </div>
     );
   }
@@ -85,7 +102,9 @@ export const AIRecipeDetailPage: React.FC = () => {
   if (!recipe) {
     return (
       <div className="max-w-md mx-auto py-16 text-center">
-        <h2 className="text-2xl font-bold text-stone-900 mb-2">Recipe detail could not be generated</h2>
+        <h2 className="text-2xl font-bold text-stone-900 mb-2">
+          Recipe detail could not be generated
+        </h2>
         <Link to="/ai-chef">
           <StyledButton $variant="primary">Back to AI Studio</StyledButton>
         </Link>
@@ -109,7 +128,8 @@ export const AIRecipeDetailPage: React.FC = () => {
       {/* Hero Card */}
       <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-stone-900 text-white min-h-[380px] flex flex-col justify-end p-8 sm:p-12">
         <img
-          src={getDishImageUrl(recipe.name, recipe.image)}
+          key={getDishImageUrl(recipe.name, recipe.image, recipe.cuisine)}
+          src={getDishImageUrl(recipe.name, recipe.image, recipe.cuisine)}
           alt={recipe.name}
           className="absolute inset-0 w-full h-full object-cover opacity-60"
           onError={(e) => {
@@ -152,20 +172,36 @@ export const AIRecipeDetailPage: React.FC = () => {
       {recipe.nutrition && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs text-center">
-            <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Calories</div>
-            <div className="text-xl font-extrabold text-stone-900 mt-1">{recipe.nutrition.calories || '350 kcal'}</div>
+            <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+              Calories
+            </div>
+            <div className="text-xl font-extrabold text-stone-900 mt-1">
+              {recipe.nutrition.calories || '350 kcal'}
+            </div>
           </div>
           <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs text-center">
-            <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Protein</div>
-            <div className="text-xl font-extrabold text-emerald-600 mt-1">{recipe.nutrition.protein || '24g'}</div>
+            <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+              Protein
+            </div>
+            <div className="text-xl font-extrabold text-emerald-600 mt-1">
+              {recipe.nutrition.protein || '24g'}
+            </div>
           </div>
           <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs text-center">
-            <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Carbs</div>
-            <div className="text-xl font-extrabold text-amber-600 mt-1">{recipe.nutrition.carbs || '38g'}</div>
+            <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+              Carbs
+            </div>
+            <div className="text-xl font-extrabold text-amber-600 mt-1">
+              {recipe.nutrition.carbs || '38g'}
+            </div>
           </div>
           <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-xs text-center">
-            <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Fats</div>
-            <div className="text-xl font-extrabold text-orange-600 mt-1">{recipe.nutrition.fat || '12g'}</div>
+            <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+              Fats
+            </div>
+            <div className="text-xl font-extrabold text-orange-600 mt-1">
+              {recipe.nutrition.fat || '12g'}
+            </div>
           </div>
         </div>
       )}
@@ -193,9 +229,7 @@ export const AIRecipeDetailPage: React.FC = () => {
             />
 
             <div className="flex items-center justify-between pt-1">
-              <p className="text-xs text-stone-500">
-                Mark items as ready:
-              </p>
+              <p className="text-xs text-stone-500">Mark items as ready:</p>
               <button
                 onClick={handleAddAllToShoppingList}
                 className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1 hover:underline"
@@ -214,10 +248,10 @@ export const AIRecipeDetailPage: React.FC = () => {
                   <div
                     key={idx}
                     className={`w-full flex items-center justify-between p-3 rounded-2xl border text-left transition-all ${
- isChecked
- ? 'bg-emerald-50 border-emerald-200 text-emerald-950 opacity-70'
- : 'bg-stone-50/80 border-stone-200 hover:border-brand-300 text-stone-800'
- }`}
+                      isChecked
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-950 opacity-70'
+                        : 'bg-stone-50/80 border-stone-200 hover:border-brand-300 text-stone-800'
+                    }`}
                   >
                     <button
                       onClick={() => toggleIngredient(ing.name)}
@@ -225,14 +259,16 @@ export const AIRecipeDetailPage: React.FC = () => {
                     >
                       <div
                         className={`w-5 h-5 rounded-lg flex items-center justify-center border ${
- isChecked
- ? 'bg-emerald-600 border-emerald-600 text-white'
- : 'bg-white border-stone-300'
- }`}
+                          isChecked
+                            ? 'bg-emerald-600 border-emerald-600 text-white'
+                            : 'bg-white border-stone-300'
+                        }`}
                       >
                         {isChecked && <Check className="w-3.5 h-3.5" />}
                       </div>
-                      <span className={`text-sm font-semibold truncate ${isChecked ? 'line-through' : ''}`}>
+                      <span
+                        className={`text-sm font-semibold truncate ${isChecked ? 'line-through' : ''}`}
+                      >
                         {ing.name}
                       </span>
                     </button>
@@ -282,31 +318,34 @@ export const AIRecipeDetailPage: React.FC = () => {
                 const isDone = completedSteps.includes(idx);
                 const stepText = typeof inst === 'string' ? inst : inst.step;
                 const chefTip = typeof inst === 'object' && inst.chef_tip ? inst.chef_tip : null;
-                const timeMin = typeof inst === 'object' && inst.time_minutes ? inst.time_minutes : null;
+                const timeMin =
+                  typeof inst === 'object' && inst.time_minutes ? inst.time_minutes : null;
 
                 return (
                   <div
                     key={idx}
                     onClick={() => toggleStep(idx)}
                     className={`p-5 rounded-2xl border transition-all cursor-pointer space-y-3 ${
- isDone
- ? 'bg-emerald-50/60 border-emerald-200 opacity-75'
- : 'bg-stone-50/60 border-stone-200 hover:border-brand-300 hover:bg-white'
- }`}
+                      isDone
+                        ? 'bg-emerald-50/60 border-emerald-200 opacity-75'
+                        : 'bg-stone-50/60 border-stone-200 hover:border-brand-300 hover:bg-white'
+                    }`}
                   >
                     <div className="flex items-start gap-4">
                       <div
                         className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
- isDone
- ? 'bg-emerald-600 text-white'
- : 'bg-linear-to-tr/srgb from-brand-500 to-amber-500 text-white shadow-xs'
- }`}
+                          isDone
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-linear-to-tr/srgb from-brand-500 to-amber-500 text-white shadow-xs'
+                        }`}
                       >
                         {isDone ? <Check className="w-4 h-4" /> : idx + 1}
                       </div>
 
                       <div className="flex-1">
-                        <p className={`text-stone-800 text-sm leading-relaxed ${isDone ? 'line-through text-stone-500' : ''}`}>
+                        <p
+                          className={`text-stone-800 text-sm leading-relaxed ${isDone ? 'line-through text-stone-500' : ''}`}
+                        >
                           {stepText}
                         </p>
 
