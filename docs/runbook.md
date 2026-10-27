@@ -281,7 +281,8 @@ Staging smoke on 2026-10-27: `ai-models` reports `gemini-3.5-flash-lite` as the 
 exposes `gemini-3.5-flash-lite` / `gemini-3.1-flash-lite`. With every feature routed to
 Flash-Lite, `suggestions`, `detail`, `chat`, `stream`, and `scan` all returned
 `provider: "gemini"` with one Lite model and costs between 475 and 2,841 micro-USD. Selecting
-the fallback model in the dropdown returns `model_used: "gemini-3.1-flash-lite"`. Forcing the
+the fallback model in the AI Chef picker returns `model_used: "gemini-3.1-flash-lite"` for
+suggestions, detail, chat, stream, and scan. Forcing the
 Gemini routing to an unavailable model produced `provider: "openrouter"`,
 `model_used: "openrouter/free"`, five valid recipes, and `cost_micro_usd: 0`. Google blocks this
 network from `generativelanguage.googleapis.com`, so direct key checks run in the `Provider

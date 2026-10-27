@@ -252,7 +252,7 @@ Response:
   "cached": false,
   "duplicate": false,
   "provider": "gemini",
-  "model_used": "gemini-3.6-flash",
+  "model_used": "gemini-3.5-flash-lite",
   "rate_limited_models": [],
   "usage": { "input_tokens": 1234, "output_tokens": 180, "cost_micro_usd": 820 },
   "remaining": { "plan_id": "free", "daily": {}, "monthly": {}, "resets_at": "..." }
