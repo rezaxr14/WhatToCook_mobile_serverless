@@ -34,7 +34,13 @@ Deno.test('cors: allows the supabase-js client headers in preflight', () => {
 
   // Browsers reject the whole preflight when a single requested header is not
   // listed, so every header the clients send must be present.
-  for (const header of ['authorization', 'x-client-info', 'x-application-name', 'x-client-type']) {
+  for (const header of [
+    'apikey',
+    'authorization',
+    'x-client-info',
+    'x-application-name',
+    'x-client-type',
+  ]) {
     assert(allowedHeaders.includes(header), `missing ${header}`);
   }
 });
