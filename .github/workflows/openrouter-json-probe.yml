@@ -16,56 +16,71 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          models=(
-            "openrouter/free"
-            "minimax/minimax-m3.1-flash:free"
-            "nvidia/nemotron-3-super-120b-a12b:free"
-            "google/gemma-4-31b-it:free"
-            "google/gemma-4-26b-a4b-it:free"
-            "thinkingmachines/inkling:free"
-            "dots-studio/dots-3-note-preview:free"
-            "liquid/lfm-2.5-2.6b:free"
-            "nvidia/nemotron-3.5-super-vl:free"
+          python3 - <<'PY'
+          import json, os, time, urllib.request
+
+          key = os.environ['OPENROUTER_API_KEY']
+          prompt = (
+              'You are a master creative chef. Based on these available pantry ingredients: '
+              'Pasta, Tomato, Garlic, suggest 5 realistic, enticing, and distinct dishes that can be cooked. '
+              'Return ONLY a JSON array with objects containing: name (str), short_description (str), '
+              'cuisine (str), difficulty (Easy/Medium/Hard), prep_time (e.g. 25 mins), '
+              'image_hint (e.g. pasta, chicken, salad, soup).'
           )
-          prompt='You are a master creative chef. Based on these available pantry ingredients: Pasta, Tomato, Garlic, suggest 5 realistic, enticing, and distinct dishes that can be cooked. Return ONLY a JSON array with objects containing: name (str), short_description (str), cuisine (str), difficulty (Easy/Medium/Hard), prep_time (e.g. 25 mins), image_hint (e.g. pasta, chicken, salad, soup).'
-          for model in "${models[@]}"; do
-            started=$(date +%s)
-            status=$(curl -sS --max-time 180 -o out.json -w "%{http_code}" \
-              "https://openrouter.ai/api/v1/chat/completions" \
-              -H "Authorization: Bearer $OPENROUTER_API_KEY" \
-              -H "Content-Type: application/json" \
-              -H "HTTP-Referer: https://rezaxr14.github.io/WhatToCook_mobile_serverless/" \
-              -H "X-Title: WhatToCook" \
-              -d "$(python3 -c 'import json,sys; print(json.dumps({"model": sys.argv[1], "messages":[{"role":"user","content":sys.argv[2]}], "temperature":0.7, "max_tokens":2000, "response_format":{"type":"json_object"}, "reasoning":{"enabled":False}}))' "$model" "$prompt")")
-            elapsed=$(( $(date +%s) - started ))
-            MODEL="$model" STATUS="$status" ELAPSED="$elapsed" python3 - <<'PY'
-          import json, os
-          model = os.environ['MODEL']
-          print(f"model={model} http={os.environ['STATUS']} seconds={os.environ['ELAPSED']}")
-          try:
-              data = json.load(open('out.json'))
-          except Exception as error:
-              print('  unreadable:', error)
-              raise SystemExit(0)
-          if data.get('error'):
-              print('  error:', data['error'])
-              raise SystemExit(0)
-          choice = (data.get('choices') or [{}])[0]
-          text = (choice.get('message') or {}).get('content') or ''
-          print('  finish:', choice.get('finish_reason'), 'chars:', len(text))
-          try:
-              parsed = json.loads(text)
-          except Exception as error:
-              print('  json_error:', error, 'head:', text[:160].replace('\n', ' '))
-              raise SystemExit(0)
-          rows = parsed if isinstance(parsed, list) else parsed.get('recipes') or parsed.get('suggestions')
-          if not isinstance(rows, list):
-              print('  shape: not a list', type(parsed).__name__)
-              raise SystemExit(0)
-          required = {'name', 'short_description', 'cuisine', 'difficulty', 'prep_time', 'image_hint'}
-          complete = sum(1 for row in rows if isinstance(row, dict) and required.issubset(row))
-          print('  rows:', len(rows), 'complete:', complete)
-          if rows:
-              print('  sample:', json.dumps(rows[0])[:220])
+          cases = [
+              ('openrouter/free', 4096, None),
+              ('openrouter/free', 8192, None),
+              ('google/gemma-4-31b-it:free', 2000, False),
+              ('dots-studio/dots-3-note-preview:free', 4000, False),
+              ('nvidia/nemotron-3.5-super-vl:free', 4000, False),
+          ]
+          for model, budget, reasoning in cases:
+              body = {
+                  'model': model,
+                  'messages': [{'role': 'user', 'content': prompt}],
+                  'temperature': 0.7,
+                  'max_tokens': budget,
+                  'response_format': {'type': 'json_object'},
+              }
+              if reasoning is not None:
+                  body['reasoning'] = {'enabled': reasoning}
+              request = urllib.request.Request(
+                  'https://openrouter.ai/api/v1/chat/completions',
+                  data=json.dumps(body).encode(),
+                  headers={
+                      'Authorization': f'Bearer {key}',
+                      'Content-Type': 'application/json',
+                      'HTTP-Referer': 'https://rezaxr14.github.io/WhatToCook_mobile_serverless/',
+                      'X-Title': 'WhatToCook',
+                  },
+              )
+              started = time.time()
+              try:
+                  with urllib.request.urlopen(request, timeout=240) as response:
+                      data = json.load(response)
+                  status = 200
+              except Exception as error:
+                  print(f'model={model} budget={budget} exception={error}')
+                  continue
+              seconds = round(time.time() - started)
+              print(f'model={model} budget={budget} seconds={seconds}')
+              if data.get('error'):
+                  print('  error:', data['error'])
+                  continue
+              choice = (data.get('choices') or [{}])[0]
+              text = (choice.get('message') or {}).get('content') or ''
+              usage = data.get('usage') or {}
+              print('  finish:', choice.get('finish_reason'), 'chars:', len(text), 'usage:', usage)
+              try:
+                  parsed = json.loads(text)
+              except Exception as error:
+                  print('  json_error:', error, 'head:', text[:160].replace('\n', ' '))
+                  continue
+              rows = parsed if isinstance(parsed, list) else None
+              if rows is None:
+                  print('  shape:', type(parsed).__name__, 'keys:', list(parsed)[:6])
+                  continue
+              required = {'name', 'short_description', 'cuisine', 'difficulty', 'prep_time', 'image_hint'}
+              complete = sum(1 for row in rows if isinstance(row, dict) and required.issubset(row))
+              print('  rows:', len(rows), 'complete:', complete)
           PY
-          done
