@@ -51,6 +51,21 @@ allowed. `verify_jwt = false` is set for these functions so preflight reaches
 the shared layer; `_shared/auth.ts` still rejects every non-preflight request
 without a valid token.
 
+Preflight responses allow the headers the browser clients actually send:
+
+```http
+Access-Control-Allow-Headers: apikey, authorization, content-type, idempotency-key, x-application-name, x-client-info, x-client-type
+Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Expose-Headers: retry-after, x-request-id
+Access-Control-Max-Age: 86400
+Vary: Origin
+```
+
+Add any new client header to `ALLOWED_HEADERS` in
+`supabase/functions/_shared/cors.ts` and cover it in
+`supabase/functions/tests/cors_test.ts`; otherwise the browser drops the
+request before it reaches the function.
+
 ## Idempotency
 
 `Idempotency-Key` is optional. If supplied, it must be 8-128 characters. A UUID
