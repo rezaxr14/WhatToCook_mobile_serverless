@@ -88,12 +88,16 @@ try {
   await page.goto(`${base}/ai-chef`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /generate chef recipes/i }).dispatchEvent('click');
   await page.getByText('Chef Creations').waitFor({ timeout: 90_000 });
+  // Let the success toast fade and frame the results instead of the form.
+  await page.waitForTimeout(5000);
+  await page.getByText('Chef Creations').scrollIntoViewIfNeeded();
   await shot('ai-chef');
 
   step = 'ai-recipe';
   await page.getByText('Cook Full Recipe').first().dispatchEvent('click');
   await page.waitForURL(/\/ai-recipe\//, { timeout: 30_000 });
   await page.waitForTimeout(4000);
+  await page.evaluate(() => window.scrollTo(0, 0));
   await shot('ai-recipe');
 
   console.log(`screenshots written to ${outDir}`);
