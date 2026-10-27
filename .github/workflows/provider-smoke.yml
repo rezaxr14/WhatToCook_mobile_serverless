@@ -15,9 +15,9 @@ jobs:
   gemini:
     name: Gemini live call
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: List models
+      - name: Check the key and list text models
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
@@ -25,7 +25,7 @@ jobs:
             echo "::error::GEMINI_API_KEY repository secret is not set"
             exit 1
           fi
-          status=$(curl -sS -o models.json -w "%{http_code}" \
+          status=$(curl -sS --max-time 30 -o models.json -w "%{http_code}" \
             "https://generativelanguage.googleapis.com/v1beta/models" \
             -H "x-goog-api-key: $GEMINI_API_KEY")
           echo "list_models_http=$status"
@@ -39,49 +39,36 @@ jobs:
               ids = [m.get('name', '').split('/')[-1] for m in data.get('models', [])]
               print('model_count:', len(ids))
               for model_id in ids:
-                  if 'flash' in model_id or 'pro' in model_id:
+                  if 'flash' in model_id and 'image' not in model_id and 'tts' not in model_id:
                       print('model:', model_id)
           PY
 
-      - name: Generate a short response
+      - name: Generate with each candidate
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           for model in gemini-3.5-flash-lite gemini-3.5-flash gemini-3.6-flash gemini-3.8-flash; do
-            status=$(curl -sS --max-time 25 -o "reply-$model.json" -w "%{http_code}" \
+            status=$(curl -sS --max-time 90 -o "reply-$model.json" -w "%{http_code}" \
               "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent" \
               -H "x-goog-api-key: $GEMINI_API_KEY" \
               -H "Content-Type: application/json" \
-              -d '{"contents":[{"role":"user","parts":[{"text":"Reply with exactly: OK"}]}],"generationConfig":{"maxOutputTokens":16}}')
-            echo "model=$model http=$status"
-            MODEL="$model" python3 - <<'PY'
+              -d '{"contents":[{"role":"user","parts":[{"text":"Reply with exactly: OK"}]}],"generationConfig":{"maxOutputTokens":512}}')
+            MODEL="$model" STATUS="$status" python3 - <<'PY'
           import json, os
           model = os.environ['MODEL']
+          print(f"model={model} http={os.environ['STATUS']}")
           data = json.load(open(f'reply-{model}.json'))
           if isinstance(data, dict) and data.get('error'):
               print('  error_status:', data['error'].get('status'))
               print('  error_message:', data['error'].get('message'))
           else:
+              candidate = (data.get('candidates') or [{}])[0]
               text = ''.join(
                   part.get('text', '')
-                  for candidate in data.get('candidates', [])
                   for part in candidate.get('content', {}).get('parts', [])
               ).strip()
-              print('  reply:', text[:80] or '(empty)')
+              print('  finish:', candidate.get('finishReason'))
+              print('  usage:', data.get('usageMetadata'))
+              print('  text_len:', len(text), 'reply:', text[:120] or '(empty)')
           PY
           done
-
-      - name: Pricing snapshot
-        run: |
-          curl -sSL "https://ai.google.dev/gemini-api/docs/pricing" -o pricing.html
-          python3 - <<'PY'
-          import html, re
-          raw = open('pricing.html', encoding='utf-8', errors='replace').read()
-          text = html.unescape(re.sub(r'<[^>]+>', ' ', raw))
-          text = re.sub(r'\s+', ' ', text)
-          for model in ('gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash'):
-              for match in re.finditer(re.escape(model), text):
-                  start = max(0, match.start() - 120)
-                  print('>>>', model, '=>', text[start:match.start() + 700])
-                  break
-          PY
