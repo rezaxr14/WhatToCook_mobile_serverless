@@ -1,0 +1,71 @@
+name: OpenRouter JSON probe
+
+on:
+  push:
+    branches:
+      - fix/ai-dish-images
+    paths:
+      - .github/workflows/openrouter-json-probe.yml
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Probe free models for structured output
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          models=(
+            "openrouter/free"
+            "minimax/minimax-m3.1-flash:free"
+            "nvidia/nemotron-3-super-120b-a12b:free"
+            "google/gemma-4-31b-it:free"
+            "google/gemma-4-26b-a4b-it:free"
+            "thinkingmachines/inkling:free"
+            "dots-studio/dots-3-note-preview:free"
+            "liquid/lfm-2.5-2.6b:free"
+            "nvidia/nemotron-3.5-super-vl:free"
+          )
+          prompt='You are a master creative chef. Based on these available pantry ingredients: Pasta, Tomato, Garlic, suggest 5 realistic, enticing, and distinct dishes that can be cooked. Return ONLY a JSON array with objects containing: name (str), short_description (str), cuisine (str), difficulty (Easy/Medium/Hard), prep_time (e.g. 25 mins), image_hint (e.g. pasta, chicken, salad, soup).'
+          for model in "${models[@]}"; do
+            started=$(date +%s)
+            status=$(curl -sS --max-time 180 -o out.json -w "%{http_code}" \
+              "https://openrouter.ai/api/v1/chat/completions" \
+              -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -H "HTTP-Referer: https://rezaxr14.github.io/WhatToCook_mobile_serverless/" \
+              -H "X-Title: WhatToCook" \
+              -d "$(python3 -c 'import json,sys; print(json.dumps({"model": sys.argv[1], "messages":[{"role":"user","content":sys.argv[2]}], "temperature":0.7, "max_tokens":1400, "response_format":{"type":"json_object"}}))' "$model" "$prompt")")
+            elapsed=$(( $(date +%s) - started ))
+            MODEL="$model" STATUS="$status" ELAPSED="$elapsed" python3 - <<'PY'
+          import json, os
+          model = os.environ['MODEL']
+          print(f"model={model} http={os.environ['STATUS']} seconds={os.environ['ELAPSED']}")
+          try:
+              data = json.load(open('out.json'))
+          except Exception as error:
+              print('  unreadable:', error)
+              raise SystemExit(0)
+          if data.get('error'):
+              print('  error:', data['error'])
+              raise SystemExit(0)
+          choice = (data.get('choices') or [{}])[0]
+          text = (choice.get('message') or {}).get('content') or ''
+          print('  finish:', choice.get('finish_reason'), 'chars:', len(text))
+          try:
+              parsed = json.loads(text)
+          except Exception as error:
+              print('  json_error:', error, 'head:', text[:160].replace('\n', ' '))
+              raise SystemExit(0)
+          rows = parsed if isinstance(parsed, list) else parsed.get('recipes') or parsed.get('suggestions')
+          if not isinstance(rows, list):
+              print('  shape: not a list', type(parsed).__name__)
+              raise SystemExit(0)
+          required = {'name', 'short_description', 'cuisine', 'difficulty', 'prep_time', 'image_hint'}
+          complete = sum(1 for row in rows if isinstance(row, dict) and required.issubset(row))
+          print('  rows:', len(rows), 'complete:', complete)
+          if rows:
+              print('  sample:', json.dumps(rows[0])[:220])
+          PY
+          done
