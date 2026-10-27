@@ -39,8 +39,12 @@ page.on('response', (response) => {
 });
 
 // Force English: the screenshot captions are English and the gallery should not
-// depend on the runner's locale.
-await page.addInitScript(() => window.localStorage.setItem('language', 'en'));
+// depend on the runner's locale. The second key is the first-visit gate, which
+// otherwise opens the language picker over every screen.
+await page.addInitScript(() => {
+  window.localStorage.setItem('language', 'en');
+  window.localStorage.setItem('whattocook_language_selected', 'en');
+});
 
 async function shot(name, options = {}) {
   await page.waitForTimeout(1200);
@@ -82,9 +86,7 @@ try {
 
   step = 'ai-chef';
   await page.goto(`${base}/ai-chef`, { waitUntil: 'networkidle' });
-  await page
-    .getByRole('button', { name: /generate chef recipes/i })
-    .dispatchEvent('click');
+  await page.getByRole('button', { name: /generate chef recipes/i }).dispatchEvent('click');
   await page.getByText('Chef Creations').waitFor({ timeout: 90_000 });
   await shot('ai-chef');
 
@@ -108,4 +110,3 @@ try {
 } finally {
   await browser.close();
 }
-

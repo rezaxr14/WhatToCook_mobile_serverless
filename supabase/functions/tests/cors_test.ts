@@ -11,10 +11,7 @@ Deno.test('cors: echoes an allowed browser origin', () => {
   const response = preflightResponse(request, ALLOWED);
   assert(response);
   assertEquals(response.status, 204);
-  assertEquals(
-    response.headers.get('access-control-allow-origin'),
-    'http://localhost:5173',
-  );
+  assertEquals(response.headers.get('access-control-allow-origin'), 'http://localhost:5173');
 });
 
 Deno.test('cors: allows the supabase-js client headers in preflight', () => {
