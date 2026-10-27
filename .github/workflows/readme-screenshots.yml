@@ -47,9 +47,11 @@ jobs:
         run: |
           cd apps/web
           cp dist/index.html dist/404.html
-          nohup npx --yes serve@14 dist -s --listen 4173 --no-clipboard > /tmp/serve.log 2>&1 &
+          # The AI functions allow-list the local Vite origins, so serve the build
+          # on the same host/port a `vite dev` session would use.
+          nohup npx --yes serve@14 dist -s --listen 5173 --no-clipboard > /tmp/serve.log 2>&1 &
           for i in $(seq 1 30); do
-            curl -fsS http://127.0.0.1:4173/ > /dev/null && exit 0
+            curl -fsS http://127.0.0.1:5173/ > /dev/null && exit 0
             sleep 2
           done
           cat /tmp/serve.log
@@ -58,7 +60,7 @@ jobs:
       # Keep the script next to node_modules so ESM resolution finds playwright.
       - name: Capture
         env:
-          SITE_URL: http://127.0.0.1:4173
+          SITE_URL: http://127.0.0.1:5173
           OUT_DIR: ${{ github.workspace }}/docs/screenshots/web
         run: |
           mkdir -p "$OUT_DIR"
