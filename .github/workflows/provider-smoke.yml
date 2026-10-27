@@ -52,7 +52,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          for model in gemini-3.5-flash-lite gemini-3.6-flash gemini-3.8-flash; do
+          for model in gemini-3.5-flash-lite gemini-3.6-flash; do
             status=$(curl -sS --max-time 90 -o "reply-$model.json" -w "%{http_code}" \
               "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent" \
               -H "x-goog-api-key: $GEMINI_API_KEY" \
@@ -80,6 +80,38 @@ jobs:
           )
           if text != 'OK':
               raise SystemExit(1)
+          PY
+          done
+
+      - name: Probe the thinking override
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          for model in gemini-3.6-flash gemini-3.8-flash; do
+            started=$(date +%s)
+            status=$(curl -sS --max-time 60 -o "nothink-$model.json" -w "%{http_code}" \
+              "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent" \
+              -H "x-goog-api-key: $GEMINI_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"contents":[{"role":"user","parts":[{"text":"Reply with exactly: OK"}]}],"generationConfig":{"maxOutputTokens":512,"thinkingConfig":{"thinkingBudget":0}}}')
+            elapsed=$(( $(date +%s) - started ))
+            MODEL="$model" STATUS="$status" ELAPSED="$elapsed" python3 - <<'PY'
+          import json, os
+          model = os.environ['MODEL']
+          print(f"model={model} http={os.environ['STATUS']} seconds={os.environ['ELAPSED']}")
+          data = json.load(open(f'nothink-{model}.json'))
+          if isinstance(data, dict) and data.get('error'):
+              print('  error_status:', data['error'].get('status'))
+              print('  error_message:', data['error'].get('message'))
+          else:
+              candidate = (data.get('candidates') or [{}])[0]
+              text = ''.join(
+                  part.get('text', '')
+                  for part in candidate.get('content', {}).get('parts', [])
+              ).strip()
+              usage = data.get('usageMetadata') or {}
+              print('  finish:', candidate.get('finishReason'), 'thoughts:', usage.get('thoughtsTokenCount', 0))
+              print('  reply:', text[:80] or '(empty)')
           PY
           done
 
