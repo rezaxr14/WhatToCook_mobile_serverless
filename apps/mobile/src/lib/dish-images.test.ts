@@ -38,9 +38,14 @@ describe('assignUniqueDishPhotos', () => {
       { name: 'One', image: 'https://cdn.example.com/one.jpg' },
       { name: 'Two', image: 'https://cdn.example.com/two.jpg' },
     ]);
-    expect(photos).toEqual([
-      'https://cdn.example.com/one.jpg',
-      'https://cdn.example.com/two.jpg',
+    expect(photos).toEqual(['https://cdn.example.com/one.jpg', 'https://cdn.example.com/two.jpg']);
+  });
+
+  it('uses the provider image hint when the dish name has no keyword', () => {
+    const photos = assignUniqueDishPhotos([
+      { name: 'Sunset Skillet Surprise', image_hint: 'pasta' },
+      { name: 'Grandma’s Sunday Special', image_hint: 'soup' },
     ]);
+    expect(photos).toEqual([getDishImageUrl('pasta'), getDishImageUrl('soup')]);
   });
 });

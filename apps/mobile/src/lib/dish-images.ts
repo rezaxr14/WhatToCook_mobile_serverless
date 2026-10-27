@@ -92,7 +92,7 @@ export function getDishImageUrl(dishName: string, existingUrl?: string): string 
 }
 
 export function assignUniqueDishPhotos(
-  dishes: Array<{ name: string; image?: string | null }>,
+  dishes: Array<{ name: string; image_hint?: string; image?: string | null }>,
 ): string[] {
   const pool: string[] = [];
   const poolSeen = new Set<string>();
@@ -105,7 +105,12 @@ export function assignUniqueDishPhotos(
   for (const url of Object.values(DISH_PHOTO_MAP)) absorb(url);
   for (const url of DEFAULT_GOURMET_PHOTOS) absorb(url);
 
-  const natural = dishes.map((dish) => getDishImageUrl(dish.name, dish.image ?? undefined));
+  // The provider's image hint is a single concrete food word ("pasta",
+  // "soup"), so it beats guessing from a playful dish name that may not
+  // contain any keyword at all.
+  const natural = dishes.map((dish) =>
+    getDishImageUrl(dish.image_hint?.trim() || dish.name, dish.image ?? undefined),
+  );
   const used = new Set<string>();
   const out: string[] = [];
   for (const url of natural) {

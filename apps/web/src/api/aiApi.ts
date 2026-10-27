@@ -30,15 +30,33 @@ export interface AIModelOption {
   description?: string;
 }
 
-const AI_NOT_READY_MESSAGE =
-  'The AI kitchen is being connected in milestone M4. Catalog browsing, pantry matching, recipe details and grocery lists already work.';
+const AI_UNAVAILABLE_MESSAGE =
+  'The AI kitchen is unavailable right now. Please try again in a moment.';
 
 function aiNotReady(): ApiError {
-  return new ApiError(AI_NOT_READY_MESSAGE, 503, null, 'ai_not_ready');
+  return new ApiError(AI_UNAVAILABLE_MESSAGE, 503, null, 'ai_not_ready');
 }
 
 function language(): string {
   return i18n.resolvedLanguage || i18n.language || 'en';
+}
+
+/**
+ * AI functions require an authenticated caller (the Edge Function enforces it).
+ * Visitors can try the studio without creating an account: start the anonymous
+ * guest session the first time an AI request is made. Provider API keys still
+ * live only in Supabase secrets.
+ */
+async function ensureSession(): Promise<void> {
+  const { data } = await supabase.auth.getSession();
+  if (data.session) return;
+
+  const { error } = await supabase.auth.signInAnonymously({
+    options: { data: { locale: language() } },
+  });
+  if (error) {
+    throw toApiError(error, 'Could not start a guest AI session. Please try again.');
+  }
 }
 
 async function invokeAi<T>(name: string, body: Record<string, unknown>, fallback: string): Promise<T> {
@@ -50,6 +68,8 @@ async function invokeAi<T>(name: string, body: Record<string, unknown>, fallback
       'supabase_not_configured',
     );
   }
+
+  await ensureSession();
 
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (error) {
@@ -168,7 +188,7 @@ export const aiApi = {
 
   pollTaskStatus: async (_taskId: string): Promise<AISuggestionsResponse> => ({
     status: 'error',
-    error: AI_NOT_READY_MESSAGE,
+    error: AI_UNAVAILABLE_MESSAGE,
   }),
 
   getRecipeDetail: async (

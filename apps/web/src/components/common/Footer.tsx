@@ -19,9 +19,7 @@ export const Footer: React.FC = () => {
               </div>
               <span className="font-bold text-xl text-white tracking-tight">WhatToCook</span>
             </div>
-            <p className="text-stone-400 text-sm leading-relaxed max-w-sm">
-              {t('footer.blurb')}
-            </p>
+            <p className="text-stone-400 text-sm leading-relaxed max-w-sm">{t('footer.blurb')}</p>
             <div className="flex items-center gap-2 text-xs font-semibold text-stone-300">
               <Sparkles className="w-4 h-4 text-amber-400" />
               <span>Smart Cloud & Local AI Engine</span>
@@ -30,7 +28,9 @@ export const Footer: React.FC = () => {
 
           {/* Quick Links */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wider">{t('footer.colProduct')}</h4>
+            <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wider">
+              {t('footer.colProduct')}
+            </h4>
             <ul className="space-y-2 text-sm text-stone-400 font-medium">
               <li>
                 <Link to="/can-cook" className="hover:text-white transition-colors">
@@ -52,11 +52,13 @@ export const Footer: React.FC = () => {
 
           {/* Tech stack highlights */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wider">{t('footer.colTech')}</h4>
+            <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wider">
+              {t('footer.colTech')}
+            </h4>
             <ul className="space-y-2 text-sm text-stone-400 font-medium">
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
-                <span>Django REST Framework</span>
+                <span>Supabase · Postgres · Storage</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -71,11 +73,14 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="pt-8 border-t border-stone-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-stone-500">
-          <p>© {new Date().getFullYear()} WhatToCook AI. {t('footer.rights')}</p>
+          <p>
+            © {new Date().getFullYear()} WhatToCook AI. {t('footer.rights')}
+          </p>
           <div className="flex items-center gap-4">
             <LanguageSwitcher />
             <p className="hidden sm:flex items-center gap-1">
-              Made with <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> for passionate home chefs everywhere.
+              Made with <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> for passionate
+              home chefs everywhere.
             </p>
           </div>
         </div>

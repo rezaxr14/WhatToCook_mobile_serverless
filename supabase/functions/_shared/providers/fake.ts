@@ -37,15 +37,15 @@ function outputFor(request: ProviderRequest): string {
     case 'suggestions':
       return JSON.stringify([
         {
-          name: 'Fake Lemon Garlic Pasta',
-          short_description: 'A bright, simple pasta that is deterministic for tests.',
+          name: 'Lemon Garlic Pasta',
+          short_description: 'Silky pasta tossed with lemon, garlic and a little olive oil.',
           cuisine: 'Italian',
           difficulty: 'Easy',
           prep_time: '20 mins',
           image_hint: 'pasta',
         },
         {
-          name: 'Fake Tomato Egg Skillet',
+          name: 'Tomato Egg Skillet',
           short_description: 'A quick skillet built from pantry staples.',
           cuisine: 'Mediterranean',
           difficulty: 'Easy',
@@ -53,7 +53,7 @@ function outputFor(request: ProviderRequest): string {
           image_hint: 'eggs',
         },
         {
-          name: 'Fake Herb Chicken Rice',
+          name: 'Herb Chicken Rice',
           short_description: 'Comforting rice with chicken and herbs.',
           cuisine: 'Global',
           difficulty: 'Medium',
@@ -61,7 +61,7 @@ function outputFor(request: ProviderRequest): string {
           image_hint: 'chicken',
         },
         {
-          name: 'Fake Cheese Toast',
+          name: 'Cheese Toast',
           short_description: 'Crisp toast with melted cheese and garlic.',
           cuisine: 'French',
           difficulty: 'Easy',
@@ -69,7 +69,7 @@ function outputFor(request: ProviderRequest): string {
           image_hint: 'toast',
         },
         {
-          name: 'Fake Pantry Soup',
+          name: 'Pantry Soup',
           short_description: 'A flexible soup using whatever is on hand.',
           cuisine: 'Home',
           difficulty: 'Easy',
@@ -80,37 +80,38 @@ function outputFor(request: ProviderRequest): string {
     case 'recipe':
       return JSON.stringify({
         name,
-        description: 'A fake chef-crafted recipe used for deterministic gateway tests.',
-        cuisine: 'Test Kitchen',
+        description:
+          'A cozy, pantry-friendly dish finished with good olive oil and a handful of fresh herbs.',
+        cuisine: 'Mediterranean',
         difficulty: 'Easy',
         time_minutes: 25,
         servings: 4,
         ingredients: [
-          { name: 'Pantry staple', amount: '300', unit: 'g' },
+          { name: 'Spaghetti', amount: '300', unit: 'g' },
           { name: 'Olive oil', amount: '2', unit: 'tbsp' },
           { name: 'Garlic', amount: '2', unit: 'cloves' },
         ],
         instructions: [
           {
-            step: 'Prepare all ingredients and heat a pan over medium heat.',
+            step: 'Bring a pot of salted water to a boil and prepare the ingredients.',
             time_minutes: 5,
             chef_tip: 'Mise en place keeps the cooking calm.',
           },
           {
-            step: 'Cook until tender and season to taste.',
+            step: 'Cook until tender, season to taste and serve warm.',
             time_minutes: 15,
             chef_tip: 'Taste before serving.',
           },
         ],
         nutrition: { calories: '380 kcal', protein: '18g', carbs: '42g', fat: '12g' },
-        chef_tips: ['Rest for two minutes before serving.'],
+        chef_tips: ['Reserve a splash of cooking water to loosen the sauce.'],
       });
     case 'stream':
       return (
-        `# Fake ${name}\n\n` +
+        `# ${name}\n\n` +
         '**Preparation Time:** 25 mins | **Difficulty:** Easy | **Servings:** 4\n\n' +
-        '## Ingredients\n- 300g pantry staple\n- 2 tbsp olive oil\n- 2 cloves garlic\n\n' +
-        '## Instructions\n1. Prepare the ingredients.\n2. Cook until tender and season to taste.\n\n' +
+        '## Ingredients\n- 300g spaghetti\n- 2 tbsp olive oil\n- 2 cloves garlic\n\n' +
+        '## Instructions\n1. Prepare the ingredients and heat a pan over medium heat.\n2. Cook until tender and season to taste.\n\n' +
         '## Nutrition\nCalories: 380 kcal | Protein: 18g | Carbs: 42g | Fat: 12g\n'
       );
     case 'chat':

@@ -10,6 +10,79 @@ Expo) and a static web app (React + Vite), both backed by Supabase. No servers t
 - AI HTTP contract: `docs/api.md`
 - Operations runbook: `docs/runbook.md`
 
+## Demo
+
+Both clients talk to the same Supabase project: auth, pantry, catalog, Storage
+images and the AI Edge Functions. No provider key ever reaches the browser or
+the app bundle.
+
+### Web (serverless SPA/PWA)
+
+The static build is hosted on GitHub Pages. Signing in as a guest starts an
+anonymous session, stocks a demo pantry and enables the AI studio.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/web/landing.png" alt="WhatToCook web landing page" /></td>
+    <td width="50%"><img src="docs/screenshots/web/ai-chef.png" alt="AI Chef generating recipes from pantry ingredients" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Landing — installable PWA</em></td>
+    <td align="center"><em>AI Chef — server-side AI generation</em></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/web/pantry.png" alt="Pantry inventory on the web" /></td>
+    <td width="50%"><img src="docs/screenshots/web/can-cook.png" alt="Recipes matched to the pantry" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Pantry inventory</em></td>
+    <td align="center"><em>Pantry matching</em></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/web/recipes.png" alt="Recipe catalog on the web" /></td>
+    <td width="50%"><img src="docs/screenshots/web/ai-recipe.png" alt="AI generated recipe detail" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Recipe catalog</em></td>
+    <td align="center"><em>Generated recipe detail</em></td>
+  </tr>
+</table>
+
+### Android (Expo / React Native)
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/android/pantry.png" width="220" alt="Pantry screen" /></td>
+    <td><img src="docs/screenshots/android/cook.png" width="220" alt="Cook matches" /></td>
+    <td><img src="docs/screenshots/android/catalog.png" width="220" alt="Recipe catalog" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Pantry</em></td>
+    <td align="center"><em>Cook with what you have</em></td>
+    <td align="center"><em>Recipe catalog</em></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/android/ai-chef.png" width="220" alt="AI Chef suggestions" /></td>
+    <td><img src="docs/screenshots/android/ai-recipe.png" width="220" alt="AI recipe detail" /></td>
+    <td><img src="docs/screenshots/android/rtl.png" width="220" alt="Persian RTL pantry" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>AI Chef</em></td>
+    <td align="center"><em>Generated recipe</em></td>
+    <td align="center"><em>Persian / RTL</em></td>
+  </tr>
+</table>
+
+### What the demo covers
+
+- Guest sessions with a pre-stocked pantry, no account required.
+- Pantry search, add/remove, calorie totals and camera/gallery ingredient scans.
+- Recipe catalog, pantry matching, serving scaling, substitutions and grocery export.
+- AI Chef suggestions, full generated recipes, chef chat and a streaming status.
+- Cached ingredient/dish photos served from Supabase Storage, with a local
+  fallback when a photo is missing.
+- Five locales (en, tr, fa, ar, es) including right-to-left Persian and Arabic.
+
 ## Layout
 
 ```

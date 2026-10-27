@@ -1,0 +1,83 @@
+name: README screenshots
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/capture-web-screenshots.mjs'
+      - '.github/workflows/readme-screenshots.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: Capture web demo screenshots
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Build the branch under test instead of screenshotting the deployed main
+      # site, so the gallery always reflects the code in this pull request.
+      - name: Build web
+        run: pnpm --filter @whattocook/web build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Install Playwright
+        run: |
+          npm --prefix /tmp/pw init -y
+          npm --prefix /tmp/pw install --no-audit --no-fund playwright@1.56.1
+          /tmp/pw/node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Serve static build
+        run: |
+          cd apps/web
+          cp dist/index.html dist/404.html
+          # The AI functions allow-list the local Vite origins, so serve the build
+          # on the same host/port a `vite dev` session would use.
+          nohup npx --yes serve@14 dist -s --listen 5173 --no-clipboard > /tmp/serve.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:5173/ > /dev/null && exit 0
+            sleep 2
+          done
+          cat /tmp/serve.log
+          exit 1
+
+      # Keep the script next to node_modules so ESM resolution finds playwright.
+      - name: Capture
+        env:
+          SITE_URL: http://127.0.0.1:5173
+          OUT_DIR: ${{ github.workspace }}/docs/screenshots/web
+        run: |
+          mkdir -p "$OUT_DIR"
+          cp scripts/capture-web-screenshots.mjs /tmp/pw/
+          node /tmp/pw/capture-web-screenshots.mjs
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: web-screenshots-failure
+          path: /tmp/capture-debug
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: web-screenshots
+          path: docs/screenshots/web
+          retention-days: 7
