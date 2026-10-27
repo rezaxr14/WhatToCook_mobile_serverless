@@ -4,7 +4,7 @@ create extension if not exists pgtap with schema extensions;
 begin;
 set search_path = public, extensions;
 
-select plan(31);
+select plan(32);
 
 select has_table('public', 'plans', 'plans table exists');
 select has_table('public', 'profiles', 'profiles table exists');

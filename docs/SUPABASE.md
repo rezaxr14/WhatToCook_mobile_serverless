@@ -66,7 +66,8 @@ Supabase secrets remotely:
 - `AI_PROVIDER` - `fake` (default for tests/staging), `gemini`, `openrouter`, or `lmstudio`.
 - `GEMINI_API_KEY` - required only when `AI_PROVIDER=gemini`.
 - `GEMINI_MODEL` / `GEMINI_VISION_MODEL` - optional Gemini overrides; normal routing comes from
-  `app_config.model_routing`.
+  `app_config.model_routing`. Gemini uses Flash-Lite only (`gemini-3.5-flash-lite` default,
+  `gemini-3.1-flash-lite` fallback), and both are selectable in the client model picker.
 - `OPENROUTER_API_KEY` - required when `AI_PROVIDER=openrouter` or `AI_FALLBACK_PROVIDER=openrouter`;
   server-side only.
 - `AI_FALLBACK_PROVIDER` - optional `openrouter`; retries Gemini failures (before any streamed

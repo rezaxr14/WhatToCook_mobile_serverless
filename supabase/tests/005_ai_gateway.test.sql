@@ -4,7 +4,7 @@ create extension if not exists pgtap with schema extensions;
 begin;
 set search_path = public, extensions;
 
-select plan(18);
+select plan(19);
 
 -- Substitution is metered separately from chat.
 select is(
@@ -37,31 +37,39 @@ select is(
 );
 select is(
   (select model_routing -> 'models' ->> 'suggestions' from public.app_config where id = 1),
-  'gemini-2.5-flash-lite',
-  'suggestions route to flash-lite'
+  'gemini-3.5-flash-lite',
+  'suggestions route to 3.5 flash-lite'
 );
 select is(
   (select model_routing -> 'models' ->> 'scan' from public.app_config where id = 1),
-  'gemini-2.5-flash',
-  'scan routes to flash'
+  'gemini-3.5-flash-lite',
+  'scan routes to 3.5 flash-lite'
 );
 select ok(
-  (select model_routing -> 'fallbacks' -> 'text' @> '["gemini-2.0-flash"]'::jsonb
+  (select model_routing -> 'fallbacks' -> 'text' @> '["gemini-3.1-flash-lite"]'::jsonb
    from public.app_config where id = 1),
-  'text fallback ladder includes 2.0 flash'
+  'text fallback ladder uses 3.1 flash-lite'
+);
+select ok(
+  not exists (
+    select 1
+    from jsonb_each_text(
+      (select model_routing -> 'models' from public.app_config where id = 1)
+    ) as routed(feature, model)
+    where routed.model not like '%-flash-lite'
+  ),
+  'no non-Lite Flash models are routed'
 );
 select is(
   (select count(*)::integer from public.ai_model_prices
    where provider = 'gemini'
      and active
      and model in (
-       'gemini-2.5-flash-lite',
-       'gemini-2.5-flash',
-       'gemini-2.0-flash',
-       'gemini-2.5-pro'
+       'gemini-3.5-flash-lite',
+       'gemini-3.1-flash-lite'
      )),
-  4,
-  'all routed Gemini models have active prices under provider gemini'
+  2,
+  'both routed Gemini models have active prices under provider gemini'
 );
 
 select ok(

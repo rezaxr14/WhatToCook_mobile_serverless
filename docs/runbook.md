@@ -225,21 +225,27 @@ order by model;
 Real traffic is enabled on staging with a server-side function secret (2026-10-27). The key is
 never in the bundle; the same key is stored as the repository secret used by the manual
 `Provider smoke` workflow. Gemini 2.5 Flash is no longer available to new API keys, so the
-routing below uses the current 3.x models.
+routing below uses Flash-Lite only.
 
 | Feature                | Model                   | Input / output micro-USD per 1M tokens |
 | ---------------------- | ----------------------- | -------------------------------------- |
 | all features (primary) | `gemini-3.5-flash-lite` | 300,000 / 2,500,000                    |
-| fallback text/vision   | `gemini-3.6-flash`      | 750,000 / 3,750,000                    |
+| fallback text/vision   | `gemini-3.1-flash-lite` | 300,000 / 2,500,000                    |
 
 Flash-Lite is the default for every feature because it is cheaper and much faster than the
-thinking models, and it streamed a full recipe in ~6s versus ~76s for 3.6. 3.6 is only a single
-escalation when Lite fails; 3.8 was removed after repeated `503 UNAVAILABLE` responses. The 3.6
-price is the list price through 2026-12-31 and doubles on 2027-01-01. Add a new effective-dated
-price row before that change instead of editing the existing one. Verify the ids and prices
+thinking models, and it streamed a full recipe in ~6s. Non-Lite Flash models are deactivated:
+3.8 was dropped after repeated `503 UNAVAILABLE` responses, and 3.6 is no longer used because
+the fallback must stay in the Flash-Lite family. The 3.1 price mirrors the current Flash-Lite
+list price; update that row when Google publishes a different price for the older generation.
+Add a new effective-dated price row instead of editing an existing one. Verify the ids and prices
 whenever Google publishes a new model generation; migrations
-`20261027120000_gemini_3_models.sql` and `20261027130000_flash_lite_routing.sql` are the current
-source.
+`20261027120000_gemini_3_models.sql`, `20261027130000_flash_lite_routing.sql`, and
+`20261027140000_lite_only_routing.sql` are the current source.
+
+`ai-models` exposes the routed model plus its fallbacks, and the client model dropdown may
+request any of them. The server accepts a client-chosen model only when it is in that catalog, so
+selecting `gemini-3.1-flash-lite` changes the model for the next request instead of silently
+using the default. Every selectable model needs an active price row.
 
 When `AI_FALLBACK_PROVIDER=openrouter` and `OPENROUTER_API_KEY` is set, a Gemini failure before
 any output is retried on `OPENROUTER_MODEL` (staging uses the free `openrouter/free` router). The
@@ -272,9 +278,10 @@ Before enabling on a new project:
 7. Raise the cap only after the first-day totals match the budget model.
 
 Staging smoke on 2026-10-27: `ai-models` reports `gemini-3.5-flash-lite` as the current model and
-only exposes `gemini-3.5-flash-lite` / `gemini-3.6-flash`. With every feature routed to
+exposes `gemini-3.5-flash-lite` / `gemini-3.1-flash-lite`. With every feature routed to
 Flash-Lite, `suggestions`, `detail`, `chat`, `stream`, and `scan` all returned
-`provider: "gemini"` with one Lite model and costs between 475 and 2,841 micro-USD. Forcing the
+`provider: "gemini"` with one Lite model and costs between 475 and 2,841 micro-USD. Selecting
+the fallback model in the dropdown returns `model_used: "gemini-3.1-flash-lite"`. Forcing the
 Gemini routing to an unavailable model produced `provider: "openrouter"`,
 `model_used: "openrouter/free"`, five valid recipes, and `cost_micro_usd: 0`. Google blocks this
 network from `generativelanguage.googleapis.com`, so direct key checks run in the `Provider

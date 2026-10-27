@@ -52,12 +52,44 @@ Deno.test('ai-catalog: LM Studio reports online state, configured model, and loc
   assertEquals(offline.models[0]?.id, 'gemma-local');
 });
 
+Deno.test('ai-catalog: Gemini exposes the routed model plus its Lite fallback', () => {
+  const config = parseRuntimeConfig(
+    {
+      ...baseRow,
+      model_routing: {
+        provider: 'gemini',
+        models: {
+          suggestions: 'gemini-3.5-flash-lite',
+          scan: 'gemini-3.5-flash-lite',
+        },
+        fallbacks: { text: ['gemini-3.1-flash-lite'], vision: ['gemini-3.1-flash-lite'] },
+      },
+    },
+    {},
+  );
+
+  const catalog = buildAICatalog(config, { online: false, models: [] });
+
+  assertEquals(catalog.default_provider, 'gemini');
+  assertEquals(catalog.current_model, 'gemini-3.5-flash-lite');
+  assertEquals(
+    catalog.models.map((model) => model.id),
+    ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'],
+  );
+  assertEquals(catalog.models[0]?.description, 'Default Gemini model for every feature');
+  assertEquals(catalog.models[1]?.description, 'Gemini fallback model');
+});
+
 Deno.test('ai-catalog: readLMStudioStatus reads the OpenAI-compatible model list', async () => {
-  const online = await readLMStudioStatus('http://127.0.0.1:1234/v1', undefined, (async () =>
-    new Response(JSON.stringify({ data: [{ id: 'gemma-local' }, { id: 42 }] }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    })) as typeof fetch);
+  const online = await readLMStudioStatus(
+    'http://127.0.0.1:1234/v1',
+    undefined,
+    (async () =>
+      new Response(JSON.stringify({ data: [{ id: 'gemma-local' }, { id: 42 }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })) as typeof fetch,
+  );
   assertEquals(online, { online: true, models: ['gemma-local'] });
 
   const offline = await readLMStudioStatus('http://127.0.0.1:1234/v1', undefined, (async () => {

@@ -19,7 +19,9 @@ selected server-side from `app_config.model_routing`, with `AI_PROVIDER`,
 `GEMINI_MODEL`, `GEMINI_VISION_MODEL`, `OPENROUTER_MODEL`,
 `OPENROUTER_VISION_MODEL`, and `LMSTUDIO_MODEL` / `LMSTUDIO_VISION_MODEL` as
 deploy-time overrides. Gemini routes every feature to `gemini-3.5-flash-lite`
-with `gemini-3.6-flash` as the only fallback. When `AI_PROVIDER=openrouter`,
+with `gemini-3.1-flash-lite` as the only fallback; non-Lite Flash models are
+disabled. `ai-models` lists the routed model and its fallbacks, and a request
+may select one of those ids with `model`. When `AI_PROVIDER=openrouter`,
 `OPENROUTER_MODEL` selects the model for every feature and replaces the Gemini
 routing from `app_config.model_routing`; optional OpenRouter fallback model ids
 are read from `OPENROUTER_FALLBACK_MODELS` /
