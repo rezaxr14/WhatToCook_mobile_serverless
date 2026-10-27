@@ -38,7 +38,9 @@ jobs:
           else:
               ids = [m.get('name', '').split('/')[-1] for m in data.get('models', [])]
               print('model_count:', len(ids))
-              print('has_flash_lite:', 'gemini-2.5-flash-lite' in ids)
+              for model_id in ids:
+                  if 'flash' in model_id or 'pro' in model_id:
+                      print('model:', model_id)
           PY
 
       - name: Generate a short response
@@ -46,7 +48,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           status=$(curl -sS -o reply.json -w "%{http_code}" \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent" \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent" \
             -H "x-goog-api-key: $GEMINI_API_KEY" \
             -H "Content-Type: application/json" \
             -d '{"contents":[{"role":"user","parts":[{"text":"Reply with exactly: OK"}]}],"generationConfig":{"maxOutputTokens":16}}')
