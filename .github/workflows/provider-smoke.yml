@@ -1,0 +1,62 @@
+name: Provider smoke
+
+# Manual, secret-backed check that the configured cloud AI provider answers
+# from a network where the provider is reachable. Never runs on pull requests:
+# fork PRs cannot read repository secrets and a live call costs money.
+on:
+  workflow_dispatch:
+
+jobs:
+  gemini:
+    name: Gemini live call
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: List models
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY repository secret is not set"
+            exit 1
+          fi
+          status=$(curl -sS -o models.json -w "%{http_code}" \
+            "https://generativelanguage.googleapis.com/v1beta/models" \
+            -H "x-goog-api-key: $GEMINI_API_KEY")
+          echo "list_models_http=$status"
+          python3 - <<'PY'
+          import json
+          data = json.load(open('models.json'))
+          if isinstance(data, dict) and data.get('error'):
+              print('error_status:', data['error'].get('status'))
+              print('error_message:', data['error'].get('message'))
+          else:
+              ids = [m.get('name', '').split('/')[-1] for m in data.get('models', [])]
+              print('model_count:', len(ids))
+              print('has_flash_lite:', 'gemini-2.5-flash-lite' in ids)
+          PY
+
+      - name: Generate a short response
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          status=$(curl -sS -o reply.json -w "%{http_code}" \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent" \
+            -H "x-goog-api-key: $GEMINI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"contents":[{"role":"user","parts":[{"text":"Reply with exactly: OK"}]}],"generationConfig":{"maxOutputTokens":16}}')
+          echo "generate_http=$status"
+          python3 - <<'PY'
+          import json
+          data = json.load(open('reply.json'))
+          if isinstance(data, dict) and data.get('error'):
+              print('error_status:', data['error'].get('status'))
+              print('error_message:', data['error'].get('message'))
+          else:
+              text = ''.join(
+                  part.get('text', '')
+                  for candidate in data.get('candidates', [])
+                  for part in candidate.get('content', {}).get('parts', [])
+              ).strip()
+              print('reply:', text[:80] or '(empty)')
+          PY
