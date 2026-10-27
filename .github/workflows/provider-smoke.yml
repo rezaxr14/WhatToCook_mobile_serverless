@@ -47,26 +47,29 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          status=$(curl -sS -o reply.json -w "%{http_code}" \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent" \
-            -H "x-goog-api-key: $GEMINI_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{"contents":[{"role":"user","parts":[{"text":"Reply with exactly: OK"}]}],"generationConfig":{"maxOutputTokens":16}}')
-          echo "generate_http=$status"
-          python3 - <<'PY'
-          import json
-          data = json.load(open('reply.json'))
+          for model in gemini-3.5-flash-lite gemini-3.5-flash gemini-3.6-flash gemini-3.8-flash; do
+            status=$(curl -sS -o "reply-$model.json" -w "%{http_code}" \
+              "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent" \
+              -H "x-goog-api-key: $GEMINI_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"contents":[{"role":"user","parts":[{"text":"Reply with exactly: OK"}]}],"generationConfig":{"maxOutputTokens":16}}')
+            echo "model=$model http=$status"
+            MODEL="$model" python3 - <<'PY'
+          import json, os
+          model = os.environ['MODEL']
+          data = json.load(open(f'reply-{model}.json'))
           if isinstance(data, dict) and data.get('error'):
-              print('error_status:', data['error'].get('status'))
-              print('error_message:', data['error'].get('message'))
+              print('  error_status:', data['error'].get('status'))
+              print('  error_message:', data['error'].get('message'))
           else:
               text = ''.join(
                   part.get('text', '')
                   for candidate in data.get('candidates', [])
                   for part in candidate.get('content', {}).get('parts', [])
               ).strip()
-              print('reply:', text[:80] or '(empty)')
+              print('  reply:', text[:80] or '(empty)')
           PY
+          done
 
       - name: Pricing snapshot
         run: |
