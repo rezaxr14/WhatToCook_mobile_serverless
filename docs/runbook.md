@@ -222,22 +222,27 @@ order by model;
 
 ## 3. Real Gemini enablement
 
-Real traffic is **not enabled** until a key is stored server-side and the model ids/prices below
-are verified against current Google documentation. The historical M1 price row uses provider
-`google`; runtime requests use provider `gemini`.
-
-Planned routing and active M4 rows:
+Real traffic is enabled on staging with a server-side function secret (2026-10-27). The key is
+never in the bundle; the same key is stored as the repository secret used by the manual
+`Provider smoke` workflow. Gemini 2.5 Flash is no longer available to new API keys, so the
+routing below uses the current 3.x models.
 
 | Feature                    | Model                   | Input / output micro-USD per 1M tokens |
 | -------------------------- | ----------------------- | -------------------------------------- |
-| suggestions, substitution  | `gemini-2.5-flash-lite` | 100,000 / 400,000                      |
-| detail, chat, stream, scan | `gemini-2.5-flash`      | 300,000 / 2,500,000                    |
-| fallback text/vision       | `gemini-2.0-flash`      | 100,000 / 400,000                      |
-| fallback (not default)     | `gemini-2.5-pro`        | 1,250,000 / 10,000,000                 |
+| suggestions, substitution  | `gemini-3.5-flash-lite` | 300,000 / 2,500,000                    |
+| detail, chat, stream, scan | `gemini-3.6-flash`      | 750,000 / 3,750,000                    |
+| fallback text/vision       | `gemini-3.8-flash`      | 750,000 / 3,750,000                    |
+| fallback lite              | `gemini-3.5-flash-lite` | 300,000 / 2,500,000                    |
 
-Before enabling:
+The 3.6/3.8 prices are the list prices through 2026-12-31 and double on 2027-01-01. Add a new
+effective-dated price row before that change instead of editing the existing one. Verify the ids
+and prices whenever Google publishes a new model generation; the migration
+`20261027120000_gemini_3_models.sql` is the current source.
 
-1. Confirm each model id is available to the project and the active prices are correct.
+Before enabling on a new project:
+
+1. Confirm each model id is available to the project (`Provider smoke` workflow) and the active
+   prices are correct.
 2. Add `GEMINI_API_KEY` as a Supabase function secret, without echoing it:
    ```powershell
    pnpm exec supabase secrets set "GEMINI_API_KEY=$env:GEMINI_API_KEY"
@@ -256,6 +261,12 @@ Before enabling:
 6. Verify `ai_usage_events` has settled rows with non-zero input/output tokens and the expected
    micro-USD cost, and that `get_my_usage()` reflects the spend.
 7. Raise the cap only after the first-day totals match the budget model.
+
+Staging smoke on 2026-10-27: `ai-models` reports `gemini-3.5-flash-lite` as the current model;
+`suggestions` returned five recipes with `provider: "gemini"` (1,132 micro-USD), and `detail`
+returned a full recipe with non-zero usage. Google blocks this network from
+`generativelanguage.googleapis.com`, so the direct key check runs in the `Provider smoke` GitHub
+workflow; the Edge Function itself reaches Google from Supabase's network.
 
 If the provider returns `429`, the client sees `429 rate_limited`; do not retry more than once
 without checking the provider quota. If the provider returns `502 provider_error`, check the
@@ -525,9 +536,9 @@ Hosted-origin follow-up on 2026-10-27 (same project, `AI_PROVIDER=fake`):
 - An anonymous signup plus a `suggestions` request from the Pages origin returned
   `status: "done"` with five recipes and no key material in the response.
 
-Real Gemini smoke remains blocked on H5. The Gemini key field is blank; real traffic must not be
-enabled until the key is present and the model/pricing rows are verified against current Google
-documentation. The planned M4 prices are listed in section 3.
+Real Gemini smoke completed on 2026-10-27; see section 3. The staging functions now run with
+`AI_PROVIDER=gemini`, and the model routing/prices are in
+`20261027120000_gemini_3_models.sql`.
 
 ## 10. Android release build
 

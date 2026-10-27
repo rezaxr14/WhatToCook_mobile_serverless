@@ -235,6 +235,7 @@ export const AIChefPage: React.FC = () => {
                   {/* Dish Photo — one unique photo per dish on the page */}
                   <div className="relative h-48 w-full overflow-hidden bg-stone-100">
                     <img
+                      key={dishPhotos[index]}
                       src={dishPhotos[index]}
                       alt={dish.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"

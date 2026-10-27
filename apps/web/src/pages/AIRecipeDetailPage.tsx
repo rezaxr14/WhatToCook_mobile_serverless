@@ -109,7 +109,8 @@ export const AIRecipeDetailPage: React.FC = () => {
       {/* Hero Card */}
       <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-stone-900 text-white min-h-[380px] flex flex-col justify-end p-8 sm:p-12">
         <img
-          src={getDishImageUrl(recipe.name, recipe.image)}
+          key={getDishImageUrl(recipe.name, recipe.image, recipe.cuisine)}
+          src={getDishImageUrl(recipe.name, recipe.image, recipe.cuisine)}
           alt={recipe.name}
           className="absolute inset-0 w-full h-full object-cover opacity-60"
           onError={(e) => {

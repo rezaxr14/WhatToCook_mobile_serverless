@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -46,6 +46,12 @@ export function DishImage({
   showLabel = true,
 }: DishImageProps) {
   const [failed, setFailed] = useState(false);
+
+  // A new suggestion can reuse the same card component. Retry the new URI
+  // instead of keeping the previous failure state forever.
+  useEffect(() => {
+    setFailed(false);
+  }, [uri]);
 
   if (uri && !failed) {
     return (

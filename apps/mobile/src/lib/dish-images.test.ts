@@ -9,16 +9,19 @@ describe('getDishImageUrl', () => {
     );
   });
 
-  it('maps dish keywords to a matching photo', () => {
+  it('maps dish keywords to a matching Storage photo', () => {
     const pasta = getDishImageUrl('Lemon Garlic Pasta');
-    const pizza = getDishImageUrl('Margherita Pizza');
-    expect(pasta).toContain('unsplash.com');
-    expect(pizza).toContain('unsplash.com');
+    const pizza = getDishImageUrl('Margherita Pizza', undefined, 'Italian');
+    expect(pasta).toContain('/recipe-images/');
+    expect(pizza).toContain('/recipe-images/');
+    expect(pasta).toContain('spaghetti');
+    expect(pizza).toContain('penne');
     expect(pasta).not.toBe(pizza);
   });
 
   it('is deterministic for unknown dishes', () => {
-    expect(getDishImageUrl('Zorp Stew')).toBe(getDishImageUrl('Zorp Stew'));
+    expect(getDishImageUrl('Zorp Surprise')).toBe(getDishImageUrl('Zorp Surprise'));
+    expect(getDishImageUrl('Zorp Surprise')).toContain('/recipe-images/');
   });
 });
 

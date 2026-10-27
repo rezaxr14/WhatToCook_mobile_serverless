@@ -74,8 +74,14 @@ select ok(
 );
 
 select is((
-  select count(*)::integer from storage.objects where bucket_id = 'recipe-images'
+  select count(*)::integer from storage.objects
+  where bucket_id = 'recipe-images' and name like 'recipes/%'
 ), 12, '12 recipe images uploaded to Storage');
+
+select is((
+  select count(*)::integer from storage.objects
+  where bucket_id = 'recipe-images' and name like 'dishes/%'
+), 15, '15 AI dish images uploaded to Storage');
 
 select is((
   select count(*)::integer
