@@ -2,6 +2,7 @@ export * from './database.types';
 export * from './ai-contracts';
 export * from './ai-models';
 export * from './ingredient-images';
+export * from './ingredient-categories';
 export * from './locales';
 export * from './localize';
 

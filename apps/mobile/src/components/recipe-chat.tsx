@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { FontSize, Radius, Spacing } from '@/constants/theme';
 import type { AIChatMessage } from '@/features/ai/types';
 import { useRecipeChat } from '@/features/ai/use-ai';
+import { useIsRtl } from '@/features/i18n/locale-provider';
 import { useTheme } from '@/hooks/use-theme';
 
 export interface RecipeChatCardProps {
@@ -27,6 +28,11 @@ export function RecipeChatCard({
 }: RecipeChatCardProps) {
   const { t } = useTranslation();
   const theme = useTheme();
+  const isRtl = useIsRtl();
+  const textDirection = {
+    textAlign: isRtl ? ('right' as const) : ('left' as const),
+    writingDirection: isRtl ? ('rtl' as const) : ('ltr' as const),
+  };
   const chat = useRecipeChat();
   const [messages, setMessages] = useState<AIChatMessage[]>([]);
   const [draft, setDraft] = useState('');
@@ -83,7 +89,9 @@ export function RecipeChatCard({
                   ? { backgroundColor: theme.brandSoft, alignSelf: 'flex-end' }
                   : { backgroundColor: theme.backgroundElement, alignSelf: 'flex-start' },
               ]}>
-              <ThemedText type="small">{message.content}</ThemedText>
+              <ThemedText type="small" style={textDirection}>
+                {message.content}
+              </ThemedText>
             </View>
           ))}
           {chat.isPending ? (
@@ -101,6 +109,7 @@ export function RecipeChatCard({
           placeholderTextColor={theme.textMuted}
           style={[
             styles.chatInput,
+            textDirection,
             {
               backgroundColor: theme.backgroundElement,
               borderColor: theme.border,

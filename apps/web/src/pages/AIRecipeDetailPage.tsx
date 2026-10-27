@@ -11,7 +11,7 @@ import { SubstitutionModal } from '../components/recipe/SubstitutionModal';
 import { LoadingChef } from '../components/common/LoadingChef';
 import { StyledButton } from '../components/common/StyledButton';
 import { RecipeChatBox } from '../components/recipe/RecipeChatBox';
-import { getDishImageUrl } from '../utils/imageUtils';
+import { dishPoster, getDishImageUrl } from '../utils/imageUtils';
 
 export const AIRecipeDetailPage: React.FC = () => {
   const { name } = useParams<{ name: string }>();
@@ -113,7 +113,9 @@ export const AIRecipeDetailPage: React.FC = () => {
           alt={recipe.name}
           className="absolute inset-0 w-full h-full object-cover opacity-60"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = getDishImageUrl(recipe.name);
+            const img = e.target as HTMLImageElement;
+            const poster = dishPoster(recipe.name);
+            if (img.src !== poster) img.src = poster;
           }}
         />
         <div className="absolute inset-0 bg-linear-to-t/srgb from-stone-950 via-stone-950/60 to-transparent" />

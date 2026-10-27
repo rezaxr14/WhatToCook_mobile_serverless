@@ -1,3 +1,4 @@
+import { ingredientCategoryKey } from '@whattocook/shared';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +7,7 @@ import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { DishImage } from '@/components/dish-image';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
 import { Loading } from '@/components/ui/loading';
@@ -121,7 +123,7 @@ export default function PantryScreen() {
                 <View style={styles.suggestionCopy}>
                   <ThemedText type="smallBold">{option.name}</ThemedText>
                   <ThemedText type="small" themeColor="textMuted">
-                    {option.category}
+                    {t(ingredientCategoryKey(option.category))}
                   </ThemedText>
                 </View>
                 <Ionicons name="add-circle" size={22} color={theme.brand} />
@@ -165,9 +167,13 @@ export default function PantryScreen() {
         <View style={styles.list}>
           {items.map((item) => (
             <Card key={item.ingredientId} style={styles.item}>
-              <View style={[styles.itemIcon, { backgroundColor: theme.brandSoft }]}>
-                <Ionicons name="leaf" size={18} color={theme.brandDark} />
-              </View>
+              <DishImage
+                uri={item.imageUrl}
+                name={item.name}
+                icon="leaf-outline"
+                showLabel={false}
+                style={[styles.itemIcon, { backgroundColor: theme.brandSoft }]}
+              />
               <View style={styles.itemCopy}>
                 <ThemedText type="smallBold" numberOfLines={1}>
                   {item.name}
@@ -175,7 +181,7 @@ export default function PantryScreen() {
                 <ThemedText type="small" themeColor="textMuted" numberOfLines={1}>
                   {item.calories
                     ? t('mobile.pantry.calories', { count: item.calories })
-                    : item.category}
+                    : t(ingredientCategoryKey(item.category))}
                 </ThemedText>
               </View>
               <IconButton

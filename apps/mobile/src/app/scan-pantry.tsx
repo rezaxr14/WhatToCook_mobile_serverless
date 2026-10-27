@@ -1,3 +1,4 @@
+import { ingredientCategoryKey } from '@whattocook/shared';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -301,7 +302,7 @@ export default function ScanPantryScreen() {
                   <View style={styles.itemCopy}>
                     <ThemedText type="smallBold">{label}</ThemedText>
                     <ThemedText type="small" themeColor="textMuted">
-                      {item.category} · {Math.round(item.confidence * 100)}%
+                      {t(ingredientCategoryKey(item.category))} · {Math.round(item.confidence * 100)}%
                     </ThemedText>
                   </View>
                   <View

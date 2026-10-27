@@ -5,6 +5,7 @@
  */
 
 import { recipeImageUrl } from '../lib/images';
+import { dishPosterDataUri } from '../lib/dish-art';
 
 const DISH_PHOTO_MAP: Record<string, string> = {
   // Desserts & Sweets
@@ -85,13 +86,18 @@ const DEFAULT_GOURMET_PHOTOS = [
   'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80',
 ];
 
+/** Local poster for a dish: no network, stable per name. */
+export function dishPoster(name: string): string {
+  return dishPosterDataUri(name);
+}
+
 export function getDishImageUrl(dishName: string, existingUrl?: string): string {
   if (existingUrl && existingUrl.startsWith('http') && !existingUrl.includes('default.png')) {
     return existingUrl;
   }
 
   if (!dishName) {
-    return DEFAULT_GOURMET_PHOTOS[0];
+    return dishPoster('WhatToCook');
   }
 
   const lower = dishName.toLowerCase();
@@ -103,14 +109,9 @@ export function getDishImageUrl(dishName: string, existingUrl?: string): string 
     }
   }
 
-  // Consistent pseudo-hash index for varied fallbacks
-  let hash = 0;
-  for (let i = 0; i < dishName.length; i++) {
-    hash = (hash << 5) - hash + dishName.charCodeAt(i);
-    hash |= 0;
-  }
-  const idx = Math.abs(hash) % DEFAULT_GOURMET_PHOTOS.length;
-  return DEFAULT_GOURMET_PHOTOS[idx];
+  // No keyword match: draw the local poster instead of a random stock photo, so
+  // a blocked image host can never leave the card empty.
+  return dishPoster(dishName);
 }
 
 /**

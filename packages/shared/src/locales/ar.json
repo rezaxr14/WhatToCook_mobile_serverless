@@ -120,7 +120,8 @@
     "loading": "جارٍ التحميل...",
     "close": "إغلاق",
     "search": "بحث",
-    "total": "الإجمالي"
+    "total": "الإجمالي",
+    "all": "الكل"
   },
   "aiChefPage": {
     "badge": "استوديو الطبخ بالذكاء الاصطناعي التوليدي",
@@ -487,5 +488,16 @@
       "sortQuickest": "الأسرع أولاً",
       "sortName": "الاسم (أ–ي)"
     }
+  },
+  "categories": {
+    "produce": "خضروات وفواكه",
+    "dairyEggs": "ألبان وبيض",
+    "meatSeafood": "لحوم ومأكولات بحرية",
+    "grainsPasta": "حبوب ومعكرونة",
+    "pantrySpices": "مؤونة وتوابل",
+    "other": "أخرى",
+    "condiments": "توابل وصلصات",
+    "bakery": "مخبوزات",
+    "beverage": "مشروبات"
   }
 }

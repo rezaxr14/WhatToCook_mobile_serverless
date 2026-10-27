@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { CookingTimer } from '@/components/cooking-timer';
+import { DishImage } from '@/components/dish-image';
 import { RecipeChatCard } from '@/components/recipe-chat';
 import { SubstitutePanel } from '@/components/substitute-panel';
 import { Button } from '@/components/ui/button';
@@ -186,12 +186,7 @@ export default function RecipeDetailScreen() {
       </View>
 
       <Card padded={false}>
-        <Image
-          source={{ uri: data.imageUrl }}
-          style={styles.hero}
-          contentFit="cover"
-          transition={200}
-        />
+        <DishImage uri={data.imageUrl} name={data.name} style={styles.hero} />
         <View style={styles.heroBody}>
           <View style={styles.badgeRow}>
             {data.cookingTime ? (

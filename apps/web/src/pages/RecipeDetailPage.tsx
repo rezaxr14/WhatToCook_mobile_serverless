@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, ChefHat, Check, ShoppingBag, Flame, Sparkles, Plus, S
 import { Recipe } from '../types/recipe';
 import { recipeApi } from '../api/recipeApi';
 import { DEFAULT_RECIPE_IMAGE, recipeImageUrl } from '../lib/images';
+import { dishPoster } from '../utils/imageUtils';
 import { usePantry } from '../context/PantryContext';
 import { useShoppingList } from '../context/ShoppingListContext';
 import { CookingTimer } from '../components/recipe/CookingTimer';
@@ -138,11 +139,10 @@ export const RecipeDetailPage: React.FC = () => {
           alt={recipe.name}
           className="absolute inset-0 w-full h-full object-cover opacity-60"
           onError={(e) => {
-            // fall back to the recipe's own card photo, then a generic dish
             const t = e.target as HTMLImageElement;
-            const alt = recipeImageUrl(recipe.image);
-            if (t.src !== alt && alt !== DEFAULT_RECIPE_IMAGE) t.src = alt;
-            else if (t.src !== DEFAULT_RECIPE_IMAGE) t.src = DEFAULT_RECIPE_IMAGE;
+            if (t.dataset.poster) return;
+            t.dataset.poster = '1';
+            t.src = dishPoster(recipe.name);
           }}
         />
         <div className="absolute inset-0 bg-linear-to-t/srgb from-stone-950 via-stone-950/60 to-transparent" />

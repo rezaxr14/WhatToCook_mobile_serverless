@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" role="img" aria-label="WhatToCook">
+  <defs>
+    <linearGradient id="wtc-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#9a3412"/>
+    </linearGradient>
+  </defs>
+  <rect width="1000" height="1000" rx="220" fill="url(#wtc-gradient)"/>
+  <g fill="#ffffff">
+    <circle cx="330" cy="430" r="150"/>
+    <circle cx="500" cy="352" r="182"/>
+    <circle cx="670" cy="430" r="150"/>
+    <rect x="330" y="470" width="340" height="272" rx="66"/>
+  </g>
+  <rect x="372" y="704" width="256" height="91" rx="30" fill="#ffffff"/>
+  <rect x="372" y="712" width="256" height="14" fill="#fed7aa"/>
+</svg>
