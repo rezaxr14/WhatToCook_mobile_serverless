@@ -1,6 +1,7 @@
 import { originNotAllowed } from './errors.ts';
 
-const ALLOWED_HEADERS = 'authorization, content-type, idempotency-key, x-client-type';
+const ALLOWED_HEADERS =
+  'authorization, content-type, idempotency-key, x-application-name, x-client-info, x-client-type';
 const ALLOWED_METHODS = 'GET, POST, OPTIONS';
 const EXPOSED_HEADERS = 'retry-after, x-request-id';
 
