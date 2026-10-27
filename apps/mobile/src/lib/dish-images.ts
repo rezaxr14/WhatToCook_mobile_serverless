@@ -24,11 +24,7 @@ function isRemotePhoto(url: string | null | undefined): url is string {
   return !!url && url.startsWith('http') && !url.includes('default.png');
 }
 
-export function getDishImageUrl(
-  dishName: string,
-  existingUrl?: string,
-  cuisine?: string,
-): string {
+export function getDishImageUrl(dishName: string, existingUrl?: string, cuisine?: string): string {
   if (isRemotePhoto(existingUrl)) return existingUrl;
 
   const file = matchDishPhoto({ name: dishName, cuisine }) ?? pickDishPhoto(dishName || 'dish');

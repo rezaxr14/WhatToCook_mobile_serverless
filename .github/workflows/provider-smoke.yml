@@ -35,19 +35,24 @@ jobs:
           if isinstance(data, dict) and data.get('error'):
               print('error_status:', data['error'].get('status'))
               print('error_message:', data['error'].get('message'))
-          else:
-              ids = [m.get('name', '').split('/')[-1] for m in data.get('models', [])]
-              print('model_count:', len(ids))
-              for model_id in ids:
-                  if 'flash' in model_id and 'image' not in model_id and 'tts' not in model_id:
-                      print('model:', model_id)
+              raise SystemExit(1)
+          ids = [m.get('name', '').split('/')[-1] for m in data.get('models', [])]
+          print('model_count:', len(ids))
+          missing = [
+              model
+              for model in ('gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash')
+              if model not in ids
+          ]
+          print('missing_routed_models:', missing or 'none')
+          if missing:
+              raise SystemExit(1)
           PY
 
-      - name: Generate with each candidate
+      - name: Generate with each routed model
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          for model in gemini-3.5-flash-lite gemini-3.5-flash gemini-3.6-flash gemini-3.8-flash; do
+          for model in gemini-3.5-flash-lite gemini-3.6-flash gemini-3.8-flash; do
             status=$(curl -sS --max-time 90 -o "reply-$model.json" -w "%{http_code}" \
               "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent" \
               -H "x-goog-api-key: $GEMINI_API_KEY" \
@@ -61,14 +66,65 @@ jobs:
           if isinstance(data, dict) and data.get('error'):
               print('  error_status:', data['error'].get('status'))
               print('  error_message:', data['error'].get('message'))
-          else:
+              raise SystemExit(1)
+          candidate = (data.get('candidates') or [{}])[0]
+          text = ''.join(
+              part.get('text', '')
+              for part in candidate.get('content', {}).get('parts', [])
+          ).strip()
+          usage = data.get('usageMetadata') or {}
+          print(
+              '  finish:', candidate.get('finishReason'),
+              'thoughts:', usage.get('thoughtsTokenCount', 0),
+              'reply:', text[:80] or '(empty)',
+          )
+          if text != 'OK':
+              raise SystemExit(1)
+          PY
+          done
+
+      - name: Stream with each routed model
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          for model in gemini-3.5-flash-lite gemini-3.6-flash gemini-3.8-flash; do
+            started=$(date +%s)
+            status=$(curl -sS --max-time 150 -o "stream-$model.txt" -w "%{http_code}" \
+              "https://generativelanguage.googleapis.com/v1beta/models/$model:streamGenerateContent?alt=sse" \
+              -H "x-goog-api-key: $GEMINI_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"contents":[{"role":"user","parts":[{"text":"Write two sentences about pasta."}]}],"generationConfig":{"maxOutputTokens":2200}}')
+            elapsed=$(( $(date +%s) - started ))
+            MODEL="$model" STATUS="$status" ELAPSED="$elapsed" python3 - <<'PY'
+          import json, os
+          model = os.environ['MODEL']
+          raw = open(f'stream-{model}.txt', encoding='utf-8', errors='replace').read()
+          chunks = [line[5:].strip() for line in raw.splitlines() if line.startswith('data:')]
+          text = ''
+          error = None
+          finish = None
+          for chunk in chunks:
+              try:
+                  data = json.loads(chunk)
+              except json.JSONDecodeError:
+                  continue
+              if data.get('error'):
+                  error = data['error']
+                  break
               candidate = (data.get('candidates') or [{}])[0]
-              text = ''.join(
-                  part.get('text', '')
-                  for part in candidate.get('content', {}).get('parts', [])
-              ).strip()
-              print('  finish:', candidate.get('finishReason'))
-              print('  usage:', data.get('usageMetadata'))
-              print('  text_len:', len(text), 'reply:', text[:120] or '(empty)')
+              finish = candidate.get('finishReason') or finish
+              for part in candidate.get('content', {}).get('parts', []):
+                  text += part.get('text', '')
+          print(
+              f"model={model} http={os.environ['STATUS']} events={len(chunks)}",
+              f"seconds={os.environ['ELAPSED']} finish={finish} text_len={len(text)}",
+          )
+          if error:
+              print('  error_status:', error.get('status'))
+              print('  error_message:', error.get('message'))
+              raise SystemExit(1)
+          print('  text:', text[:120] or '(empty)')
+          if not text.strip():
+              raise SystemExit(1)
           PY
           done

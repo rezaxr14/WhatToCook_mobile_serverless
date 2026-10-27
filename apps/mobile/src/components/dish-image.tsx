@@ -70,7 +70,8 @@ export function DishImage({
       style={[styles.poster, { backgroundColor: colorFor(name || 'dish') }, style]}
       accessible
       accessibilityRole="image"
-      accessibilityLabel={name}>
+      accessibilityLabel={name}
+    >
       <Ionicons name={icon} size={44} color="rgba(255,255,255,0.35)" style={styles.posterIcon} />
       {showLabel && name ? (
         <ThemedText type="smallBold" numberOfLines={2} style={styles.posterLabel}>

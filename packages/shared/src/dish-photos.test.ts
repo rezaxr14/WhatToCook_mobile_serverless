@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   assignDishPhotoFiles,
+  DISH_PHOTOS,
   DISH_PHOTO_FILES,
   matchDishPhoto,
   pickDishPhoto,
@@ -62,5 +63,25 @@ describe('assignDishPhotoFiles', () => {
       'dishes/beef.webp',
       'dishes/caesar.webp',
     ]);
+  });
+
+  it('prefers another photo from the same food group on a collision', () => {
+    const files = assignDishPhotoFiles([
+      { name: 'Lemon Garlic Pasta' },
+      { name: 'Tomato Basil Pasta' },
+      { name: 'Creamy Mushroom Pasta' },
+    ]);
+    expect(files[0]).toBe('recipes/spaghetti.jpg');
+    for (const file of files) {
+      expect(DISH_PHOTOS.find((entry) => entry.file === file)?.group).toBe('pasta');
+    }
+    expect(new Set(files).size).toBe(3);
+  });
+
+  it('still rotates the pool when the food group is exhausted', () => {
+    const files = assignDishPhotoFiles(Array.from({ length: 8 }, (_, index) => ({
+      name: `Pasta ${index}`,
+    })));
+    expect(new Set(files).size).toBe(files.length);
   });
 });

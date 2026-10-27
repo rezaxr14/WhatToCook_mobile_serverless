@@ -30,11 +30,7 @@ export function dishPoster(name: string): string {
   return dishPosterDataUri(name);
 }
 
-export function getDishImageUrl(
-  dishName: string,
-  existingUrl?: string,
-  cuisine?: string,
-): string {
+export function getDishImageUrl(dishName: string, existingUrl?: string, cuisine?: string): string {
   if (isRemotePhoto(existingUrl)) return existingUrl;
 
   const file = matchDishPhoto({ name: dishName, cuisine }) ?? pickDishPhoto(dishName || 'dish');
