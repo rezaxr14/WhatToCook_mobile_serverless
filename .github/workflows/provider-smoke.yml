@@ -5,11 +5,6 @@ name: Provider smoke
 # PRs cannot read repository secrets and a live call costs money.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - fix/ai-dish-images
-    paths:
-      - .github/workflows/provider-smoke.yml
 
 jobs:
   gemini:

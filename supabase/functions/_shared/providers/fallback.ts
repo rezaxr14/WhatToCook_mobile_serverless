@@ -17,12 +17,25 @@ export class FallbackProvider implements AIProvider {
     private readonly secondary: AIProvider,
     /** Model id to request from the secondary provider. */
     private readonly secondaryModel: string,
+    /**
+     * Send pantry photos to the secondary too. Off by default because a
+     * free text-router may not offer a vision-capable model.
+     */
+    private readonly allowVisionFallback = false,
   ) {
     this.id = primary.id;
   }
 
   private fallbackRequest(request: ProviderRequest): ProviderRequest {
-    return { ...request, model: this.secondaryModel };
+    // The free OpenRouter router often picks a reasoning model. Its thinking
+    // tokens share the output budget, so the primary budget can be consumed
+    // before any JSON is emitted. Free calls cost nothing, so give the fallback
+    // enough room to finish instead of failing with an empty response.
+    return {
+      ...request,
+      model: this.secondaryModel,
+      maxOutputTokens: Math.max(request.maxOutputTokens, 4096),
+    };
   }
 
   async generateText(request: ProviderRequest): Promise<ProviderResult> {
@@ -47,7 +60,7 @@ export class FallbackProvider implements AIProvider {
     try {
       return await this.primary.visionExtract(request);
     } catch (error) {
-      if (request.signal?.aborted) throw error;
+      if (!this.allowVisionFallback || request.signal?.aborted) throw error;
       return this.secondary.visionExtract(this.fallbackRequest(request));
     }
   }

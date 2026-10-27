@@ -79,9 +79,11 @@ describe('assignDishPhotoFiles', () => {
   });
 
   it('still rotates the pool when the food group is exhausted', () => {
-    const files = assignDishPhotoFiles(Array.from({ length: 8 }, (_, index) => ({
-      name: `Pasta ${index}`,
-    })));
+    const files = assignDishPhotoFiles(
+      Array.from({ length: 8 }, (_, index) => ({
+        name: `Pasta ${index}`,
+      })),
+    );
     expect(new Set(files).size).toBe(files.length);
   });
 });

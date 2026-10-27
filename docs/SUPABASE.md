@@ -67,8 +67,14 @@ Supabase secrets remotely:
 - `GEMINI_API_KEY` - required only when `AI_PROVIDER=gemini`.
 - `GEMINI_MODEL` / `GEMINI_VISION_MODEL` - optional Gemini overrides; normal routing comes from
   `app_config.model_routing`.
-- `OPENROUTER_API_KEY` - required only when `AI_PROVIDER=openrouter`; server-side only.
-- `OPENROUTER_MODEL` - required when `AI_PROVIDER=openrouter`; one model id for all features.
+- `OPENROUTER_API_KEY` - required when `AI_PROVIDER=openrouter` or `AI_FALLBACK_PROVIDER=openrouter`;
+  server-side only.
+- `AI_FALLBACK_PROVIDER` - optional `openrouter`; retries Gemini failures (before any streamed
+  output) on `OPENROUTER_MODEL`. Free models cost $0. Off when empty.
+- `AI_FALLBACK_VISION` - optional `true` to also send pantry photos to the fallback; off by
+  default because free routers may not offer a vision model.
+- `OPENROUTER_MODEL` - required when `AI_PROVIDER=openrouter`, and used by the fallback; one model
+  id for all features. `openrouter/free` routes across free models.
 - `OPENROUTER_VISION_MODEL` - optional scan override; defaults to `OPENROUTER_MODEL`.
 - `OPENROUTER_ALLOWED_MODELS` - optional comma-separated allowlist for client-selected models;
   free `*:free` ids are always selectable.

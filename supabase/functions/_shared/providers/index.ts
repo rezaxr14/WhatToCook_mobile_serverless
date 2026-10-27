@@ -59,6 +59,7 @@ export function createProvider(
             streamTimeoutMs: 120_000,
           }),
           env.OPENROUTER_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL,
+          env.AI_FALLBACK_VISION === 'true',
         );
       }
       console.warn('ai_fallback_skipped', 'OPENROUTER_API_KEY is not configured');

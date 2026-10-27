@@ -81,6 +81,7 @@ Deno.test('fallback: tries the secondary with its own model when the primary fai
 
   assertEquals(generated.provider, 'openrouter');
   assertEquals(secondary.calls[0]?.model, 'openrouter/free');
+  assertEquals(secondary.calls[0]?.maxOutputTokens, 4096);
   assertEquals(primary.calls.length, 1);
 });
 
@@ -111,4 +112,35 @@ Deno.test('fallback: does not splice providers after a partial stream', async ()
   });
   assertEquals(chunks, ['Half']);
   assertEquals(secondary.calls.length, 0);
+});
+
+Deno.test(
+  'fallback: keeps pantry photos on the primary unless vision fallback is enabled',
+  async () => {
+    const visionRequest: ProviderRequest = {
+      ...request,
+      metadata: { feature: 'scan', imageBytes: new Uint8Array([1, 2, 3]) },
+    };
+    const primary = new StubProvider('gemini', { error: new Error('vision down') });
+    const secondary = new StubProvider('openrouter');
+    const provider = new FallbackProvider(primary, secondary, 'openrouter/free');
+
+    await assertRejects(() => provider.visionExtract(visionRequest));
+    assertEquals(secondary.calls.length, 0);
+  },
+);
+
+Deno.test('fallback: can opt in to vision fallback', async () => {
+  const visionRequest: ProviderRequest = {
+    ...request,
+    metadata: { feature: 'scan', imageBytes: new Uint8Array([1, 2, 3]) },
+  };
+  const primary = new StubProvider('gemini', { error: new Error('vision down') });
+  const secondary = new StubProvider('openrouter');
+  const provider = new FallbackProvider(primary, secondary, 'openrouter/free', true);
+
+  const generated = await provider.visionExtract(visionRequest);
+
+  assertEquals(generated.provider, 'openrouter');
+  assertEquals(secondary.calls.length, 1);
 });
