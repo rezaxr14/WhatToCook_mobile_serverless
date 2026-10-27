@@ -554,3 +554,18 @@ Expo SDK 58 supplies these defaults in `ExpoRootProjectPlugin`.
 - Metro over that bridge needs a Windows port relay (`netsh interface portproxy` 8081 -> WSL
   IP) because `adb reverse` terminates at the Windows adb server, not in WSL;
   `networkingMode=mirrored` in `.wslconfig` is the alternative.
+
+## Follow-up fixes and hosted demos (2026-10-27)
+
+- PR #9 `fix/images`: AI dish photos always resolve (local poster fallback when a stock photo is
+  unreachable) and pantry thumbnails come from Supabase Storage only.
+- PR #10 `fix/rtl-i18n-branding`: RTL inputs align right, LTR left; ingredient/category names
+  translated (`ingredients.names` migration); new logo and favicons.
+- PR #11 `feat/web-ai-readme`: the web client starts an anonymous guest session on the first AI
+  request (keys stay server-side); CORS allows the headers supabase-js sends; AI dish matching
+  prefers the provider `image_hint`; README has web + Android demo galleries captured from the
+  built app.
+- Staging `ALLOWED_ORIGINS` now includes the GitHub Pages origin
+  (`https://rezaxr14.github.io`); `ai-models`, `generate-recipe`, `scan-pantry` and
+  `suggest-substitution` were redeployed with the new CORS header list.
+- GitHub Pages deploy of `main` succeeded and the live site plus all README images return 200.

@@ -85,7 +85,11 @@ Supabase secrets remotely:
   `LMSTUDIO_STREAM_TIMEOUT_MS` - optional local auth, JSON mode (off by default), and timeouts.
 - `AI_RPM_LIMIT` / `AI_RPD_LIMIT` - optional global provider request guards (rolling minute and
   UTC day). Blank disables them; cache hits and idempotent replays are not counted.
-- `ALLOWED_ORIGINS` - comma-separated browser origins for CORS.
+- `ALLOWED_ORIGINS` - comma-separated browser origins for CORS. Origins are matched exactly
+  (scheme, host and port) after trailing slashes are stripped; native mobile clients send no
+  `Origin` and are allowed without an entry. Include every browser deployment, for example
+  `https://rezaxr14.github.io,http://localhost:5173,http://127.0.0.1:5173`. A `*` entry allows
+  any origin and is meant for local experiments only.
 
 `supabase/functions/.env` is gitignored. The web bundle must contain none of these names or
 values.
@@ -144,7 +148,7 @@ server-only values and deploy all four:
 
 ```powershell
 pnpm exec supabase secrets set AI_PROVIDER=fake `
-  "ALLOWED_ORIGINS=https://<web-origin>,http://localhost:5173"
+  "ALLOWED_ORIGINS=https://<web-origin>,http://localhost:5173,http://127.0.0.1:5173"
 
 pnpm exec supabase functions deploy generate-recipe --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
 pnpm exec supabase functions deploy scan-pantry --project-ref $env:SUPABASE_PROJECT_ID --no-verify-jwt
@@ -155,7 +159,8 @@ pnpm exec supabase functions deploy ai-models --project-ref $env:SUPABASE_PROJEC
 `AI_PROVIDER=fake` is the supported staging/test state: deterministic output and zero cost.
 LM Studio is local-only and must not be set on hosted functions, which cannot reach a developer
 machine. Staging currently has the M4 migration and all four functions deployed in this state, with
-`ALLOWED_ORIGINS` limited to the local Vite origins until a hosted web origin exists. Real
+`ALLOWED_ORIGINS` set to the hosted GitHub Pages origin plus both local Vite origins
+(`https://rezaxr14.github.io,http://localhost:5173,http://127.0.0.1:5173`). Real
 Gemini traffic waits for H5 and a model/price review; OpenRouter traffic waits for
 `OPENROUTER_API_KEY` and `OPENROUTER_MODEL`. Either provider key, when enabled, is a function
 secret only; it never enters `VITE_*`, `EXPO_PUBLIC_*`, or the static bundle. The full deployment,

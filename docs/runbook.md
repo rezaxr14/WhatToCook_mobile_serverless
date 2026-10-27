@@ -131,7 +131,7 @@ pnpm exec supabase db push --dry-run      # review the pending migration
 pnpm exec supabase db push --yes
 
 pnpm exec supabase secrets set AI_PROVIDER=fake `
-  "ALLOWED_ORIGINS=https://<web-origin>,http://localhost:5173"
+  "ALLOWED_ORIGINS=https://<web-origin>,http://localhost:5173,http://127.0.0.1:5173"
 
 # To use OpenRouter instead, keep the same deploy flags and add:
 # pnpm exec supabase secrets set AI_PROVIDER=openrouter
@@ -432,18 +432,18 @@ select refund_ai_usage('<event-id>', 'manual_recovery');
 
 ## 7. Error triage
 
-| Symptom                    | Check                                                                                                                                                                                                                                                                                                           |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `401 unauthorized`         | Bearer token missing/expired; local token expires hourly. `verify_jwt=false` does not mean anonymous access.                                                                                                                                                                                                    |
-| `403 origin_not_allowed`   | Exact scheme/host/port in `ALLOWED_ORIGINS`; native apps send no `Origin`. In PowerShell quote the whole `ALLOWED_ORIGINS=...` argument, otherwise the comma is parsed as an array and the CLI stores a space-separated value. The parser accepts both commas and whitespace, but use the canonical comma form. |
-| `413 payload_too_large`    | JSON > 64 KiB or scan body > 20 MiB; decoded image > plan cap.                                                                                                                                                                                                                                                  |
-| `429 quota_exceeded`       | `ai_usage_counters`, plan feature limits, monthly budget. Cache hits do not count.                                                                                                                                                                                                                              |
-| `429 rate_limited`         | Provider rate limit; respect `Retry-After`.                                                                                                                                                                                                                                                                     |
-| `503 ai_disabled`          | `ai_kill_switch` or `feature_flags`.                                                                                                                                                                                                                                                                            |
-| `503 ai_budget_exhausted`  | `global_daily_cap_micro_usd` / `ai_global_daily`.                                                                                                                                                                                                                                                               |
-| `502 provider_error`       | Missing/invalid key, model id, price row, provider outage, or timeout.                                                                                                                                                                                                                                          |
-| `502 invalid_model_output` | Provider JSON failed schema validation twice; inspect the prompt/schema.                                                                                                                                                                                                                                        |
-| `500 internal_error`       | Service-role configuration, DB/RLS, or an unexpected gateway error.                                                                                                                                                                                                                                             |
+| Symptom                    | Check                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `401 unauthorized`         | Bearer token missing/expired; local token expires hourly. `verify_jwt=false` does not mean anonymous access.                                                                                                                                                                                                                                                                                                               |
+| `403 origin_not_allowed`   | Exact scheme/host/port in `ALLOWED_ORIGINS`; native apps send no `Origin`. Include the GitHub Pages origin when the web app is hosted, and re-check the secret after a domain change. In PowerShell quote the whole `ALLOWED_ORIGINS=...` argument, otherwise the comma is parsed as an array and the CLI stores a space-separated value. The parser accepts both commas and whitespace, but use the canonical comma form. |
+| `413 payload_too_large`    | JSON > 64 KiB or scan body > 20 MiB; decoded image > plan cap.                                                                                                                                                                                                                                                                                                                                                             |
+| `429 quota_exceeded`       | `ai_usage_counters`, plan feature limits, monthly budget. Cache hits do not count.                                                                                                                                                                                                                                                                                                                                         |
+| `429 rate_limited`         | Provider rate limit; respect `Retry-After`.                                                                                                                                                                                                                                                                                                                                                                                |
+| `503 ai_disabled`          | `ai_kill_switch` or `feature_flags`.                                                                                                                                                                                                                                                                                                                                                                                       |
+| `503 ai_budget_exhausted`  | `global_daily_cap_micro_usd` / `ai_global_daily`.                                                                                                                                                                                                                                                                                                                                                                          |
+| `502 provider_error`       | Missing/invalid key, model id, price row, provider outage, or timeout.                                                                                                                                                                                                                                                                                                                                                     |
+| `502 invalid_model_output` | Provider JSON failed schema validation twice; inspect the prompt/schema.                                                                                                                                                                                                                                                                                                                                                   |
+| `500 internal_error`       | Service-role configuration, DB/RLS, or an unexpected gateway error.                                                                                                                                                                                                                                                                                                                                                        |
 
 Function logs:
 
@@ -512,6 +512,18 @@ Staging smoke on 2026-10-22 (project `lderdvhteofqemiivosz`, `AI_PROVIDER=fake`)
   cache hit. `v_ai_spend_daily` and `v_ai_cache_hit_rate` populated correctly.
 - All test anonymous users were deleted and the staging response cache was purged after the
   smoke.
+
+Hosted-origin follow-up on 2026-10-27 (same project, `AI_PROVIDER=fake`):
+
+- `ALLOWED_ORIGINS` was extended to
+  `https://rezaxr14.github.io,http://localhost:5173,http://127.0.0.1:5173` so the GitHub Pages
+  build can call the gateway.
+- `generate-recipe`, `scan-pantry`, `suggest-substitution` and `ai-models` were redeployed after
+  `ALLOWED_HEADERS` gained `apikey`, `x-application-name` and `x-client-info`; preflight from
+  both the Pages origin and the local screenshot origin now returns 204 with the matching
+  `Access-Control-Allow-Origin`.
+- An anonymous signup plus a `suggestions` request from the Pages origin returned
+  `status: "done"` with five recipes and no key material in the response.
 
 Real Gemini smoke remains blocked on H5. The Gemini key field is blank; real traffic must not be
 enabled until the key is present and the model/pricing rows are verified against current Google
