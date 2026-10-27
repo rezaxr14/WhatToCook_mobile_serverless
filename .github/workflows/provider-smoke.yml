@@ -76,7 +76,9 @@ jobs:
           raw = open('pricing.html', encoding='utf-8', errors='replace').read()
           text = html.unescape(re.sub(r'<[^>]+>', ' ', raw))
           text = re.sub(r'\s+', ' ', text)
-          for needle in ('Gemini 3.5 Flash Lite', 'Gemini 3.5 Flash', 'Gemini 3.6 Flash'):
-              index = text.find(needle)
-              print(needle, '=>', text[index:index + 900] if index >= 0 else 'not found')
+          for model in ('gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.8-flash'):
+              for match in re.finditer(re.escape(model), text):
+                  start = max(0, match.start() - 120)
+                  print('>>>', model, '=>', text[start:match.start() + 700])
+                  break
           PY
