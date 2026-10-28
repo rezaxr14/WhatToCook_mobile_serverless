@@ -113,6 +113,7 @@
   "quickActions": {
     "grocery": "قائمة التسوق",
     "telegram": "بوت تيليجرام",
+    "install": "تثبيت التطبيق",
     "language": "اللغة"
   },
   "common": {
@@ -463,7 +464,7 @@
       "reviewTitle": "المكوّنات المكتشفة",
       "reviewSub": "وُجد {{count}}. اختر ما تريد إضافته.",
       "matched": "في الكتالوج",
-      "unmatched": "غير موجود في الكتالوج",
+      "unmatched": "جديد — ستتم إضافته",
       "addSelected": "أضف {{count}} إلى المخزن",
       "added": "أُضيف إلى مخزنك",
       "empty": "لم يتم اكتشاف مكوّنات",

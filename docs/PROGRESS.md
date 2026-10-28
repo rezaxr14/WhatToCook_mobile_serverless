@@ -610,3 +610,28 @@ Expo SDK 58 supplies these defaults in `ExpoRootProjectPlugin`.
   new `mobile.exit.*` copy exists in all five locales.
 - Verified: shared Vitest 25/25, web Vitest 19/19, mobile Vitest 27/27 + Jest 19/19, web and
   mobile typecheck, lint and web build.
+
+## Scanner custom ingredients, install placement and Actions device build (2026-10-28)
+
+- AI Vision no longer drops detections that are missing from the catalog. Web and Android
+  now list them as "New — will be added", let the user select them, and call the new
+  `add_custom_pantry_ingredient` RPC. The function is `SECURITY DEFINER`, validates and
+  normalises the name/category, reuses an existing catalog row by lowercased `name_en`,
+  and inserts the catalog entry plus the caller's pantry row atomically. Execute is
+  granted to `authenticated` only; anon calls return `permission denied`.
+- Manual pantry/grocery entry for an unknown food uses the same RPC instead of failing
+  with "not in the catalog yet".
+- The web PWA install action moved into `QuickActionsWidget` after Telegram, so it no
+  longer overlaps Grocery/Telegram; `PWAInstallBanner` now only renders the offline pill.
+  The footer product column is right-aligned with logical `justify-self`/`text-align`
+  utilities. The recipe chat input has a 2px amber border and brand focus ring.
+- Web scanner sample photos are local `/samples/*.jpg` (served from Storage-backed
+  catalog dishes) instead of unreliable external URLs.
+- `.github/workflows/android-device.yml` builds an installable release APK with debug
+  signing on every mobile/shared change to main and uploads it as an artifact, with
+  `APP_VERSION_CODE` from the run number and Supabase secrets mapped from `VITE_*`.
+- Regenerated the web screenshot gallery (landing, recipes, pantry, scanner, grocery,
+  can-cook, AI Chef, AI recipe) and refreshed the README feature list.
+- Verified: web and mobile typecheck, lint and tests, web build, a Playwright run of the
+  unmatched-detection flow against staging (Dragon Fruit added, then cleaned up), RPC
+  duplicate/anon checks, and a local release APK installed on a Xiaomi 22101320G.

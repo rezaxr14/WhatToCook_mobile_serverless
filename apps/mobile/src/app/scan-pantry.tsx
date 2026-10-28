@@ -26,7 +26,10 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useScanPantry } from '@/features/ai/use-ai';
 import type { AIScanItem } from '@/features/ai/types';
 import { useAuth } from '@/features/auth/auth-provider';
-import { useAddPantryIngredients } from '@/features/pantry/use-pantry';
+import {
+  useAddPantryIngredients,
+  useAddCustomPantryIngredient,
+} from '@/features/pantry/use-pantry';
 import { useTheme } from '@/hooks/use-theme';
 
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
@@ -46,18 +49,22 @@ export default function ScanPantryScreen() {
 
   const scan = useScanPantry();
   const addPantry = useAddPantryIngredients(user?.id);
+  const addCustom = useAddCustomPantryIngredient(user?.id);
 
   const [photo, setPhoto] = useState<ScanPhoto | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedNewKeys, setSelectedNewKeys] = useState<string[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const items = scan.data?.items ?? [];
-  const selectableItems = items.filter((item) => item.ingredient_id != null);
+  const newKey = (item: AIScanItem) => item.name.trim().toLowerCase();
+  const selectedCount = selectedIds.length + selectedNewKeys.length;
   const errorMessage = localError ?? scan.error?.message ?? null;
 
   const runScan = (next: ScanPhoto) => {
     setPhoto(next);
     setSelectedIds([]);
+    setSelectedNewKeys([]);
     setLocalError(null);
     scan.mutate(
       { base64: next.base64, mimeType: next.mimeType },
@@ -125,26 +132,44 @@ export default function ScanPantryScreen() {
   };
 
   const toggleItem = (item: AIScanItem) => {
-    if (item.ingredient_id == null) return;
-    const id = item.ingredient_id;
-    setSelectedIds((current) =>
-      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
+    if (item.ingredient_id != null) {
+      const id = item.ingredient_id;
+      setSelectedIds((current) =>
+        current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
+      );
+      return;
+    }
+
+    const key = newKey(item);
+    setSelectedNewKeys((current) =>
+      current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
     );
   };
 
-  const addSelected = () => {
-    if (selectedIds.length === 0) return;
-    addPantry.mutate(selectedIds, {
-      onSuccess: () => {
-        Alert.alert(t('mobile.scan.added'), undefined, [
-          {
-            text: t('mobile.common.confirm'),
-            onPress: () => router.back(),
-          },
-        ]);
-      },
-      onError: (error) => setLocalError(error.message),
-    });
+  const addSelected = async () => {
+    if (selectedCount === 0) return;
+    setLocalError(null);
+    try {
+      const customItems = items.filter(
+        (item) => item.ingredient_id == null && selectedNewKeys.includes(newKey(item)),
+      );
+      // Unmatched detections are created as minimal catalog entries (and added
+      // to the pantry) instead of being silently skipped.
+      for (const item of customItems) {
+        await addCustom.mutateAsync({ name: item.name, category: item.category });
+      }
+      if (selectedIds.length > 0) {
+        await addPantry.mutateAsync(selectedIds);
+      }
+      Alert.alert(t('mobile.scan.added'), undefined, [
+        {
+          text: t('mobile.common.confirm'),
+          onPress: () => router.back(),
+        },
+      ]);
+    } catch (error) {
+      setLocalError(error instanceof Error ? error.message : t('mobile.scan.error'));
+    }
   };
 
   const retry = () => {
@@ -265,11 +290,20 @@ export default function ScanPantryScreen() {
                   {t('mobile.scan.reviewSub', { count: items.length })}
                 </ThemedText>
               </View>
-              {selectableItems.length > 0 ? (
+              {items.length > 0 ? (
                 <Pressable
-                  onPress={() =>
-                    setSelectedIds(selectableItems.map((item) => item.ingredient_id as number))
-                  }
+                  onPress={() => {
+                    setSelectedIds(
+                      items
+                        .filter((item) => item.ingredient_id != null)
+                        .map((item) => item.ingredient_id as number),
+                    );
+                    setSelectedNewKeys(
+                      items
+                        .filter((item) => item.ingredient_id == null)
+                        .map((item) => newKey(item)),
+                    );
+                  }}
                 >
                   <ThemedText type="smallBold" themeColor="brandDark">
                     {t('mobile.scan.selectAll')}
@@ -280,15 +314,15 @@ export default function ScanPantryScreen() {
 
             {items.map((item, index) => {
               const id = item.ingredient_id ?? null;
-              const selectable = id != null;
-              const selected = id != null && selectedIds.includes(id);
+              const inCatalog = id != null;
+              const selected =
+                id != null ? selectedIds.includes(id) : selectedNewKeys.includes(newKey(item));
               const label = item.display_name?.trim() || item.name;
               return (
                 <Pressable
                   key={`${label}-${index}`}
-                  disabled={!selectable}
                   accessibilityRole="checkbox"
-                  accessibilityState={{ checked: selected, disabled: !selectable }}
+                  accessibilityState={{ checked: selected }}
                   onPress={() => toggleItem(item)}
                   style={[
                     styles.itemRow,
@@ -296,7 +330,11 @@ export default function ScanPantryScreen() {
                       borderTopWidth: StyleSheet.hairlineWidth,
                       borderTopColor: theme.border,
                     },
-                    !selectable && { opacity: 0.55 },
+                    !inCatalog && {
+                      backgroundColor: theme.warningSoft,
+                      borderRadius: Radius.md,
+                      paddingHorizontal: Spacing.three,
+                    },
                   ]}
                 >
                   <View
@@ -321,12 +359,12 @@ export default function ScanPantryScreen() {
                     style={[
                       styles.tag,
                       {
-                        backgroundColor: selectable ? theme.successSoft : theme.backgroundElement,
+                        backgroundColor: inCatalog ? theme.successSoft : theme.brandSoft,
                       },
                     ]}
                   >
-                    <ThemedText type="small" themeColor={selectable ? 'success' : 'textMuted'}>
-                      {selectable ? t('mobile.scan.matched') : t('mobile.scan.unmatched')}
+                    <ThemedText type="small" themeColor={inCatalog ? 'success' : 'brandDark'}>
+                      {inCatalog ? t('mobile.scan.matched') : t('mobile.scan.unmatched')}
                     </ThemedText>
                   </View>
                 </Pressable>
@@ -335,11 +373,11 @@ export default function ScanPantryScreen() {
 
             <Button
               icon="basket-outline"
-              loading={addPantry.isPending}
-              disabled={selectedIds.length === 0}
-              onPress={addSelected}
+              loading={addPantry.isPending || addCustom.isPending}
+              disabled={selectedCount === 0}
+              onPress={() => void addSelected()}
             >
-              {t('mobile.scan.addSelected', { count: selectedIds.length })}
+              {t('mobile.scan.addSelected', { count: selectedCount })}
             </Button>
           </Card>
         )

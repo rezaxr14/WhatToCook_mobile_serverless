@@ -361,3 +361,25 @@ light intensity every frame and keeping zero-intensity lights in the shader. The
 detections that are not in the catalog instead of attempting a name insert that would 404 and
 abort the batch. Web keeps a per-session scan summary until dismissed; mobile confirms with a
 native alert before returning to the pantry list.
+
+## ADR-017 - Catalog growth from AI scans, install affordance and CI device builds
+
+**Context:** the scanner discarded detections whose names were not in the seed catalog, and
+manual entry rejected them too, so users lost plausible foods. The PWA install banner sat on
+top of the Grocery/Telegram quick actions, and installing the Android toolchain is the slowest
+part of a device smoke test.
+
+**Decision:** add `add_custom_pantry_ingredient(p_name, p_category)` as a `SECURITY DEFINER`
+function. It requires `auth.uid()`, bounds the name to 2-80 printable characters, maps the
+category to the stored English set (falling back to `Other`), reuses a catalog row matching
+`lower(name_en)`, otherwise inserts a slugged row, and upserts the caller's pantry item in the
+same transaction. Execute is revoked from `public`/`anon` and granted to `authenticated`.
+Clients call it for unmatched scan detections and for unknown manual entries. The install
+button moved into `QuickActionsWidget` beside Telegram; the old banner keeps only the offline
+status pill. `android-device.yml` builds a debug-signed release APK in CI for device testing.
+
+**Consequences:** AI-detected foods become shared catalog rows (English name only until
+someone adds translations), which is intentional: the next scan matches them normally.
+Catalog writes are possible only through this validated RPC, and the unique pantry constraint
+makes repeated scans idempotent. The CI APK uses the debug keystore, so it cannot upgrade a
+Play-signed install; uninstall first or keep the keystore consistent.

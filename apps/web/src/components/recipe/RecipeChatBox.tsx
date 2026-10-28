@@ -321,14 +321,14 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
           e.preventDefault();
           handleSendMessage();
         }}
-        className="p-4 bg-white border-t border-stone-200/90 flex items-center gap-2"
+        className="p-4 bg-amber-50/60 border-t-2 border-amber-200/80 flex items-center gap-2"
       >
         <input
           type="text"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           placeholder={`Ask anything about ${recipeName} (e.g., 'What can I substitute for garlic?')...`}
-          className="flex-1 bg-stone-100/80 hover:bg-stone-100 focus:bg-white text-stone-900 text-sm rounded-2xl px-4 py-3 border border-stone-200 focus:border-stone-400 focus:outline-hidden transition-all placeholder:text-stone-400"
+          className="flex-1 bg-white text-stone-900 text-sm rounded-2xl px-4 py-3 border-2 border-amber-400/80 shadow-[0_0_0_3px_rgba(251,191,36,0.14)] focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 focus:outline-hidden transition-all placeholder:text-stone-500"
           disabled={isLoading}
         />
         <button

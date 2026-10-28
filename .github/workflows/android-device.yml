@@ -1,0 +1,72 @@
+name: Android device build
+
+# Builds an installable, debug-signed release APK on every mobile change to main
+# so device smoke tests no longer need a local Android SDK/Gradle toolchain.
+# Download the artifact and install it with `adb install -r <apk>`.
+#
+# Production/Play builds stay in `android-release.yml` and still require the
+# release keystore secrets.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/shared/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/android-device.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-device-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build installable APK
+    runs-on: ubuntu-latest
+    env:
+      APP_VARIANT: production
+      APP_VERSION_CODE: ${{ github.run_number }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v4
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Expo prebuild
+        run: pnpm --filter @whattocook/mobile exec expo prebuild --platform android --clean --no-install
+
+      - name: Assemble release APK
+        working-directory: apps/mobile/android
+        run: >-
+          ./gradlew :app:assembleRelease --no-daemon
+          -Dorg.gradle.internal.http.socketTimeout=120000
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: whattocook-device-${{ github.sha }}
+          path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
