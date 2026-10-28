@@ -473,7 +473,7 @@ export const LandingPage: React.FC = () => {
   // Stable identity for the scene-ready callback so the lazy JourneyScene
   // never re-renders because of a fresh inline closure.
   const handleSceneReady = useCallback(() => {
-    setTimeout(() => setReady(true), 500);
+    setReady(true);
   }, []);
 
   const handleHeroPoster = useCallback((poster: string) => {

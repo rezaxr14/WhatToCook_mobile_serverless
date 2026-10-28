@@ -591,3 +591,22 @@ Expo SDK 58 supplies these defaults in `ExpoRootProjectPlugin`.
   pgTAP, Pages, and `Provider smoke` all green on `main`. Staging smoke returned three catalog
   models with providers, Gemini suggestions with five Storage images, an OpenRouter suggestion
   with five images, a short OpenRouter detail, and a 3-item JSON scan with two catalog matches.
+
+## UX polish: hero stalls, scanner clarity and grocery entry (2026-10-28)
+
+- PR `fix/ux-scan-grocery-hero`: landing lights are permanent scene members (intensity-only
+  changes), the fridge light rig is no longer hidden with the room, the cooking station keeps
+  its flame light, and the key spotlight shadow updates only while cooking/dish geometry moves.
+  The hero reveals on the first painted frame, captures its poster with `toBlob`, and warms
+  hidden chapters with `compileAsync`; the artificial 650 ms + 500 ms delays are gone.
+- Vertical fridge photos are no longer cropped: web previews use a blurred cover backdrop with
+  an `object-contain` foreground, and mobile pickers stop forcing a 4:3 edit.
+- "Add to pantry" now adds only catalog-matched detections, closes the modal on success, and
+  leaves a dismissible confirmation banner with the added names on the pantry page. The scanner
+  is promoted to a full-width AI Vision card in both clients.
+- Grocery add is catalog-aware on web and mobile: search-as-you-type suggestions, popular
+  staples, amount stepper plus unit, item category, and duplicate feedback.
+- Android hardware back on the tab root now asks for confirmation before closing the app; the
+  new `mobile.exit.*` copy exists in all five locales.
+- Verified: shared Vitest 25/25, web Vitest 19/19, mobile Vitest 27/27 + Jest 19/19, web and
+  mobile typecheck, lint and web build.

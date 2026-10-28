@@ -159,7 +159,14 @@
     "aiChefIdeas": "AI Şef Fikirleri",
     "confirmClear": "Kiler rafınızın tamamını boşaltmak istediğinizden emin misiniz?",
     "yesClearAll": "Evet, Tümünü Boşalt",
-    "cancel": "İptal"
+    "cancel": "İptal",
+    "scanCardBadge": "Yapay Zekâ Görüşü",
+    "scanCardTitle": "Buzdolabını tara, yazmayı bırak",
+    "scanCardBody": "Buzdolabının, tezgâhının veya alışverişinin fotoğrafını çek. Yapay zekâ görüntüyü tanır ve kilerini saniyeler içinde doldurur.",
+    "scanCardCta": "Buzdolabını tara",
+    "scanAddedTitle": "Kilerine {{count}} malzeme eklendi",
+    "scanAddedCta": "Neler pişirebileceğini gör",
+    "scanAddedDismiss": "Kapat"
   },
   "auth": {
     "welcomeBack": "Tekrar Hoş Geldiniz!",
@@ -291,7 +298,10 @@
       "clearConfirm": "Kilerdeki tüm malzemeler kaldırılsın mı?",
       "remove": "Kaldır",
       "calories": "{{count}} kcal / 100g",
-      "items": "{{count}} ürün"
+      "items": "{{count}} ürün",
+      "scanTitle": "Buzdolabını tara",
+      "scanSubtitle": "Bir fotoğraf çek; tanıdığımız her şeyi kilerine ekleyelim.",
+      "scanBadge": "Yapay Zekâ"
     },
     "cook": {
       "badge": "Sıfır Atık Eşleştirme",
@@ -320,7 +330,12 @@
       "add": "Ekle",
       "clearChecked": "İşaretlileri temizle",
       "checked": "{{count}} işaretli",
-      "category": "Diğer"
+      "category": "Diğer",
+      "amount": "Miktar",
+      "unit": "Birim",
+      "popular": "Popüler",
+      "duplicate": "{{name}} zaten listende.",
+      "scanHint": "Bir şey mi eksik? Buzdolabını taramayı dene."
     },
     "settings": {
       "title": "Ayarlar",
@@ -485,6 +500,11 @@
       "sortRecommended": "Önerilen",
       "sortQuickest": "En hızlı önce",
       "sortName": "İsim (A–Z)"
+    },
+    "exit": {
+      "title": "WhatToCook'tan çıkılsın mı?",
+      "body": "Uygulamayı kapatmak istediğinden emin misin?",
+      "confirm": "Çık"
     }
   },
   "categories": {

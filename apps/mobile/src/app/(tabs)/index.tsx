@@ -2,7 +2,14 @@ import { ingredientCategoryKey } from '@whattocook/shared';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -70,30 +77,54 @@ export default function PantryScreen() {
           tintColor={theme.brand}
           colors={[theme.brand]}
         />
-      }>
+      }
+    >
       <PageHeader
         badge={t('mobile.pantry.badge')}
         title={t('mobile.pantry.title')}
         subtitle={t('mobile.pantry.subtitle', { count: items.length })}
         right={
-          <View style={styles.headerActions}>
+          items.length > 0 ? (
             <IconButton
-              icon="scan-outline"
-              tone="brand"
-              accessibilityLabel={t('mobile.scan.title')}
-              onPress={() => router.push('/scan-pantry')}
+              icon="trash-outline"
+              tone="danger"
+              accessibilityLabel={t('mobile.pantry.clearAll')}
+              onPress={handleClear}
             />
-            {items.length > 0 ? (
-              <IconButton
-                icon="trash-outline"
-                tone="danger"
-                accessibilityLabel={t('mobile.pantry.clearAll')}
-                onPress={handleClear}
-              />
-            ) : null}
-          </View>
+          ) : undefined
         }
       />
+
+      {/* Scanner spotlight — this is the entry point people kept missing when
+          it lived as a small icon in the header corner. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('mobile.pantry.scanTitle')}
+        onPress={() => router.push('/scan-pantry')}
+        style={({ pressed }) => [
+          styles.scanCard,
+          { backgroundColor: theme.brandSoft, borderColor: theme.brand },
+          pressed && { opacity: 0.88 },
+        ]}
+      >
+        <View style={[styles.scanIcon, { backgroundColor: theme.brand }]}>
+          <Ionicons name="scan" size={26} color="#ffffff" />
+        </View>
+        <View style={styles.scanCopy}>
+          <View style={styles.scanTitleRow}>
+            <ThemedText type="smallBold" style={styles.scanTitle}>
+              {t('mobile.pantry.scanTitle')}
+            </ThemedText>
+            <View style={[styles.scanBadge, { backgroundColor: theme.brand }]}>
+              <ThemedText style={styles.scanBadgeText}>{t('mobile.pantry.scanBadge')}</ThemedText>
+            </View>
+          </View>
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('mobile.pantry.scanSubtitle')}
+          </ThemedText>
+        </View>
+        <Ionicons name="chevron-forward" size={22} color={theme.brandDark} />
+      </Pressable>
 
       <View style={styles.searchBlock}>
         <TextField
@@ -104,9 +135,7 @@ export default function PantryScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="search"
-          right={
-            search.isFetching ? <ActivityIndicator size="small" color={theme.brand} /> : null
-          }
+          right={search.isFetching ? <ActivityIndicator size="small" color={theme.brand} /> : null}
         />
 
         {suggestions.length > 0 ? (
@@ -117,9 +146,13 @@ export default function PantryScreen() {
                 onPress={() => handleAdd(option.id)}
                 style={({ pressed }) => [
                   styles.suggestion,
-                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
+                  index > 0 && {
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                    borderTopColor: theme.border,
+                  },
                   pressed && { backgroundColor: theme.backgroundSelected },
-                ]}>
+                ]}
+              >
                 <View style={styles.suggestionCopy}>
                   <ThemedText type="smallBold">{option.name}</ThemedText>
                   <ThemedText type="small" themeColor="textMuted">
@@ -158,7 +191,11 @@ export default function PantryScreen() {
           title={t('mobile.pantry.empty')}
           subtitle={t('mobile.pantry.emptySub')}
           action={
-            <Button variant="secondary" icon="scan-outline" onPress={() => router.push('/scan-pantry')}>
+            <Button
+              variant="secondary"
+              icon="scan-outline"
+              onPress={() => router.push('/scan-pantry')}
+            >
               {t('mobile.scan.title')}
             </Button>
           }
@@ -199,6 +236,46 @@ export default function PantryScreen() {
 }
 
 const styles = StyleSheet.create({
+  scanCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    padding: Spacing.four,
+    borderRadius: Radius.xl,
+    borderWidth: 1.5,
+  },
+  scanIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  scanTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  scanTitle: {
+    fontSize: 17,
+  },
+  scanBadge: {
+    borderRadius: Radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  scanBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   searchBlock: {
     gap: Spacing.two,
     zIndex: 2,
@@ -233,10 +310,5 @@ const styles = StyleSheet.create({
   itemCopy: {
     flex: 1,
     gap: 1,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
   },
 });

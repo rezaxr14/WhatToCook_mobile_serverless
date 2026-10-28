@@ -38,7 +38,7 @@ export async function fetchGrocery(userId: string): Promise<GroceryItem[]> {
 
 export async function addGroceryItem(
   userId: string,
-  input: { name: string; quantity?: string },
+  input: { name: string; quantity?: string; category?: string },
 ): Promise<void> {
   const name = input.name.trim();
   if (!name) return;
@@ -46,7 +46,7 @@ export async function addGroceryItem(
     user_id: userId,
     name,
     quantity: input.quantity?.trim() || '1',
-    category: 'Other',
+    category: input.category?.trim() || 'Other',
   } as never);
   if (error) throw new Error(error.message);
 }
@@ -70,7 +70,10 @@ export async function addGroceryItems(
 }
 
 export async function toggleGroceryItem(id: string, checked: boolean): Promise<void> {
-  const { error } = await supabase.from('grocery_items').update({ checked } as never).eq('id', id);
+  const { error } = await supabase
+    .from('grocery_items')
+    .update({ checked } as never)
+    .eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -104,7 +107,7 @@ function useInvalidateGrocery() {
 export function useAddGroceryItem(userId: string | undefined) {
   const invalidate = useInvalidateGrocery();
   return useMutation({
-    mutationFn: (input: { name: string; quantity?: string }) =>
+    mutationFn: (input: { name: string; quantity?: string; category?: string }) =>
       addGroceryItem(userId as string, input),
     onSuccess: invalidate,
   });

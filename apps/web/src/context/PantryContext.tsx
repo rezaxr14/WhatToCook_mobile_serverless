@@ -20,6 +20,10 @@ interface PantryContextValue {
   availableIngredients: Ingredient[];
   allIngredients: Ingredient[];
   isLoading: boolean;
+  /** Summary of the most recent fridge scan add, shown as a banner on the pantry page. */
+  lastScanResult: ScanSummary | null;
+  setLastScanResult: (summary: ScanSummary | null) => void;
+  dismissScanResult: () => void;
   activeAIProvider: AIProvider;
   activeModel: string;
   availableModels: Array<{
@@ -48,6 +52,12 @@ interface PantryContextValue {
 
 const PantryContext = createContext<PantryContextValue | undefined>(undefined);
 
+export interface ScanSummary {
+  names: string[];
+  count: number;
+  at: number;
+}
+
 const RATE_LIMIT_STORAGE_KEY = 'wtc_rate_limited_models_session';
 
 export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -75,9 +85,11 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   });
   const [aiProvidersInfo, setAIProvidersInfo] = useState<AIProvidersResponse | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
+  const [lastScanResult, setLastScanResult] = useState<ScanSummary | null>(null);
 
   const openScanner = useCallback(() => setIsScannerOpen(true), []);
   const closeScanner = useCallback(() => setIsScannerOpen(false), []);
+  const dismissScanResult = useCallback(() => setLastScanResult(null), []);
 
   const { isAuthenticated } = useAuth();
   const { success, error, info } = useToast();
@@ -295,6 +307,9 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       availableIngredients,
       allIngredients,
       isLoading,
+      lastScanResult,
+      setLastScanResult,
+      dismissScanResult,
       activeAIProvider,
       activeModel,
       availableModels,
@@ -319,6 +334,8 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       availableIngredients,
       allIngredients,
       isLoading,
+      lastScanResult,
+      dismissScanResult,
       activeAIProvider,
       activeModel,
       availableModels,

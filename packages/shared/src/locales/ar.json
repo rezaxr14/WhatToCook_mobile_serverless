@@ -161,7 +161,14 @@
     "aiChefIdeas": "أفكار الطاهي الذكي",
     "confirmClear": "هل أنت متأكد أنك تريد إفراغ رف مخزنك بالكامل؟",
     "yesClearAll": "نعم، إفراغ الكل",
-    "cancel": "إلغاء"
+    "cancel": "إلغاء",
+    "scanCardBadge": "رؤية بالذكاء الاصطناعي",
+    "scanCardTitle": "امسح ثلاجتك بدلًا من الكتابة",
+    "scanCardBody": "التقط صورة لثلاجتك أو طاولة المطبخ أو مشترياتك. يتعرف الذكاء الاصطناعي على الطعام ويضيفه إلى مخزنك في ثوانٍ.",
+    "scanCardCta": "مسح صورة الثلاجة",
+    "scanAddedTitle": "تمت إضافة {{count}} مكونات إلى مخزنك",
+    "scanAddedCta": "انظر ماذا يمكنك طهيه",
+    "scanAddedDismiss": "إغلاق"
   },
   "auth": {
     "welcomeBack": "مرحباً بعودتك!",
@@ -293,7 +300,10 @@
       "clearConfirm": "هل تريد إزالة كل المكوّنات من مخزنك؟",
       "remove": "إزالة",
       "calories": "{{count}} سعرة حرارية / ١٠٠غ",
-      "items": "{{count}} عنصرًا"
+      "items": "{{count}} عنصرًا",
+      "scanTitle": "امسح ثلاجتك",
+      "scanSubtitle": "التقط صورة وسنضيف كل ما نتعرف عليه إلى مخزنك.",
+      "scanBadge": "رؤية ذكية"
     },
     "cook": {
       "badge": "مطابقة بلا هدر",
@@ -322,7 +332,12 @@
       "add": "إضافة",
       "clearChecked": "مسح المحدد",
       "checked": "{{count}} محدد",
-      "category": "أخرى"
+      "category": "أخرى",
+      "amount": "الكمية",
+      "unit": "الوحدة",
+      "popular": "شائعة",
+      "duplicate": "{{name}} موجود بالفعل في قائمتك.",
+      "scanHint": "ينقصك شيء؟ امسح ثلاجتك بدلًا من ذلك."
     },
     "settings": {
       "title": "الإعدادات",
@@ -487,6 +502,11 @@
       "sortRecommended": "موصى به",
       "sortQuickest": "الأسرع أولاً",
       "sortName": "الاسم (أ–ي)"
+    },
+    "exit": {
+      "title": "الخروج من WhatToCook؟",
+      "body": "هل أنت متأكد من إغلاق التطبيق؟",
+      "confirm": "خروج"
     }
   },
   "categories": {

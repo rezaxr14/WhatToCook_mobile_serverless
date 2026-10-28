@@ -335,3 +335,29 @@ revalidated manually by replacing objects in `recipe-images`; there is no per-re
 image fetch. The hero poster is a per-browser cache: clearing site data or changing the scene
 without bumping `HERO_POSTER_KEY` shows the previous frame until the next capture. Free-router
 latency remains variable, so OpenRouter calls use longer timeouts than Gemini.
+
+## ADR-016 - UX pass: stable scene lights, full-frame scans, visible add confirmations, guided grocery entry
+
+**Context:** the first landing visit still stalled when the fridge opened and again as the
+cooking chapter began; vertical fridge photos were cropped by the preview; pressing "Add to
+pantry" closed nothing and gave no proof the ingredients landed; the scanner was a small header
+icon; and both grocery forms were plain text boxes.
+
+**Decision:** every scene light is now a permanent member of the render list and only its
+intensity changes. The fridge, pendant and moonlight rig moves with the sinking room but is no
+longer a child of it, the cooking station keeps its flame light while scaling to zero, and the
+key spotlight's shadow map updates only through the cooking/finale window. The hero reveals on
+the first painted frame, captures its poster with async `toBlob`, and warms the hidden chapters
+with `compileAsync` off the critical path. Scanner previews show the full photo with
+`object-contain` over a blurred cover backdrop, mobile pickers no longer force a crop, and only
+catalog-matched detections are added; a scan summary persists in `PantryContext` until a
+dismissible banner on `PantryPage` confirms the result. The scanner is promoted to a full-width
+AI Vision card on web and mobile. Grocery entry now searches the shared ingredient catalog,
+suggests matches while typing, offers popular staples, and pairs an amount stepper with a unit.
+Android's hardware back on the tab root asks before closing the app.
+
+**Consequences:** chapter transitions no longer recompile materials, at the cost of computing
+light intensity every frame and keeping zero-intensity lights in the shader. The scanner skips
+detections that are not in the catalog instead of attempting a name insert that would 404 and
+abort the batch. Web keeps a per-session scan summary until dismissed; mobile confirms with a
+native alert before returning to the pantry list.
