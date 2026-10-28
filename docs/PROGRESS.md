@@ -569,3 +569,25 @@ Expo SDK 58 supplies these defaults in `ExpoRootProjectPlugin`.
   (`https://rezaxr14.github.io`); `ai-models`, `generate-recipe`, `scan-pantry` and
   `suggest-substitution` were redeployed with the new CORS header list.
 - GitHub Pages deploy of `main` succeeded and the live site plus all README images return 200.
+
+## AI Chef providers, dish photos, scanner and hero (2026-10-28)
+
+- PR #14 `fix/ai-chef-providers-scan-images`: the AI Chef picker now lists both Gemini
+  Flash-Lite models and exactly one OpenRouter entry (`OPENROUTER_MODEL`), and selecting an
+  entry switches the request provider. `ai-models` labels every model with its provider;
+  namespaced free ids imply OpenRouter on mobile.
+- Dish photos are attached server-side from the public `recipe-images` bucket after validation
+  and before caching, so every suggestion and detail response carries an `image`. Collisions
+  reuse a same-group photo instead of an unrelated dish.
+- The web fridge scanner posts JSON base64, normalizes `items`, and adds matched
+  `ingredient_id`s; pantry scans always run on the primary provider.
+- The landing hero captures its first WebGL frame to `localStorage` (`wtc_hero_poster_v1`) and
+  paints that poster on later visits; the drawing buffer is preserved only on the capturing
+  visit and the full-screen veil became a small pill.
+- Free OpenRouter calls use 60s/120s timeouts and a 4,096-token structured budget. Short
+  recipes work; a long detail can still fail schema validation on `openrouter/free` and is
+  refunded.
+- Verified: Deno 105/105, shared Vitest 25/25, web + mobile typecheck, lint, web build; PR CI,
+  pgTAP, Pages, and `Provider smoke` all green on `main`. Staging smoke returned three catalog
+  models with providers, Gemini suggestions with five Storage images, an OpenRouter suggestion
+  with five images, a short OpenRouter detail, and a 3-item JSON scan with two catalog matches.
