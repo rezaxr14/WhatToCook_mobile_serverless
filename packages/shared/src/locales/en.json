@@ -161,7 +161,14 @@
     "aiChefIdeas": "AI Chef Ideas",
     "confirmClear": "Are you sure you want to clear your entire pantry shelf?",
     "yesClearAll": "Yes, Clear All",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "scanCardBadge": "AI Vision",
+    "scanCardTitle": "Scan your fridge, skip the typing",
+    "scanCardBody": "Snap a photo of your fridge, counter or market haul. AI Vision recognises the food and stocks your pantry in seconds.",
+    "scanCardCta": "Scan fridge photo",
+    "scanAddedTitle": "Added {{count}} ingredients to your pantry",
+    "scanAddedCta": "See what you can cook",
+    "scanAddedDismiss": "Dismiss"
   },
   "auth": {
     "welcomeBack": "Welcome Back!",
@@ -293,7 +300,10 @@
       "clearConfirm": "Remove every ingredient from your pantry?",
       "remove": "Remove",
       "calories": "{{count}} kcal / 100g",
-      "items": "{{count}} items"
+      "items": "{{count}} items",
+      "scanTitle": "Scan your fridge",
+      "scanSubtitle": "Snap a photo — we'll add everything we recognise to your pantry.",
+      "scanBadge": "AI Vision"
     },
     "cook": {
       "badge": "Zero-Waste Matching",
@@ -322,7 +332,12 @@
       "add": "Add",
       "clearChecked": "Clear checked",
       "checked": "{{count}} checked",
-      "category": "Other"
+      "category": "Other",
+      "amount": "Amount",
+      "unit": "Unit",
+      "popular": "Popular",
+      "duplicate": "{{name}} is already on your list.",
+      "scanHint": "Missing something? Scan your fridge instead."
     },
     "settings": {
       "title": "Settings",
@@ -487,6 +502,11 @@
       "sortRecommended": "Recommended",
       "sortQuickest": "Quickest first",
       "sortName": "Name (A–Z)"
+    },
+    "exit": {
+      "title": "Exit WhatToCook?",
+      "body": "Are you sure you want to close the app?",
+      "confirm": "Exit"
     }
   },
   "categories": {

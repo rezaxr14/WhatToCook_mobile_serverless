@@ -84,9 +84,8 @@ export default function ScanPantryScreen() {
       setLocalError(t('mobile.scan.tooLarge'));
       return;
     }
-    const mimeType = asset.mimeType && SUPPORTED_MIME.has(asset.mimeType)
-      ? asset.mimeType
-      : 'image/jpeg';
+    const mimeType =
+      asset.mimeType && SUPPORTED_MIME.has(asset.mimeType) ? asset.mimeType : 'image/jpeg';
     runScan({ uri: asset.uri, base64: asset.base64, mimeType });
   };
 
@@ -100,8 +99,6 @@ export default function ScanPantryScreen() {
       }
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [4, 3],
         quality: 0.55,
         base64: true,
         exif: false,
@@ -117,8 +114,6 @@ export default function ScanPantryScreen() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [4, 3],
         quality: 0.55,
         base64: true,
         exif: false,
@@ -186,17 +181,28 @@ export default function ScanPantryScreen() {
           <Button icon="camera-outline" size="lg" onPress={() => void takePhoto()}>
             {t('mobile.scan.camera')}
           </Button>
-          <Button
-            variant="secondary"
-            icon="images-outline"
-            onPress={() => void choosePhoto()}>
+          <Button variant="secondary" icon="images-outline" onPress={() => void choosePhoto()}>
             {t('mobile.scan.library')}
           </Button>
         </Card>
       ) : (
         <Card padded={false}>
-          <View>
-            <Image source={{ uri: photo.uri }} style={styles.preview} contentFit="cover" />
+          <View style={styles.previewWrap}>
+            {/* Blurred cover fills the frame; the foreground keeps the whole
+                photo visible instead of cropping/zooming a vertical shot. */}
+            <Image
+              source={{ uri: photo.uri }}
+              style={styles.previewBackdrop}
+              contentFit="cover"
+              blurRadius={18}
+              accessibilityIgnoresInvertColors
+            />
+            <Image
+              source={{ uri: photo.uri }}
+              style={styles.preview}
+              contentFit="contain"
+              accessibilityLabel={t('mobile.scan.reviewTitle')}
+            />
             {scan.isPending ? (
               <View style={styles.scanOverlay}>
                 <ActivityIndicator color="#ffffff" />
@@ -261,7 +267,10 @@ export default function ScanPantryScreen() {
               </View>
               {selectableItems.length > 0 ? (
                 <Pressable
-                  onPress={() => setSelectedIds(selectableItems.map((item) => item.ingredient_id as number))}>
+                  onPress={() =>
+                    setSelectedIds(selectableItems.map((item) => item.ingredient_id as number))
+                  }
+                >
                   <ThemedText type="smallBold" themeColor="brandDark">
                     {t('mobile.scan.selectAll')}
                   </ThemedText>
@@ -288,7 +297,8 @@ export default function ScanPantryScreen() {
                       borderTopColor: theme.border,
                     },
                     !selectable && { opacity: 0.55 },
-                  ]}>
+                  ]}
+                >
                   <View
                     style={[
                       styles.checkbox,
@@ -296,13 +306,15 @@ export default function ScanPantryScreen() {
                         backgroundColor: selected ? theme.success : 'transparent',
                         borderColor: selected ? theme.success : theme.borderStrong,
                       },
-                    ]}>
+                    ]}
+                  >
                     {selected ? <Ionicons name="checkmark" size={14} color="#ffffff" /> : null}
                   </View>
                   <View style={styles.itemCopy}>
                     <ThemedText type="smallBold">{label}</ThemedText>
                     <ThemedText type="small" themeColor="textMuted">
-                      {t(ingredientCategoryKey(item.category))} · {Math.round(item.confidence * 100)}%
+                      {t(ingredientCategoryKey(item.category))} ·{' '}
+                      {Math.round(item.confidence * 100)}%
                     </ThemedText>
                   </View>
                   <View
@@ -311,10 +323,9 @@ export default function ScanPantryScreen() {
                       {
                         backgroundColor: selectable ? theme.successSoft : theme.backgroundElement,
                       },
-                    ]}>
-                    <ThemedText
-                      type="small"
-                      themeColor={selectable ? 'success' : 'textMuted'}>
+                    ]}
+                  >
+                    <ThemedText type="small" themeColor={selectable ? 'success' : 'textMuted'}>
                       {selectable ? t('mobile.scan.matched') : t('mobile.scan.unmatched')}
                     </ThemedText>
                   </View>
@@ -326,7 +337,8 @@ export default function ScanPantryScreen() {
               icon="basket-outline"
               loading={addPantry.isPending}
               disabled={selectedIds.length === 0}
-              onPress={addSelected}>
+              onPress={addSelected}
+            >
               {t('mobile.scan.addSelected', { count: selectedIds.length })}
             </Button>
           </Card>
@@ -362,9 +374,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: 320,
   },
-  preview: {
+  previewWrap: {
+    position: 'relative',
     width: '100%',
-    height: 230,
+    height: 320,
+    overflow: 'hidden',
+    backgroundColor: '#0c0a09',
+  },
+  previewBackdrop: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    opacity: 0.45,
+  },
+  preview: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
   },
   scanOverlay: {
     position: 'absolute',

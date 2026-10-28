@@ -152,7 +152,14 @@ const ChapterLights: React.FC = () => {
     }
     if (keyLight.current) {
       keyLight.current.intensity = 1.4 * win(p, 0.72, 0.78, 1.02, 1.04) + finale * 0.8;
-      keyLight.current.visible = keyLight.current.intensity > 0.02;
+      // The spotlight is always in the scene. Toggling its `visible` flag
+      // changes the shader light count, which forces every material in the
+      // world to recompile — the one-second hitch when the cooking chapter
+      // starts. Keep the light and only drive its intensity instead.
+      // Its shadow map is static most of the time, so update it only while
+      // the cooking/dish geometry is actually moving.
+      keyLight.current.shadow.autoUpdate = false;
+      if (p > 0.62 && p < 0.985) keyLight.current.shadow.needsUpdate = true;
     }
   });
 
@@ -237,43 +244,63 @@ export const JourneyScene: React.FC<{
           envRt.dispose();
         }
 
-        // Pre-compile all scene shaders & geometries on the client GPU
-        // so that scrolling through later chapters has zero shader compilation frame drops.
-        try {
-          const hiddenObjects: THREE.Object3D[] = [];
-          scene.traverse((obj) => {
-            if (!obj.visible) {
-              hiddenObjects.push(obj);
-              obj.visible = true;
-            }
-          });
-
-          // Compile all scene programs ahead of time
-          gl.compile(scene, camera);
-
-          // Restore initial visibility states
-          for (const obj of hiddenObjects) {
-            obj.visible = false;
-          }
-        } catch (err) {
-          console.warn('Three.js pre-compile warning:', err);
-        }
-
-        setTimeout(onReady, 650);
-
-        // Capture the hero the first time the scene is ready. The landing page
-        // persists this image and uses it as an instant poster on later visits.
-        if (onPoster && capturePoster) {
+        // Reveal the hero as soon as the first frame has actually been
+        // painted. The old code blocked on a synchronous compile of the whole
+        // world (every chapter) and then added an artificial 650 ms delay,
+        // which made the first visit feel frozen.
+        const reveal = () => {
           window.requestAnimationFrame(() => {
             window.requestAnimationFrame(() => {
-              try {
-                onPoster(gl.domElement.toDataURL('image/jpeg', 0.72));
-              } catch {
-                // Poster capture is a progressive enhancement; WebGL still works.
+              onReady();
+
+              // Capture the hero the first time the scene is ready. The
+              // landing page persists this image and uses it as an instant
+              // poster on later visits. `toBlob` encodes off the main thread,
+              // unlike the old blocking `toDataURL`.
+              if (onPoster && capturePoster) {
+                try {
+                  gl.domElement.toBlob(
+                    (blob) => {
+                      if (!blob) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        if (typeof reader.result === 'string') onPoster(reader.result);
+                      };
+                      reader.readAsDataURL(blob);
+                    },
+                    'image/jpeg',
+                    0.72,
+                  );
+                } catch {
+                  // Poster capture is progressive enhancement; WebGL still works.
+                }
               }
             });
           });
+        };
+
+        // Warm the remaining chapters after the hero is interactive. The
+        // renderer already compiles the visible hero on its first frame;
+        // `compileAsync` handles the hidden chapters without blocking paint.
+        const warmHiddenChapters = () => {
+          gl.compileAsync(scene, camera).catch(() => {
+            try {
+              gl.compile(scene, camera);
+            } catch (err) {
+              console.warn('Three.js pre-compile warning:', err);
+            }
+          });
+        };
+        const idleWindow = window as unknown as {
+          requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+        };
+        if (typeof idleWindow.requestIdleCallback === 'function') {
+          idleWindow.requestIdleCallback(warmHiddenChapters, { timeout: 2000 });
+        } else {
+          setTimeout(warmHiddenChapters, 400);
         }
+
+        reveal();
       }}
       style={{ position: 'absolute', inset: 0, background: '#070503' }}
       aria-hidden

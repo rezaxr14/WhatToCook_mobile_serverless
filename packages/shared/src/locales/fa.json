@@ -161,7 +161,14 @@
     "aiChefIdeas": "ایده‌های سرآشپز هوشمند",
     "confirmClear": "مطمئنید که می‌خواهید کل قفسه را خالی کنید؟",
     "yesClearAll": "بله، خالی کن",
-    "cancel": "لغو"
+    "cancel": "لغو",
+    "scanCardBadge": "هوش مصنوعی بینایی",
+    "scanCardTitle": "یخچالت را اسکن کن، بدون تایپ",
+    "scanCardBody": "از یخچال، پیشخوان یا خریدهایت عکس بگیر. هوش مصنوعی غذاها را تشخیص می‌دهد و در چند ثانیه به انبارت اضافه می‌کند.",
+    "scanCardCta": "اسکن عکس یخچال",
+    "scanAddedTitle": "{{count}} ماده به انبار تو اضافه شد",
+    "scanAddedCta": "ببین چه می‌توانی بپزی",
+    "scanAddedDismiss": "بستن"
   },
   "auth": {
     "welcomeBack": "خوش آمدید!",
@@ -293,7 +300,10 @@
       "clearConfirm": "همهٔ مواد از انبار حذف شوند؟",
       "remove": "حذف",
       "calories": "{{count}} کیلوکالری / ۱۰۰ گرم",
-      "items": "{{count}} مورد"
+      "items": "{{count}} مورد",
+      "scanTitle": "یخچالت را اسکن کن",
+      "scanSubtitle": "یک عکس بگیر؛ هر چیزی را که تشخیص دهیم به انبارت اضافه می‌کنیم.",
+      "scanBadge": "بینایی هوشمند"
     },
     "cook": {
       "badge": "تطبیق بدون دورریز",
@@ -322,7 +332,12 @@
       "add": "افزودن",
       "clearChecked": "پاک کردن علامت‌خورده‌ها",
       "checked": "{{count}} علامت‌خورده",
-      "category": "سایر"
+      "category": "سایر",
+      "amount": "مقدار",
+      "unit": "واحد",
+      "popular": "پرتکرار",
+      "duplicate": "{{name}} از قبل در فهرست توست.",
+      "scanHint": "چیزی کم داری؟ به‌جایش یخچالت را اسکن کن."
     },
     "settings": {
       "title": "تنظیمات",
@@ -487,6 +502,11 @@
       "sortRecommended": "پیشنهادی",
       "sortQuickest": "سریع‌ترین اول",
       "sortName": "نام (الف–ی)"
+    },
+    "exit": {
+      "title": "خروج از WhatToCook؟",
+      "body": "مطمئنی می‌خواهی برنامه را ببندی؟",
+      "confirm": "خروج"
     }
   },
   "categories": {

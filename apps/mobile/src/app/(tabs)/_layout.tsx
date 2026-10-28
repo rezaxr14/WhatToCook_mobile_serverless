@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Tabs, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Alert, BackHandler, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
@@ -9,6 +11,26 @@ export default function TabsLayout() {
   const { t } = useTranslation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+
+  // Android's hardware back on the tab root used to close the app instantly.
+  // Ask first so an accidental press never loses the user's session.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return;
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        Alert.alert(t('mobile.exit.title'), t('mobile.exit.body'), [
+          { text: t('mobile.common.cancel'), style: 'cancel' },
+          {
+            text: t('mobile.exit.confirm'),
+            style: 'destructive',
+            onPress: () => BackHandler.exitApp(),
+          },
+        ]);
+        return true;
+      });
+      return () => subscription.remove();
+    }, [t]),
+  );
 
   return (
     <Tabs
@@ -25,7 +47,8 @@ export default function TabsLayout() {
           paddingBottom: insets.bottom + 4,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{

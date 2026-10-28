@@ -161,7 +161,14 @@
     "aiChefIdeas": "Ideas del chef IA",
     "confirmClear": "¿Seguro que quieres vaciar todo tu estante de despensa?",
     "yesClearAll": "Sí, vaciar todo",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "scanCardBadge": "Visión IA",
+    "scanCardTitle": "Escanea tu nevera, sin escribir",
+    "scanCardBody": "Haz una foto de tu nevera, encimera o compra. La visión con IA reconoce los alimentos y llena tu despensa en segundos.",
+    "scanCardCta": "Escanear nevera",
+    "scanAddedTitle": "Se añadieron {{count}} ingredientes a tu despensa",
+    "scanAddedCta": "Ver qué puedes cocinar",
+    "scanAddedDismiss": "Descartar"
   },
   "auth": {
     "welcomeBack": "¡Bienvenido de nuevo!",
@@ -293,7 +300,10 @@
       "clearConfirm": "¿Eliminar todos los ingredientes de tu despensa?",
       "remove": "Eliminar",
       "calories": "{{count}} kcal / 100 g",
-      "items": "{{count}} artículos"
+      "items": "{{count}} artículos",
+      "scanTitle": "Escanea tu nevera",
+      "scanSubtitle": "Haz una foto y añadiremos a tu despensa todo lo que reconozcamos.",
+      "scanBadge": "Visión IA"
     },
     "cook": {
       "badge": "Cocina sin desperdicio",
@@ -322,7 +332,12 @@
       "add": "Añadir",
       "clearChecked": "Borrar marcados",
       "checked": "{{count}} marcados",
-      "category": "Otros"
+      "category": "Otros",
+      "amount": "Cantidad",
+      "unit": "Unidad",
+      "popular": "Populares",
+      "duplicate": "{{name}} ya está en tu lista.",
+      "scanHint": "¿Falta algo? Mejor escanea tu nevera."
     },
     "settings": {
       "title": "Ajustes",
@@ -487,6 +502,11 @@
       "sortRecommended": "Recomendado",
       "sortQuickest": "Más rápidas primero",
       "sortName": "Nombre (A–Z)"
+    },
+    "exit": {
+      "title": "¿Salir de WhatToCook?",
+      "body": "¿Seguro que quieres cerrar la aplicación?",
+      "confirm": "Salir"
     }
   },
   "categories": {

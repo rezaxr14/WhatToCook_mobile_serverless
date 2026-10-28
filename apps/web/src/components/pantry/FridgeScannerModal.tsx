@@ -34,7 +34,7 @@ const SAMPLE_COUNTER_URL =
   'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80';
 
 export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, onClose }) => {
-  const { refreshPantry, activeAIProvider } = usePantry();
+  const { refreshPantry, activeAIProvider, setLastScanResult } = usePantry();
   const { success, error, aiToast } = useToast();
   const { t } = useTranslation();
 
@@ -42,7 +42,7 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [detectedItems, setDetectedItems] = useState<ScannedIngredient[]>([]);
-  const [selectedNames, setSelectedNames] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isAdding, setIsAdding] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -93,7 +93,11 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
 
       if (res.detected_ingredients && res.detected_ingredients.length > 0) {
         setDetectedItems(res.detected_ingredients);
-        setSelectedNames(res.detected_ingredients.map((i) => i.name));
+        setSelectedIds(
+          res.detected_ingredients
+            .map((i) => i.ingredient_id)
+            .filter((id): id is number => typeof id === 'number' && id > 0),
+        );
         aiToast(
           `AI Vision identified ${res.detected_ingredients.length} edible ingredients!`,
           'Visual AI Scan Complete 🔍',
@@ -108,46 +112,49 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
     }
   };
 
-  const toggleSelect = (name: string) => {
-    if (selectedNames.includes(name)) {
-      setSelectedNames(selectedNames.filter((n) => n !== name));
-    } else {
-      setSelectedNames([...selectedNames, name]);
-    }
+  const toggleSelect = (id: number) => {
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((n) => n !== id) : [...current, id],
+    );
   };
 
+  const matchedItems = detectedItems.filter(
+    (item) => typeof item.ingredient_id === 'number' && item.ingredient_id > 0,
+  );
+
   const handleSelectAll = () => {
-    setSelectedNames(detectedItems.map((i) => i.name));
+    setSelectedIds(matchedItems.map((i) => i.ingredient_id as number));
   };
 
   const handleDeselectAll = () => {
-    setSelectedNames([]);
+    setSelectedIds([]);
   };
 
   const handleAddSelectedToPantry = async () => {
-    if (selectedNames.length === 0) {
-      error('Please select at least one item to add.');
+    if (selectedIds.length === 0) {
+      error('Please select at least one catalog ingredient to add.');
       return;
     }
 
     setIsAdding(true);
     try {
-      const selectedItems = detectedItems.filter((item) => selectedNames.includes(item.name));
-      const ids = selectedItems
-        .map((item) => item.ingredient_id)
-        .filter((id): id is number => typeof id === 'number' && id > 0);
-      if (ids.length > 0) {
-        await pantryApi.addIngredient({ ingredient_ids: ids });
-      }
-      // The catalog could not map a few detections; add those by name so a
-      // close match still lands in the pantry instead of being dropped.
-      const unmatched = selectedItems.filter(
-        (item) => !item.ingredient_id || item.ingredient_id <= 0,
+      // Only catalog-matched detections can be added. The backend rejects
+      // unknown names, and a single failure used to abort the whole batch
+      // while leaving the modal open — which is why nothing ever appeared
+      // in the pantry.
+      const selectedItems = matchedItems.filter((item) =>
+        selectedIds.includes(item.ingredient_id as number),
       );
-      for (const item of unmatched) {
-        await pantryApi.addIngredient({ name: item.name });
+      const ids = selectedItems.map((item) => item.ingredient_id as number);
+      if (ids.length === 0) {
+        error('None of the selected items are in the ingredient catalog yet.');
+        return;
       }
+
+      await pantryApi.addIngredient({ ingredient_ids: ids });
       await refreshPantry();
+      const names = selectedItems.map((item) => item.display_name || item.name);
+      setLastScanResult({ names, count: ids.length, at: Date.now() });
 
       confetti({
         particleCount: 100,
@@ -156,13 +163,13 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
       });
 
       success(
-        `Added ${selectedNames.length} scanned ingredients into your kitchen pantry!`,
+        `Added ${ids.length} scanned ${ids.length === 1 ? 'ingredient' : 'ingredients'} to your pantry.`,
         'Pantry Updated 🛒',
       );
       handleReset();
       onClose();
     } catch (err: any) {
-      error('Failed to add some ingredients.');
+      error(err?.message || 'Failed to add the scanned ingredients. Please try again.');
     } finally {
       setIsAdding(false);
     }
@@ -172,7 +179,7 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
     setSelectedFile(null);
     setPreviewUrl(null);
     setDetectedItems([]);
-    setSelectedNames([]);
+    setSelectedIds([]);
     setIsScanning(false);
   };
 
@@ -320,12 +327,20 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
           ) : (
             /* Image Preview & Vision Results */
             <div className="space-y-6">
-              {/* Photo Card with Scanning Laser */}
-              <div className="relative rounded-2xl overflow-hidden h-64 bg-stone-900 border border-stone-200 shadow-inner">
+              {/* Photo Card with Scanning Laser. The photo is never cropped:
+                  a blurred cover layer fills the frame while the real image
+                  stays fully visible with object-contain. */}
+              <div className="relative rounded-2xl overflow-hidden h-72 sm:h-80 bg-stone-900 border border-stone-200 shadow-inner">
+                <img
+                  src={previewUrl}
+                  alt=""
+                  aria-hidden
+                  className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-60"
+                />
                 <img
                   src={previewUrl}
                   alt="Scanned item"
-                  className={`w-full h-full object-cover transition-opacity duration-300 ${
+                  className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
                     isScanning ? 'opacity-80' : 'opacity-100'
                   }`}
                 />
@@ -414,15 +429,22 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
                   {/* Ingredients Checkbox Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
                     {detectedItems.map((item, idx) => {
-                      const isChecked = selectedNames.includes(item.name);
+                      const id =
+                        typeof item.ingredient_id === 'number' && item.ingredient_id > 0
+                          ? item.ingredient_id
+                          : null;
+                      const matched = id !== null;
+                      const isChecked = matched && selectedIds.includes(id as number);
                       return (
                         <div
-                          key={idx}
-                          onClick={() => toggleSelect(item.name)}
-                          className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                            isChecked
-                              ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 shadow-xs'
-                              : 'bg-stone-50 border-stone-200 text-stone-500 opacity-60'
+                          key={`${item.name}-${idx}`}
+                          onClick={() => matched && toggleSelect(id as number)}
+                          className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
+                            !matched
+                              ? 'bg-stone-100/70 border-stone-200 text-stone-400 opacity-70 cursor-not-allowed'
+                              : isChecked
+                                ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 shadow-xs cursor-pointer'
+                                : 'bg-stone-50 border-stone-200 text-stone-500 opacity-60 cursor-pointer'
                           }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -440,8 +462,11 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
                                 {item.display_name || item.name}
                               </div>
                               <div className="text-[10px] text-stone-400">
-                                {t(ingredientCategoryKey(item.category))}{' '}
-                                {item.estimated_quantity && `• ${item.estimated_quantity}`}
+                                {matched
+                                  ? `${t(ingredientCategoryKey(item.category))} ${
+                                      item.estimated_quantity ? `• ${item.estimated_quantity}` : ''
+                                    }`
+                                  : 'Not in catalog — skipped'}
                               </div>
                             </div>
                           </div>
@@ -455,16 +480,19 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
                   </div>
 
                   {/* Add Selected Button */}
-                  <div className="pt-3 border-t border-stone-100 flex items-center justify-between gap-3">
+                  <div className="pt-3 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <span className="text-xs font-semibold text-stone-500">
-                      {selectedNames.length} of {detectedItems.length} selected
+                      {selectedIds.length} of {matchedItems.length} catalog items selected
+                      {matchedItems.length < detectedItems.length
+                        ? ` • ${detectedItems.length - matchedItems.length} not in catalog`
+                        : ''}
                     </span>
 
                     <StyledButton
                       $variant="primary"
                       $size="md"
                       onClick={handleAddSelectedToPantry}
-                      disabled={isAdding || selectedNames.length === 0}
+                      disabled={isAdding || selectedIds.length === 0}
                     >
                       {isAdding ? (
                         <>
@@ -474,7 +502,10 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
                       ) : (
                         <>
                           <ShoppingBag className="w-4 h-4" />
-                          <span>Add {selectedNames.length} Ingredients to Pantry</span>
+                          <span>
+                            Add {selectedIds.length}{' '}
+                            {selectedIds.length === 1 ? 'Ingredient' : 'Ingredients'} to Pantry
+                          </span>
                         </>
                       )}
                     </StyledButton>

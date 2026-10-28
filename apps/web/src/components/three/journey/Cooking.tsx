@@ -59,7 +59,10 @@ export const Cooking: React.FC = () => {
     const stationOut = 1 - seg(p, 0.725, 0.775);
     const st = stationIn * stationOut;
     if (station.current) {
-      station.current.visible = st > 0.001;
+      // Keep the station in the render list (it owns the flame light).
+      // Toggling a group that contains a light changes the light count and
+      // forces a global material recompile; scaling to zero hides it just as
+      // well.
       station.current.scale.setScalar(Math.max(st, 0.001));
       station.current.position.y = 1.02 + (1 - st) * -0.4;
     }
@@ -67,13 +70,18 @@ export const Cooking: React.FC = () => {
     // Flame flicker (three layered cones driven together)
     const flameOn = win(p, 0.6, 0.625, 0.72, 0.775);
     const flick = 0.85 + Math.sin(t * 21) * 0.12 + Math.sin(t * 47.3) * 0.06;
-    const flameScalars: Array<THREE.Mesh | null> = [flame.current, flameMid.current, flameCore.current];
+    const flameScalars: Array<THREE.Mesh | null> = [
+      flame.current,
+      flameMid.current,
+      flameCore.current,
+    ];
     flameScalars.forEach((m, ci) => {
       if (!m) return;
       const visible = flameOn > 0.01;
       m.visible = visible;
       if (!visible) return;
-      const f2 = 0.8 + Math.sin(t * (21 + ci * 11) + ci * 4) * 0.16 + Math.sin(t * (47 + ci * 7)) * 0.06;
+      const f2 =
+        0.8 + Math.sin(t * (21 + ci * 11) + ci * 4) * 0.16 + Math.sin(t * (47 + ci * 7)) * 0.06;
       m.scale.set(flameOn * f2, flameOn * (0.95 + f2 * 0.4), flameOn * f2);
       const mat = m.material as THREE.MeshBasicMaterial;
       mat.opacity = flameOn * (ci === 0 ? 0.5 : ci === 1 ? 0.55 : 0.85);
@@ -126,7 +134,7 @@ export const Cooking: React.FC = () => {
         // tumble while airborne, settle into calm resting pose
         child.rotation.x = (local * 5 + i) * (1 - land);
         child.rotation.y = YAW[i] * land;
-        child.rotation.z = (local * 3.5) * (1 - land);
+        child.rotation.z = local * 3.5 * (1 - land);
       });
     }
 
@@ -177,25 +185,64 @@ export const Cooking: React.FC = () => {
           {/* Sauce forming inside */}
           <mesh ref={sauce} position={[0, 0.06, 0]} scale={0.001} visible={false}>
             <cylinderGeometry args={[0.56, 0.5, 0.05, 32]} />
-            <meshPhysicalMaterial color="#e2603f" roughness={0.22} clearcoat={0.9} clearcoatRoughness={0.2} />
+            <meshPhysicalMaterial
+              color="#e2603f"
+              roughness={0.22}
+              clearcoat={0.9}
+              clearcoatRoughness={0.2}
+            />
           </mesh>
         </group>
 
         {/* Flame between slab and pan — layered so bloom reads it beautifully */}
         <mesh ref={flame} position={[0, 0.165, 0]} visible={false}>
           <coneGeometry args={[0.52, 0.34, 24, 1, true]} />
-          <meshBasicMaterial color="#ff7a1e" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+          <meshBasicMaterial
+            color="#ff7a1e"
+            transparent
+            opacity={0}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+            toneMapped={false}
+          />
         </mesh>
         <mesh ref={flameMid} position={[0, 0.2, 0]} visible={false}>
           <coneGeometry args={[0.3, 0.34, 20, 1, true]} />
-          <meshBasicMaterial color="#ffb257" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+          <meshBasicMaterial
+            color="#ffb257"
+            transparent
+            opacity={0}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+            toneMapped={false}
+          />
         </mesh>
         <mesh ref={flameCore} position={[0, 0.24, 0]} visible={false}>
           <coneGeometry args={[0.13, 0.3, 14, 1, true]} />
-          <meshBasicMaterial color="#fff3cf" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+          <meshBasicMaterial
+            color="#fff3cf"
+            transparent
+            opacity={0}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+            toneMapped={false}
+          />
         </mesh>
-        <pointLight ref={flameLight} position={[0, 0.35, 0.2]} intensity={0} distance={4.5} decay={1.7} color="#ff9a4a" />
-        <EmberField position={[0, 0.45, 0]} window={[0.6, 0.625, 0.72, 0.775]} count={16} spread={0.75} rise={1.5} />
+        <pointLight
+          ref={flameLight}
+          position={[0, 0.35, 0.2]}
+          intensity={0}
+          distance={4.5}
+          decay={1.7}
+          color="#ff9a4a"
+        />
+        <EmberField
+          position={[0, 0.45, 0]}
+          window={[0.6, 0.625, 0.72, 0.775]}
+          count={16}
+          spread={0.75}
+          rise={1.5}
+        />
 
         {/* Falling ingredients: tomato wedge, penne, garlic, penne, tomato wedge */}
         <group ref={drops}>
@@ -206,7 +253,13 @@ export const Cooking: React.FC = () => {
           <TomatoChunk position={[0.2, 2.3, -0.12]} />
         </group>
 
-        <SteamEmitter position={[0, 0.5, 0]} window={[0.635, 0.66, 0.71, 0.78]} count={10} spread={0.5} rise={1.4} />
+        <SteamEmitter
+          position={[0, 0.5, 0]}
+          window={[0.635, 0.66, 0.71, 0.78]}
+          count={10}
+          spread={0.5}
+          rise={1.4}
+        />
         <BasilPot position={[-0.95, 0.2, 0.55]} scale={0.8} />
       </group>
 
@@ -215,7 +268,12 @@ export const Cooking: React.FC = () => {
         {/* Ceramic plate */}
         <mesh>
           <cylinderGeometry args={[1.02, 0.82, 0.07, 56]} />
-          <meshPhysicalMaterial color="#f3ece1" roughness={0.22} clearcoat={0.95} clearcoatRoughness={0.12} />
+          <meshPhysicalMaterial
+            color="#f3ece1"
+            roughness={0.22}
+            clearcoat={0.95}
+            clearcoatRoughness={0.12}
+          />
         </mesh>
         <mesh position={[0, 0.045, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.94, 0.045, 14, 56]} />
@@ -239,24 +297,49 @@ export const Cooking: React.FC = () => {
         </group>
 
         {/* Sauce pools */}
-        {[[0.28, 0.2, -0.1, 0.13], [-0.3, 0.19, 0.12, 0.11], [0.02, 0.21, 0.3, 0.09]].map(([x, y, z, r], i) => (
+        {[
+          [0.28, 0.2, -0.1, 0.13],
+          [-0.3, 0.19, 0.12, 0.11],
+          [0.02, 0.21, 0.3, 0.09],
+        ].map(([x, y, z, r], i) => (
           <mesh key={i} position={[x, y, z]} scale={[1, 0.45, 1]}>
             <sphereGeometry args={[r, 20, 20]} />
-            <meshPhysicalMaterial color="#b8402a" roughness={0.24} clearcoat={0.9} clearcoatRoughness={0.18} />
+            <meshPhysicalMaterial
+              color="#b8402a"
+              roughness={0.24}
+              clearcoat={0.9}
+              clearcoatRoughness={0.18}
+            />
           </mesh>
         ))}
 
         {/* Fresh basil + parmesan finish */}
         {BASIL_GARNISH_ITEMS.map((item, i) => (
           <group key={i} position={item.position} rotation={item.rotation}>
-            <mesh scale={[0.075, 0.012, 0.05]} geometry={BASIL_GARNISH_GEO} material={BASIL_GARNISH_MAT} />
+            <mesh
+              scale={[0.075, 0.012, 0.05]}
+              geometry={BASIL_GARNISH_GEO}
+              material={BASIL_GARNISH_MAT}
+            />
           </group>
         ))}
         {PARMESAN_ITEMS.map((item, i) => (
-          <mesh key={i} position={item.position} rotation={item.rotation} geometry={PARMESAN_GEO} material={PARMESAN_MAT} />
+          <mesh
+            key={i}
+            position={item.position}
+            rotation={item.rotation}
+            geometry={PARMESAN_GEO}
+            material={PARMESAN_MAT}
+          />
         ))}
 
-        <SteamEmitter position={[0, 0.45, 0]} window={[0.78, 0.81, 0.97, 1.01]} count={12} spread={0.55} rise={1.7} />
+        <SteamEmitter
+          position={[0, 0.45, 0]}
+          window={[0.78, 0.81, 0.97, 1.01]}
+          count={12}
+          spread={0.55}
+          rise={1.7}
+        />
       </group>
     </>
   );
