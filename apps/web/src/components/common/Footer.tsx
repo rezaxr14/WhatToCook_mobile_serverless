@@ -10,7 +10,7 @@ export const Footer: React.FC = () => {
   return (
     <footer className="bg-stone-900 text-stone-300 border-t border-stone-800 mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
           {/* Brand */}
           <div className="md:col-span-2 space-y-4">
             <div className="flex items-center gap-3">
@@ -46,27 +46,6 @@ export const Footer: React.FC = () => {
                 <Link to="/pantry" className="hover:text-white transition-colors">
                   {t('features.scannerT')}
                 </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Tech stack highlights */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wider">
-              {t('footer.colTech')}
-            </h4>
-            <ul className="space-y-2 text-sm text-stone-400 font-medium">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
-                <span>Supabase · Postgres · Storage</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                <span>React + Vite + TypeScript</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-                <span>Smart Generative AI API</span>
               </li>
             </ul>
           </div>

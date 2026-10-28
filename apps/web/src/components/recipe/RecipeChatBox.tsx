@@ -39,14 +39,17 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const hasInteractedRef = useRef(false);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Scroll only the chat message list after the user starts chatting. Using the
+  // container's own scrollTop (instead of scrollIntoView) keeps the page from
+  // jumping down to the chat when a recipe is first opened.
   useEffect(() => {
-    scrollToBottom();
+    if (!hasInteractedRef.current) return;
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
   }, [messages, isLoading]);
 
   const handleSendMessage = async (textToSend?: string) => {
@@ -54,6 +57,7 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
     if (!text || isLoading) return;
 
     setChatError(null);
+    hasInteractedRef.current = true;
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
@@ -176,22 +180,23 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
   return (
     <section className="mt-12 rounded-3xl bg-white border border-stone-200/90 shadow-xl overflow-hidden">
       {/* Header */}
-      <div className="bg-linear-to-r/srgb from-stone-900 via-stone-850 to-stone-900 px-6 py-4 text-white flex flex-wrap items-center justify-between gap-3 border-b border-stone-800">
+      <div className="bg-linear-to-r/srgb from-stone-900 via-stone-850 to-stone-900 px-6 py-4 text-white flex flex-wrap items-center justify-between gap-3 border-b border-stone-800 border-s-4 border-s-amber-400/90">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-linear-to-br/srgb from-amber-400 to-brand-500 flex items-center justify-center shadow-md">
+          <div className="w-10 h-10 rounded-2xl bg-linear-to-br/srgb from-amber-400 to-brand-500 flex items-center justify-center shadow-md ring-2 ring-amber-300/30">
             <ChefHat className="w-5 h-5 text-stone-950" />
           </div>
-          <div>
+          <div className="text-start">
             <div className="flex items-center gap-2">
-              <h3 className="font-extrabold text-base tracking-tight text-white">
+              <h3 className="text-lg sm:text-xl font-black tracking-tight text-white">
                 AI Sous-Chef Kitchen Assistant
               </h3>
-              <span className="inline-flex items-center gap-1 text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40">
                 <Sparkles className="w-2.5 h-2.5" /> Interactive
               </span>
             </div>
-            <p className="text-xs text-stone-400 font-medium">
-              Ask questions, customize ingredients, or get expert tips for <span className="text-stone-200 font-semibold">{recipeName}</span>
+            <p className="text-[13px] sm:text-sm text-stone-300 font-medium">
+              Ask questions, customize ingredients, or get expert tips for{' '}
+              <span className="text-white font-bold">{recipeName}</span>
             </p>
           </div>
         </div>
@@ -233,7 +238,10 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
       </div>
 
       {/* Messages Area */}
-      <div className="p-6 max-h-[420px] min-h-[220px] overflow-y-auto space-y-4 bg-stone-50/30">
+      <div
+        ref={messagesContainerRef}
+        className="p-6 max-h-[420px] min-h-[220px] overflow-y-auto space-y-4 bg-stone-50/30"
+      >
         {messages.map((m) => {
           const isUser = m.role === 'user';
           return (
@@ -244,10 +252,10 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
               {/* Avatar */}
               <div
                 className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold ${
- isUser
- ? 'bg-stone-900 text-amber-400'
- : 'bg-amber-100 text-stone-900 border border-amber-300'
- }`}
+                  isUser
+                    ? 'bg-stone-900 text-amber-400'
+                    : 'bg-amber-100 text-stone-900 border border-amber-300'
+                }`}
               >
                 {isUser ? 'You' : <ChefHat className="w-4 h-4 text-stone-800" />}
               </div>
@@ -255,10 +263,10 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
               {/* Message Bubble */}
               <div
                 className={`max-w-[82%] rounded-2xl p-4 ${
- isUser
- ? 'bg-linear-to-r/srgb from-stone-900 to-stone-800 text-white'
- : 'bg-white border border-stone-200/90 text-stone-800'
- }`}
+                  isUser
+                    ? 'bg-linear-to-r/srgb from-stone-900 to-stone-800 text-white'
+                    : 'bg-white border border-stone-200/90 text-stone-800'
+                }`}
               >
                 {isUser ? (
                   <p className="text-sm font-medium leading-relaxed">{m.content}</p>
@@ -268,8 +276,8 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
 
                 <div
                   className={`mt-2 flex items-center justify-between text-[10px] font-mono ${
- isUser ? 'text-stone-400' : 'text-stone-400'
- }`}
+                    isUser ? 'text-stone-400' : 'text-stone-400'
+                  }`}
                 >
                   <span>{m.timestamp}</span>
                   {m.modelUsed && (
@@ -297,8 +305,6 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Error alert */}
