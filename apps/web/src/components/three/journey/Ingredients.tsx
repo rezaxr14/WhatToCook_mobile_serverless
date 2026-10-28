@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import React, { useMemo } from 'react';
-import { GroupProps } from '@react-three/fiber';
+import type { ThreeElements } from '@react-three/fiber';
 
-type G = GroupProps;
+// @react-three/fiber v9 dropped the per-element prop aliases (MeshProps,
+// GroupProps, …) in favour of indexing ThreeElements.
+type G = ThreeElements['group'];
 
 const lathe = (pts: [number, number][], segments = 40) =>
   new THREE.LatheGeometry(
