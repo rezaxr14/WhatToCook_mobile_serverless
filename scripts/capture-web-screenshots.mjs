@@ -79,6 +79,19 @@ try {
   await page.getByText('Tomato').first().waitFor({ timeout: 30_000 });
   await shot('pantry');
 
+  step = 'scanner';
+  await page.getByText('Scan your fridge').first().click();
+  await page.getByText('AI Fridge & Counter Scanner').waitFor({ timeout: 15_000 });
+  await shot('scanner');
+  // Click the dimmed backdrop to close the modal.
+  await page.mouse.click(8, 8);
+  await page.waitForTimeout(400);
+
+  step = 'grocery';
+  await page.getByTitle('Grocery List').click();
+  await page.waitForTimeout(1000);
+  await shot('grocery');
+
   step = 'can-cook';
   await page.goto(`${base}/can-cook`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
@@ -97,8 +110,7 @@ try {
   await page.getByText('Cook Full Recipe').first().dispatchEvent('click');
   await page.waitForURL(/\/ai-recipe\//, { timeout: 30_000 });
   await page.waitForTimeout(4000);
-  // The detail page can land on the sous-chef chat; the app scrolls inside a
-  // div rather than the window, so reset every scroll container.
+  // Reset any scroll container so the screenshot frames the recipe hero.
   await page.evaluate(() => {
     window.scrollTo(0, 0);
     for (const element of document.querySelectorAll('*')) {

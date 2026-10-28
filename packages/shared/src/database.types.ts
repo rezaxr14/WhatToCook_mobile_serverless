@@ -1,4 +1,4 @@
-﻿export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
@@ -65,6 +65,30 @@ export type Database = {
           provider?: string;
           source_note?: string | null;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      ai_rate_windows: {
+        Row: {
+          hits: number;
+          subject: string;
+          subject_key: string;
+          updated_at: string;
+          window_start: string;
+        };
+        Insert: {
+          hits?: number;
+          subject: string;
+          subject_key: string;
+          updated_at?: string;
+          window_start: string;
+        };
+        Update: {
+          hits?: number;
+          subject?: string;
+          subject_key?: string;
+          updated_at?: string;
+          window_start?: string;
         };
         Relationships: [];
       };
@@ -559,15 +583,87 @@ export type Database = {
       };
     };
     Views: {
-      [_ in never]: never;
+      v_ai_cache_hit_rate: {
+        Row: {
+          cache_hits: number | null;
+          day: string | null;
+          feature: string | null;
+          hit_rate: number | null;
+          model: string | null;
+          provider: string | null;
+          total_requests: number | null;
+        };
+        Relationships: [];
+      };
+      v_ai_spend_by_user: {
+        Row: {
+          cache_hits: number | null;
+          cost_micro_usd: number | null;
+          feature: string | null;
+          last_request_at: string | null;
+          model: string | null;
+          plan_id: string | null;
+          provider: string | null;
+          requests: number | null;
+          user_id: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'ai_usage_events_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'profiles_plan_id_fkey';
+            columns: ['plan_id'];
+            isOneToOne: false;
+            referencedRelation: 'plans';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      v_ai_spend_daily: {
+        Row: {
+          cache_hits: number | null;
+          cost_micro_usd: number | null;
+          day: string | null;
+          failed_requests: number | null;
+          feature: string | null;
+          input_tokens: number | null;
+          model: string | null;
+          output_tokens: number | null;
+          provider: string | null;
+          refunded_requests: number | null;
+          settled_requests: number | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
+      add_custom_pantry_ingredient: {
+        Args: { p_category?: string; p_name: string };
+        Returns: number;
+      };
       can_cook: { Args: never; Returns: Json };
+      check_ai_rate_limit: {
+        Args: {
+          p_ip_hash: string;
+          p_ip_limit: number;
+          p_now?: string;
+          p_user_id: string;
+          p_user_limit: number;
+          p_window_seconds?: number;
+        };
+        Returns: Json;
+      };
       delete_my_account_data: { Args: never; Returns: undefined };
       get_my_usage: { Args: never; Returns: Json };
       prune_ai_response_cache: { Args: never; Returns: number };
       python_round: { Args: { value: number }; Returns: number };
       reap_stale_ai_reservations: { Args: never; Returns: number };
+      record_ai_cache_hit: { Args: { p_key: string }; Returns: number };
       refund_ai_usage: {
         Args: { p_error_code?: string; p_event_id: string };
         Returns: Json;

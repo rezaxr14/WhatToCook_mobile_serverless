@@ -27,7 +27,7 @@ export const Footer: React.FC = () => {
           </div>
 
           {/* Quick Links */}
-          <div className="space-y-3">
+          <div className="space-y-3 md:justify-self-end md:text-end">
             <h4 className="text-xs font-bold text-stone-200 uppercase tracking-wider">
               {t('footer.colProduct')}
             </h4>

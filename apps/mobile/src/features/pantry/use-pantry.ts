@@ -102,6 +102,23 @@ export async function addPantryIngredients(userId: string, ingredientIds: number
   if (error) throw new Error(error.message);
 }
 
+export async function addCustomPantryIngredient(
+  userId: string,
+  name: string,
+  category: string,
+): Promise<number> {
+  if (!userId) throw new Error('Sign in before editing your pantry.');
+  const trimmed = name.trim();
+  if (trimmed.length < 2) throw new Error('Ingredient name is too short.');
+
+  const { data, error } = await supabase.rpc('add_custom_pantry_ingredient', {
+    p_name: trimmed,
+    p_category: category || 'Other',
+  });
+  if (error) throw new Error(error.message);
+  return Number(data);
+}
+
 export async function removePantryIngredient(userId: string, ingredientId: number): Promise<void> {
   const { error } = await supabase
     .from('pantry_items')
@@ -137,6 +154,20 @@ export function useAddPantryIngredients(userId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (ingredientIds: number[]) => addPantryIngredients(userId as string, ingredientIds),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['pantry'] }),
+        queryClient.invalidateQueries({ queryKey: ['can-cook'] }),
+      ]);
+    },
+  });
+}
+
+export function useAddCustomPantryIngredient(userId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, category }: { name: string; category: string }) =>
+      addCustomPantryIngredient(userId as string, name, category),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['pantry'] }),

@@ -111,6 +111,7 @@
   "quickActions": {
     "grocery": "Alışveriş Listesi",
     "telegram": "Telegram Botu",
+    "install": "Uygulamayı yükle",
     "language": "Dil"
   },
   "common": {
@@ -461,7 +462,7 @@
       "reviewTitle": "Tespit edilen malzemeler",
       "reviewSub": "{{count}} bulundu. Eklemek istediklerini seç.",
       "matched": "Katalogda",
-      "unmatched": "Katalogda yok",
+      "unmatched": "Yeni — eklenecek",
       "addSelected": "{{count}} tanesini kilere ekle",
       "added": "Kilerine eklendi",
       "empty": "Malzeme tespit edilmedi",

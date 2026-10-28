@@ -1,19 +1,51 @@
-import React from 'react';
-import { ShoppingCart, Send, Globe } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ShoppingCart, Send, Globe, Download } from 'lucide-react';
 import { useShoppingList } from '../../context/ShoppingListContext';
 import { useLanguageModal } from './LanguageModal';
 import { useTranslation } from 'react-i18next';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
 
 export const QuickActionsWidget: React.FC = () => {
   const { items, openShoppingModal, openTelegramModal } = useShoppingList();
   const { openModal: openLanguageModal } = useLanguageModal();
   const { t } = useTranslation();
   const uncheckedCount = items.filter((i) => !i.checked).length;
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    const handleBeforeInstall = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const handleInstalled = () => setInstallPrompt(null);
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleInstalled);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') setInstallPrompt(null);
+  };
 
   return (
     <>
       {/* Language — opposite corner from the utility actions */}
-      <aside aria-label="Language" className="fixed bottom-4 sm:bottom-6 inset-s-4 sm:inset-s-6 z-30" dir="ltr">
+      <aside
+        aria-label="Language"
+        className="fixed bottom-4 sm:bottom-6 inset-s-4 sm:inset-s-6 z-30"
+        dir="ltr"
+      >
         <button
           type="button"
           onClick={openLanguageModal}
@@ -67,6 +99,21 @@ export const QuickActionsWidget: React.FC = () => {
             {t('quickActions.telegram')}
           </span>
         </button>
+
+        {/* Install PWA — same row, to the right of Grocery/Telegram */}
+        {installPrompt && (
+          <button
+            type="button"
+            onClick={handleInstall}
+            className="group flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/40 transition-all duration-300 cursor-pointer hover:scale-105"
+            title={t('quickActions.install')}
+          >
+            <Download className="w-4 h-4" />
+            <span className="text-xs font-extrabold hidden sm:inline">
+              {t('quickActions.install')}
+            </span>
+          </button>
+        )}
       </aside>
     </>
   );

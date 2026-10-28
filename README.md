@@ -46,6 +46,14 @@ anonymous session, stocks a demo pantry and enables the AI studio.
     <td align="center"><em>Recipe catalog</em></td>
     <td align="center"><em>Generated recipe detail</em></td>
   </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/web/scanner.png" alt="AI Vision fridge scanner on the web" /></td>
+    <td width="50%"><img src="docs/screenshots/web/grocery.png" alt="Catalog-aware grocery list on the web" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>AI Vision fridge scanner</em></td>
+    <td align="center"><em>Grocery list with unit-aware entry</em></td>
+  </tr>
 </table>
 
 ### Android (Expo / React Native)
@@ -77,10 +85,17 @@ anonymous session, stocks a demo pantry and enables the AI studio.
 
 - Guest sessions with a pre-stocked pantry, no account required.
 - Pantry search, add/remove, calorie totals and camera/gallery ingredient scans.
+- AI Vision scans keep unmatched detections: foods that are not catalogued yet are
+  created through a validated `SECURITY DEFINER` RPC and added to the pantry in the
+  same step, on both web and Android.
 - Recipe catalog, pantry matching, serving scaling, substitutions and grocery export.
+- Catalog-aware grocery entry with search-as-you-type suggestions, amount stepper
+  and units, so the list is ready to shop from.
 - AI Chef suggestions, full generated recipes, chef chat and a streaming status.
 - Cached ingredient/dish photos served from Supabase Storage, with a local
   fallback when a photo is missing.
+- Installable PWA: the install action sits beside Grocery and Telegram instead of
+  covering them, and an offline pill appears when the connection drops.
 - Five locales (en, tr, fa, ar, es) including right-to-left Persian and Arabic.
 
 ## Layout
@@ -135,6 +150,12 @@ cd apps/mobile && npx expo prebuild --platform android
 cd android && ./gradlew :app:assembleDebug
 # apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk (all 4 ABIs)
 ```
+
+Prefer not to install the Android SDK locally? `.github/workflows/android-device.yml`
+builds a debug-signed release APK on every mobile change to `main` (and on manual
+dispatch). Download the `whattocook-device-<sha>` artifact from the run and install it
+with the same `adb install -r` command below. Production/Play signing stays in
+`android-release.yml` and still needs the release keystore secrets.
 
 Install on a device that is visible to the Windows adb server (WSL2 NAT mode):
 
@@ -202,7 +223,10 @@ export, inline substitutions and chat, plus a camera/gallery pantry scanner. The
 call the Edge Functions directly with the same quota and error semantics; missing functions
 degrade to a translated "not connected" state, and `ai-models` falls back to the shared free
 catalog. Staging API smoke and the Android bundle pass; mobile helper tests cover the dish
-photography helper, and the on-device AI/scanner walkthrough still needs a dev-client build.
+photography helper. A debug-signed release APK is now built by
+`.github/workflows/android-device.yml` and installed on a physical Android 14 device; the
+on-device AI/scanner walkthrough is verified, while refreshed device screenshots are still
+pending.
 M6 - mobile recipe catalog: a searchable `/recipes` screen with quick, vegetarian and sweet
 filters, plus a `/recipe/[id]` detail screen with serving scaling, pantry-aware ingredient
 checklists, inline substitutions, missing-only grocery export, step completion, an in-app

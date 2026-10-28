@@ -109,15 +109,18 @@ export const pantryApi = {
         .limit(1)
         .maybeSingle();
       if (error) throw toApiError(error, 'Could not look up that ingredient.');
-      if (!data) {
-        throw new ApiError(
-          `"${name}" is not in the catalog yet. Pick a nearby ingredient or scan it once AI is connected.`,
-          404,
-          null,
-          'ingredient_not_found',
+      if (data) {
+        ids.add(data.id);
+      } else {
+        // Manual entry for a food that is not catalogued yet. The RPC creates
+        // the minimal catalog row and adds it to the pantry atomically.
+        const { data: newId, error: rpcError } = await supabase.rpc(
+          'add_custom_pantry_ingredient',
+          { p_name: name, p_category: 'Other' },
         );
+        if (rpcError) throw toApiError(rpcError, 'Could not add that ingredient.');
+        if (typeof newId === 'number') ids.add(newId);
       }
-      ids.add(data.id);
     }
 
     if (ids.size === 0) {
@@ -141,6 +144,30 @@ export const pantryApi = {
       message: `Added ${ids.size} ingredient${ids.size === 1 ? '' : 's'}.`,
       pantry: await buildPantry(user),
     };
+  },
+
+  addCustomIngredient: async (payload: { name: string; category?: string }): Promise<number> => {
+    const user = await currentUser();
+    if (!user) {
+      throw new ApiError(
+        'Sign in or start the guest demo to edit your pantry.',
+        401,
+        null,
+        'not_authenticated',
+      );
+    }
+
+    const name = payload.name.trim();
+    if (name.length < 2) {
+      throw new ApiError('Enter an ingredient name with at least two characters.', 400);
+    }
+
+    const { data, error } = await supabase.rpc('add_custom_pantry_ingredient', {
+      p_name: name,
+      p_category: payload.category ?? 'Other',
+    });
+    if (error) throw toApiError(error, 'Could not add that ingredient to the catalog.');
+    return Number(data);
   },
 
   removeIngredient: async (ingredientId: number): Promise<PantryMutationResponse> => {
