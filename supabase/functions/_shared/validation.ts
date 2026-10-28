@@ -74,9 +74,7 @@ export function stripCodeFences(text: string): string {
 }
 
 function findBalancedJson(text: string): string | null {
-  const start = Math.min(
-    ...[text.indexOf('{'), text.indexOf('[')].filter((index) => index >= 0),
-  );
+  const start = Math.min(...[text.indexOf('{'), text.indexOf('[')].filter((index) => index >= 0));
   if (!Number.isFinite(start) || start < 0) return null;
   const opening = text[start];
   const closing = opening === '{' ? '}' : ']';
@@ -111,6 +109,10 @@ export function normalizeSuggestions(value: unknown): unknown {
     if (Array.isArray(record.recipes)) return record.recipes;
     if (Array.isArray(record.dishes)) return record.dishes;
     if (Array.isArray(record.suggestions)) return record.suggestions;
+    // Some free routers return a single dish object instead of an array.
+    if (typeof record.name === 'string' && typeof record.short_description === 'string') {
+      return [record];
+    }
   }
   return value;
 }
@@ -166,9 +168,7 @@ export function sanitizeJsonStrings(value: unknown): unknown {
 export function sanitizeText(value: string): string {
   // Strip NUL/control characters except tab and newline. React/Vue escape
   // markup by default, so we do not treat model output as HTML.
-  return value
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
-    .trim();
+  return value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim();
 }
 
 export function summarizeZodError(error: z.ZodError): string {

@@ -59,7 +59,11 @@ async function ensureSession(): Promise<void> {
   }
 }
 
-async function invokeAi<T>(name: string, body: Record<string, unknown>, fallback: string): Promise<T> {
+async function invokeAi<T>(
+  name: string,
+  body: Record<string, unknown>,
+  fallback: string,
+): Promise<T> {
   if (!isSupabaseConfigured) {
     throw new ApiError(
       'Supabase is not configured. Set apps/web/.env.local first.',
@@ -110,6 +114,7 @@ function staticCatalog(): AICatalogResponse {
       id: model.id,
       displayName: model.displayName,
       description: model.description,
+      provider: 'openrouter',
     })),
     current_model: DEFAULT_OPENROUTER_MODEL,
     is_live: true,

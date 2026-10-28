@@ -63,7 +63,7 @@ never put a service-role or provider key in either prefix.
 The Edge Functions read server-only values from `supabase/functions/.env` locally or from
 Supabase secrets remotely:
 
-- `AI_PROVIDER` - `fake` (default for tests/staging), `gemini`, `openrouter`, or `lmstudio`.
+- `AI_PROVIDER` - `fake` for tests, `gemini` in staging, `openrouter`, or `lmstudio`.
 - `GEMINI_API_KEY` - required only when `AI_PROVIDER=gemini`.
 - `GEMINI_MODEL` / `GEMINI_VISION_MODEL` - optional Gemini overrides; normal routing comes from
   `app_config.model_routing`. Gemini uses Flash-Lite only (`gemini-3.5-flash-lite` default,
@@ -72,19 +72,25 @@ Supabase secrets remotely:
   server-side only.
 - `AI_FALLBACK_PROVIDER` - optional `openrouter`; retries Gemini failures (before any streamed
   output) on `OPENROUTER_MODEL`. Free models cost $0. Off when empty.
+- `AI_ALLOWED_PROVIDERS` - optional comma-separated providers the picker may switch to; an
+  OpenRouter key or `AI_FALLBACK_PROVIDER=openrouter` already enables OpenRouter.
 - `AI_FALLBACK_VISION` - optional `true` to also send pantry photos to the fallback; off by
-  default because free routers may not offer a vision model.
-- `OPENROUTER_MODEL` - required when `AI_PROVIDER=openrouter`, and used by the fallback; one model
-  id for all features. `openrouter/free` routes across free models.
+  default because free routers may not offer a vision model. Photo scans always start on the
+  primary provider.
+- `OPENROUTER_MODEL` - required when `AI_PROVIDER=openrouter`, and used by the fallback. Under a
+  Gemini-primary deployment it is also the **only** OpenRouter entry the picker exposes. One model
+  id for all features; `openrouter/free` routes across free models.
 - `OPENROUTER_VISION_MODEL` - optional scan override; defaults to `OPENROUTER_MODEL`.
-- `OPENROUTER_ALLOWED_MODELS` - optional comma-separated allowlist for client-selected models;
-  free `*:free` ids are always selectable.
+- `OPENROUTER_ALLOWED_MODELS` - optional comma-separated allowlist to expose extra client-selected
+  models on an OpenRouter-primary deployment; free `*:free` ids are always accepted by the server.
 - `OPENROUTER_FALLBACK_MODELS` / `OPENROUTER_VISION_FALLBACK_MODELS` - optional comma-separated
   OpenRouter model ids.
 - `OPENROUTER_INPUT_MICRO_USD_PER_MILLION` / `OPENROUTER_OUTPUT_MICRO_USD_PER_MILLION` - optional
   pricing overrides; defaults are conservative estimates (1,000,000 / 3,000,000).
 - `OPENROUTER_SITE_URL` / `OPENROUTER_APP_NAME` / `OPENROUTER_JSON_MODE` - optional request
   attribution and JSON-mode toggle.
+- `OPENROUTER_TIMEOUT_MS` / `OPENROUTER_STREAM_TIMEOUT_MS` - optional non-stream (default 60,000)
+  and stream (default 120,000) timeouts; the free router routinely needs more than 30 seconds.
 - `LMSTUDIO_BASE_URL` - LM Studio OpenAI-compatible base URL; default `http://127.0.0.1:1234/v1`.
 - `LMSTUDIO_MODEL` - required when `AI_PROVIDER=lmstudio`; one local model id for all features.
 - `LMSTUDIO_VISION_MODEL` / `LMSTUDIO_FALLBACK_MODELS` / `LMSTUDIO_VISION_FALLBACK_MODELS` -

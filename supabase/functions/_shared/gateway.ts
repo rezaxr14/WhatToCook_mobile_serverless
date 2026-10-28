@@ -57,7 +57,16 @@ export function assertFeature(config: RuntimeConfig, feature: AIFeature): void {
   if (config.featureFlags[feature] === false) throw aiDisabled();
 }
 
-export function providerFor(deps: GatewayDeps, config: RuntimeConfig): AIProvider {
+export interface ResolvedProvider {
+  id: string;
+  provider: AIProvider;
+}
+
+export function providerFor(
+  deps: GatewayDeps,
+  config: RuntimeConfig,
+  requested?: { provider?: string; model?: string; feature?: AIFeature },
+): ResolvedProvider {
   if (
     config.providerId !== 'gemini' &&
     config.providerId !== 'openrouter' &&
@@ -66,27 +75,69 @@ export function providerFor(deps: GatewayDeps, config: RuntimeConfig): AIProvide
   ) {
     throw providerError('The configured AI provider is not supported.');
   }
-  return deps.provider(config.providerId, config);
+
+  // A photo scan always uses the deployment's primary provider. The free
+  // OpenRouter router does not reliably satisfy the scan schema, so choosing an
+  // OpenRouter text model must not silently break the fridge scanner.
+  if (requested?.feature === 'scan') {
+    const providerId = config.providerId;
+    return { id: providerId, provider: deps.provider(providerId, config) };
+  }
+
+  const requestedProvider = requested?.provider?.trim().toLowerCase();
+  const model = requested?.model?.trim();
+  let providerId: string = config.providerId;
+
+  if (
+    requestedProvider &&
+    requestedProvider !== config.providerId &&
+    config.allowedProviders.includes(requestedProvider)
+  ) {
+    providerId = requestedProvider;
+  } else if (
+    model &&
+    config.allowedProviders.includes('openrouter') &&
+    isFreeOpenRouterModel(model)
+  ) {
+    // Namespaced free model ids are unambiguous even when the client does not
+    // send a separate provider field (the mobile app only sends `model`).
+    providerId = 'openrouter';
+  }
+
+  if (providerId !== config.providerId && !config.allowedProviders.includes(providerId)) {
+    throw providerError('The selected AI provider is not enabled on the server.');
+  }
+  return { id: providerId, provider: deps.provider(providerId, config) };
 }
 
 export function modelFor(
   config: RuntimeConfig,
   feature: AIFeature,
   requestedModel?: string,
+  providerId: string = config.providerId,
 ): string {
-  if (config.providerId === 'fake') return config.models[feature] ?? 'fake-1';
+  if (providerId === 'fake') return config.models[feature] ?? 'fake-1';
+
+  if (providerId === 'openrouter') {
+    const requested = requestedModel?.trim();
+    if (
+      requested &&
+      (config.allowedModels.includes(requested) || isFreeOpenRouterModel(requested))
+    ) {
+      return requested;
+    }
+    return config.openRouterModel || config.models[feature] || 'openrouter/free';
+  }
+
   const model = config.models[feature];
   if (!model) throw providerError('AI model routing is not configured for this feature.');
 
-  // The client may choose a model only when the server allows it. OpenRouter
-  // free models are always safe because they are billed at $0; any other
-  // choice must be explicitly allowlisted. Unknown choices fall back to the
-  // deploy-time routed model instead of failing an otherwise valid request.
+  // The client may choose a model only when the server allows it. The catalog
+  // exposes the routed model plus its fallbacks, so the picker changes the
+  // model instead of silently using the default. Unknown choices fall back to
+  // the deploy-time routed model instead of failing an otherwise valid request.
   const requested = requestedModel?.trim();
   if (requested && config.allowedModels.includes(requested)) {
-    return requested;
-  }
-  if (config.providerId === 'openrouter' && requested && isFreeOpenRouterModel(requested)) {
     return requested;
   }
   return model;

@@ -4,7 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, Sparkles, Play, Pause, ArrowRight, X, RotateCcw, Film } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { CustomCursor } from '../components/ui/CustomCursor';
-import { journey, initPointerParallax, prefersReducedMotion } from '../components/three/journey/state';
+import {
+  journey,
+  initPointerParallax,
+  prefersReducedMotion,
+} from '../components/three/journey/state';
 
 /**
  * The landing experience: a single continuous 3D journey from a dark kitchen,
@@ -23,17 +27,41 @@ import { journey, initPointerParallax, prefersReducedMotion } from '../component
  */
 
 const JourneyScene = lazy(() =>
-  import('../components/three/journey/JourneyScene').then((m) => ({ default: m.JourneyScene }))
+  import('../components/three/journey/JourneyScene').then((m) => ({ default: m.JourneyScene })),
 );
 
 /** Linear 0?1 ramp between two progress points (clamped). */
-const lin = (v: number, a: number, b: number) => (b === a ? 1 : Math.min(1, Math.max(0, (v - a) / (b - a))));
+const lin = (v: number, a: number, b: number) =>
+  b === a ? 1 : Math.min(1, Math.max(0, (v - a) / (b - a)));
 
 /** Shared display typeface style — module-level so its identity never changes. */
 const DISPLAY_FONT: React.CSSProperties = { fontFamily: "'Sora', 'Inter', system-ui, sans-serif" };
 
-const CHAP_KEYS = ['hero', 'fridge', 'ai', 'galaxy', 's1', 's2', 's3', 's4', 'final', 'cta'] as const;
+const CHAP_KEYS = [
+  'hero',
+  'fridge',
+  'ai',
+  'galaxy',
+  's1',
+  's2',
+  's3',
+  's4',
+  'final',
+  'cta',
+] as const;
 type ChapKey = (typeof CHAP_KEYS)[number];
+
+/** Cached first frame of the 3D kitchen, saved after the first visit. */
+const HERO_POSTER_KEY = 'wtc_hero_poster_v1';
+
+function readHeroPoster(): string | null {
+  try {
+    const value = window.localStorage.getItem(HERO_POSTER_KEY);
+    return value && value.startsWith('data:image/') ? value : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Static per-chapter timing windows (opacity windows + vertical drift). */
 const CHAP_WINDOWS: Record<
@@ -147,9 +175,12 @@ export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
   const [veilGone, setVeilGone] = useState(false);
-  const [stats, setStats] = useState<{ total_recipes: number; total_ingredients: number } | null>(null);
+  const [stats, setStats] = useState<{ total_recipes: number; total_ingredients: number } | null>(
+    null,
+  );
   const [tourStatus, setTourStatus] = useState<TourStatus>('idle');
   const [tourStopIdx, setTourStopIdx] = useState(0);
+  const [heroPoster, setHeroPoster] = useState<string | null>(() => readHeroPoster());
 
   const tourRafRef = useRef<number | null>(null);
   const segRef = useRef(0);
@@ -255,7 +286,10 @@ export const LandingPage: React.FC = () => {
       let idx = 0;
       for (let i = 0; i < TOUR_STOPS.length; i++) {
         const lo = i === 0 ? 0 : TOUR_STOPS[i - 1].p + (TOUR_STOPS[i].p - TOUR_STOPS[i - 1].p) / 2;
-        const hi = i === TOUR_STOPS.length - 1 ? 1 : TOUR_STOPS[i].p + (TOUR_STOPS[i + 1].p - TOUR_STOPS[i].p) / 2;
+        const hi =
+          i === TOUR_STOPS.length - 1
+            ? 1
+            : TOUR_STOPS[i].p + (TOUR_STOPS[i + 1].p - TOUR_STOPS[i].p) / 2;
         if (v >= lo && v < hi) {
           idx = i;
           break;
@@ -264,7 +298,10 @@ export const LandingPage: React.FC = () => {
       if (idx !== lastStopIdx.current) {
         lastStopIdx.current = idx;
         setTourStopIdx(idx);
-        if (stopLabelRef.current) stopLabelRef.current.textContent = (t as (key: string) => string)(TOUR_STOPS[idx].key).toUpperCase();
+        if (stopLabelRef.current)
+          stopLabelRef.current.textContent = (t as (key: string) => string)(
+            TOUR_STOPS[idx].key,
+          ).toUpperCase();
       }
     };
     apply();
@@ -300,33 +337,31 @@ export const LandingPage: React.FC = () => {
     setTourStatus('ended');
   }, [stopTourLoop]);
 
-  const tourLoop = useCallback(
-    () => {
-      const now = performance.now();
-      if (!tourT0Ref.current) tourT0Ref.current = now;
-      const elapsed = (now - tourT0Ref.current) / 1000;
-      const segs = TOUR_SEGMENTS;
-      let acc = 0;
-      let idx = segRef.current;
-      let local = elapsed;
-      for (let i = 0; i < idx; i++) acc += segs[i][2];
-      local = Math.max(0, elapsed - acc);
-      while (idx < segs.length && local > segs[idx][2]) {
-        local -= segs[idx][2];
-        idx += 1;
-      }
-      segRef.current = idx;
-      if (idx >= segs.length) {
-        scrollToProgress(1);
-        endTour();
-        return;
-      }
-      const [from, to, dur] = segs[idx];
-      const k = idx === 0 ? easeOutCubic(Math.min(1, local / dur)) : easeInOutCubic(Math.min(1, local / dur));
-      scrollToProgress(from + (to - from) * k);
-    },
-    [endTour, scrollToProgress]
-  );
+  const tourLoop = useCallback(() => {
+    const now = performance.now();
+    if (!tourT0Ref.current) tourT0Ref.current = now;
+    const elapsed = (now - tourT0Ref.current) / 1000;
+    const segs = TOUR_SEGMENTS;
+    let acc = 0;
+    let idx = segRef.current;
+    let local = elapsed;
+    for (let i = 0; i < idx; i++) acc += segs[i][2];
+    local = Math.max(0, elapsed - acc);
+    while (idx < segs.length && local > segs[idx][2]) {
+      local -= segs[idx][2];
+      idx += 1;
+    }
+    segRef.current = idx;
+    if (idx >= segs.length) {
+      scrollToProgress(1);
+      endTour();
+      return;
+    }
+    const [from, to, dur] = segs[idx];
+    const k =
+      idx === 0 ? easeOutCubic(Math.min(1, local / dur)) : easeInOutCubic(Math.min(1, local / dur));
+    scrollToProgress(from + (to - from) * k);
+  }, [endTour, scrollToProgress]);
 
   /** Arm the tour driver: an immediate tick + a wall-clock interval. */
   const armTourLoop = useCallback(() => {
@@ -382,7 +417,7 @@ export const LandingPage: React.FC = () => {
       setTourStatus('paused');
       setTourStopIdx(idx);
     },
-    [scrollToProgress, stopTourLoop]
+    [scrollToProgress, stopTourLoop],
   );
 
   const exitTour = useCallback(() => {
@@ -441,6 +476,17 @@ export const LandingPage: React.FC = () => {
     setTimeout(() => setReady(true), 500);
   }, []);
 
+  const handleHeroPoster = useCallback((poster: string) => {
+    setHeroPoster(poster);
+    try {
+      // A JPEG of the first frame is normally well under 300 KB. Skip huge
+      // captures so Safari's small localStorage quota is never at risk.
+      if (poster.length < 1_500_000) window.localStorage.setItem(HERO_POSTER_KEY, poster);
+    } catch {
+      // Storage can be full or blocked in private mode; the poster is optional.
+    }
+  }, []);
+
   const canTour = useMemo(() => !prefersReducedMotion(), []);
 
   // Authenticated users go straight to their kitchen dashboard.
@@ -459,8 +505,22 @@ export const LandingPage: React.FC = () => {
       <div className="fixed inset-0 z-0">
         {/* deep-space fallback wash while WebGL warms up */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_70%_20%,#1c1308_0%,#070503_58%)]" />
+        {heroPoster && (
+          <img
+            src={heroPoster}
+            alt=""
+            aria-hidden
+            className={`pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+              ready ? 'opacity-0' : 'opacity-100'
+            }`}
+          />
+        )}
         <Suspense fallback={null}>
-          <JourneyScene onReady={handleSceneReady} />
+          <JourneyScene
+            onReady={handleSceneReady}
+            onPoster={handleHeroPoster}
+            capturePoster={!heroPoster}
+          />
         </Suspense>
         {/* Cinematic vignette + film grain (CSS layer, complements postFX) */}
         <div className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.5)_100%)]" />
@@ -481,24 +541,21 @@ export const LandingPage: React.FC = () => {
         </div>
       )}
 
-      {/* Loading experience */}
-      {!veilGone && (
-        <div
-          className={`fixed inset-0 z-80 flex flex-col items-center justify-center gap-6 bg-[#070503] transition-opacity duration-700 ${
- ready ? 'pointer-events-none opacity-0' : 'opacity-100'
- }`}
-        >
-          <div className="relative flex h-20 w-20 items-center justify-center">
-            <div className="absolute inset-0 animate-spin rounded-full border border-amber-200/15 border-t-amber-300/90" style={{ animationDuration: '1.1s' }} />
-            <div className="absolute inset-2.5 animate-spin rounded-full border border-transparent border-b-amber-400/50" style={{ animationDuration: '1.7s', animationDirection: 'reverse' }} />
-            <div className="absolute inset-0 animate-pulse rounded-full bg-amber-400/10 blur-xl" />
-            <span className="text-2xl">🍳</span>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-black tracking-[0.45em] text-amber-100" style={DISPLAY_FONT}>
-              WHATTOCOOK
-            </div>
-            <div className="mt-2 animate-pulse text-xs font-medium text-stone-400">{t('story.loading')}</div>
+      {/* Loading experience: a small pill, not a full-screen block. The hero
+          copy stays readable while WebGL compiles, so the first visit never
+          feels like a blank loading screen. */}
+      {!veilGone && !ready && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-80 flex justify-center px-4">
+          <div className="flex items-center gap-3 rounded-full border border-amber-200/20 bg-stone-950/80 px-4 py-2 shadow-xl backdrop-blur-md">
+            <span className="relative flex h-4 w-4 items-center justify-center">
+              <span
+                className="absolute inset-0 animate-spin rounded-full border border-amber-200/20 border-t-amber-300"
+                style={{ animationDuration: '0.9s' }}
+              />
+            </span>
+            <span className="text-[11px] font-bold tracking-wider text-amber-100">
+              {t('story.loading')}
+            </span>
           </div>
         </div>
       )}
@@ -519,7 +576,9 @@ export const LandingPage: React.FC = () => {
           >
             {t('story.heroTitle')}
           </h1>
-          <p className="mx-auto mt-6 max-w-xl text-base font-medium text-stone-300/90 sm:text-lg">{t('story.heroSub')}</p>
+          <p className="mx-auto mt-6 max-w-xl text-base font-medium text-stone-300/90 sm:text-lg">
+            {t('story.heroSub')}
+          </p>
           <div className="pointer-events-auto mt-10 flex flex-wrap items-center justify-center gap-4">
             <button
               onClick={handleDemo}
@@ -552,7 +611,11 @@ export const LandingPage: React.FC = () => {
       </Chapter>
 
       {/* Scroll cue */}
-      <div ref={cueRef} className="pointer-events-none fixed inset-x-0 bottom-24 z-10 flex justify-center"data-chapter="cue">
+      <div
+        ref={cueRef}
+        className="pointer-events-none fixed inset-x-0 bottom-24 z-10 flex justify-center"
+        data-chapter="cue"
+      >
         <button
           onClick={scrollDown}
           className="pointer-events-auto flex flex-col items-center gap-1 text-stone-400 transition-colors hover:text-amber-200"
@@ -565,39 +628,69 @@ export const LandingPage: React.FC = () => {
       {/* ---------- Chapter II — The fridge ---------- */}
       <Chapter k="fridge" register={registerChapter} className="items-center justify-start">
         <div className="max-w-md px-8 sm:px-16">
-          <div className="text-[10px] font-black tracking-[0.4em] text-amber-300/90" style={DISPLAY_FONT}>
+          <div
+            className="text-[10px] font-black tracking-[0.4em] text-amber-300/90"
+            style={DISPLAY_FONT}
+          >
             01 — {t('story.heroCta')}
           </div>
-          <h2 className="mt-3 text-2xl font-black leading-tight tracking-tight text-stone-50 sm:text-4xl" style={DISPLAY_FONT}>
+          <h2
+            className="mt-3 text-2xl font-black leading-tight tracking-tight text-stone-50 sm:text-4xl"
+            style={DISPLAY_FONT}
+          >
             {t('story.fridgeTitle')}
           </h2>
-          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-stone-300/90">{t('story.fridgeSub')}</p>
+          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-stone-300/90">
+            {t('story.fridgeSub')}
+          </p>
         </div>
       </Chapter>
 
       {/* ---------- Chapter III — AI vision ---------- */}
-      <Chapter k="ai" register={registerChapter} className="items-center justify-center sm:justify-end">
+      <Chapter
+        k="ai"
+        register={registerChapter}
+        className="items-center justify-center sm:justify-end"
+      >
         <div className="max-w-md px-6 text-center sm:text-right sm:pr-24 lg:pr-32">
-          <div className="text-[10px] font-black tracking-[0.4em] text-amber-300/90" style={DISPLAY_FONT}>
+          <div
+            className="text-[10px] font-black tracking-[0.4em] text-amber-300/90"
+            style={DISPLAY_FONT}
+          >
             02 — AI
           </div>
-          <h2 className="mt-3 text-2xl font-black leading-tight tracking-tight text-stone-50 sm:text-4xl" style={DISPLAY_FONT}>
+          <h2
+            className="mt-3 text-2xl font-black leading-tight tracking-tight text-stone-50 sm:text-4xl"
+            style={DISPLAY_FONT}
+          >
             {t('story.aiTitle')}
           </h2>
-          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-stone-300/90 mx-auto sm:ml-auto sm:mr-0">{t('story.aiSub')}</p>
+          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-stone-300/90 mx-auto sm:ml-auto sm:mr-0">
+            {t('story.aiSub')}
+          </p>
         </div>
       </Chapter>
 
       {/* ---------- Chapter IV — Recipe galaxy ---------- */}
-      <Chapter k="galaxy" register={registerChapter} className="items-start justify-center pt-24 sm:pt-28">
+      <Chapter
+        k="galaxy"
+        register={registerChapter}
+        className="items-start justify-center pt-24 sm:pt-28"
+      >
         {/* Intro Top Header */}
         <div className="max-w-xl px-4 text-center">
           <div className="mx-auto rounded-3xl border border-amber-200/20 bg-stone-950/75 p-4 sm:p-6 backdrop-blur-xl shadow-[0_16px_50px_rgba(0,0,0,0.6)]">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 text-[10px] font-black tracking-widest text-amber-300 uppercase" style={DISPLAY_FONT}>
+            <div
+              className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 text-[10px] font-black tracking-widest text-amber-300 uppercase"
+              style={DISPLAY_FONT}
+            >
               <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
               03 — AI Recipe Galaxy
             </div>
-            <h2 className="mt-2 text-xl sm:text-3xl md:text-4xl font-black leading-tight tracking-tight text-stone-50" style={DISPLAY_FONT}>
+            <h2
+              className="mt-2 text-xl sm:text-3xl md:text-4xl font-black leading-tight tracking-tight text-stone-50"
+              style={DISPLAY_FONT}
+            >
               {t('story.galaxyTitle')}
             </h2>
             <p className="mx-auto mt-2 max-w-md text-xs sm:text-sm font-medium text-stone-300/90 leading-relaxed">
@@ -620,7 +713,8 @@ export const LandingPage: React.FC = () => {
               {t('story.cardName')}
             </div>
             <div className="mt-1 text-[10px] text-stone-400">
-              {t('story.uses', { n: 6 })} · <span className="text-emerald-400 font-bold">{t('story.cardLevel')}</span>
+              {t('story.uses', { n: 6 })} ·{' '}
+              <span className="text-emerald-400 font-bold">{t('story.cardLevel')}</span>
             </div>
             <div className="mt-3 pt-2 border-t border-stone-800/80 flex items-center justify-between text-[10px] text-stone-400">
               <span>🍝 Tomato & Penne</span>
@@ -645,7 +739,8 @@ export const LandingPage: React.FC = () => {
               {t('story.card3Name')}
             </div>
             <div className="mt-1 text-[10px] font-semibold text-stone-400">
-              {t('story.uses', { n: 4 })} · <span className="text-sky-300 font-bold">Fresh bite</span>
+              {t('story.uses', { n: 4 })} ·{' '}
+              <span className="text-sky-300 font-bold">Fresh bite</span>
             </div>
             <div className="mt-2 pt-2 border-t border-stone-800/80 text-[10px] text-stone-400">
               🍅 Mozzarella, Basil, Tomato
@@ -667,7 +762,8 @@ export const LandingPage: React.FC = () => {
               {t('story.card2Name')}
             </div>
             <div className="mt-1 text-[10px] font-semibold text-stone-400">
-              {t('story.uses', { n: 5 })} · <span className="text-amber-300 font-bold">Skillet</span>
+              {t('story.uses', { n: 5 })} ·{' '}
+              <span className="text-amber-300 font-bold">Skillet</span>
             </div>
             <div className="mt-2 pt-2 border-t border-stone-800/80 text-[10px] text-stone-400">
               🍳 Farm Eggs, Bell Pepper, Tomato
@@ -689,7 +785,8 @@ export const LandingPage: React.FC = () => {
               {t('story.cardName')}
             </div>
             <div className="mt-1 text-[10px] font-semibold text-stone-400">
-              {t('story.uses', { n: 6 })} · <span className="text-emerald-300 font-bold">{t('story.cardLevel')}</span>
+              {t('story.uses', { n: 6 })} ·{' '}
+              <span className="text-emerald-300 font-bold">{t('story.cardLevel')}</span>
             </div>
             <div className="mt-2 pt-2 border-t border-stone-800/80 text-[10px] text-stone-400">
               🍝 Penne, Garlic, Vine Tomatoes
@@ -699,13 +796,21 @@ export const LandingPage: React.FC = () => {
       </Chapter>
 
       {/* ---------- Chapter V — Cooking steps ---------- */}
-      {([
-        [0.6, 0.615, 0.65, 0.668, 's1', '01', t('story.prep')],
-        [0.672, 0.687, 0.732, 0.75, 's2', '02', t('story.cook')],
-        [0.76, 0.775, 0.812, 0.83, 's3', '03', t('story.combine')],
-        [0.84, 0.855, 0.885, 0.902, 's4', '04', t('story.serve')],
-      ] as Array<[number, number, number, number, ChapKey, string, string]>).map(([a, b, c, d, key, num, word]) => (
-        <Chapter key={key} k={key} register={registerChapter} range={[a, b, c, d]} className="items-end">
+      {(
+        [
+          [0.6, 0.615, 0.65, 0.668, 's1', '01', t('story.prep')],
+          [0.672, 0.687, 0.732, 0.75, 's2', '02', t('story.cook')],
+          [0.76, 0.775, 0.812, 0.83, 's3', '03', t('story.combine')],
+          [0.84, 0.855, 0.885, 0.902, 's4', '04', t('story.serve')],
+        ] as Array<[number, number, number, number, ChapKey, string, string]>
+      ).map(([a, b, c, d, key, num, word]) => (
+        <Chapter
+          key={key}
+          k={key}
+          register={registerChapter}
+          range={[a, b, c, d]}
+          className="items-end"
+        >
           <div className="flex items-center gap-3 p-10 sm:p-16">
             <span
               className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-300/30 bg-stone-950/55 text-[11px] font-black text-amber-200 backdrop-blur-md sm:h-9 sm:w-9 sm:text-xs"
@@ -713,7 +818,10 @@ export const LandingPage: React.FC = () => {
             >
               {num}
             </span>
-            <span className="text-[10px] font-black tracking-[0.45em] text-stone-100/90 sm:text-[11px]" style={DISPLAY_FONT}>
+            <span
+              className="text-[10px] font-black tracking-[0.45em] text-stone-100/90 sm:text-[11px]"
+              style={DISPLAY_FONT}
+            >
               {word.toUpperCase()}
             </span>
           </div>
@@ -724,10 +832,15 @@ export const LandingPage: React.FC = () => {
       <Chapter k="final" register={registerChapter} className="items-center">
         <div className="mx-auto grid max-w-6xl gap-10 px-8 sm:px-12 lg:grid-cols-2 lg:items-center">
           <div>
-            <h2 className="text-4xl font-black leading-[1.05] tracking-tight text-stone-50 sm:text-5xl" style={DISPLAY_FONT}>
+            <h2
+              className="text-4xl font-black leading-[1.05] tracking-tight text-stone-50 sm:text-5xl"
+              style={DISPLAY_FONT}
+            >
               {t('story.finalTitle')}
             </h2>
-            <p className="mt-4 max-w-md text-sm font-medium text-stone-300/90 sm:text-base">{t('story.finalSub')}</p>
+            <p className="mt-4 max-w-md text-sm font-medium text-stone-300/90 sm:text-base">
+              {t('story.finalSub')}
+            </p>
           </div>
           <div className="pointer-events-auto ml-auto w-full max-w-xs rounded-3xl border border-stone-100/15 bg-stone-950/60 p-6 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-xl">
             <div className="flex items-center justify-between">
@@ -738,12 +851,22 @@ export const LandingPage: React.FC = () => {
                 {t('story.cardTime')} · {t('story.cardLevel')}
               </span>
             </div>
-            <div className="mt-3 text-xl font-black tracking-tight text-stone-50" style={DISPLAY_FONT}>
+            <div
+              className="mt-3 text-xl font-black tracking-tight text-stone-50"
+              style={DISPLAY_FONT}
+            >
               {t('story.cardName')}
             </div>
-            <div className="mt-4 text-[10px] font-black tracking-[0.25em] text-stone-400">{t('story.cardIng')}</div>
+            <div className="mt-4 text-[10px] font-black tracking-[0.25em] text-stone-400">
+              {t('story.cardIng')}
+            </div>
             <ul className="mt-2 space-y-1 text-xs font-medium text-stone-300">
-              {[t('story.ingTomato'), t('story.ingPasta'), t('story.ingGarlic'), t('story.ingBasil')].map((ing) => (
+              {[
+                t('story.ingTomato'),
+                t('story.ingPasta'),
+                t('story.ingGarlic'),
+                t('story.ingBasil'),
+              ].map((ing) => (
                 <li key={ing} className="flex items-center gap-2">
                   <span className="h-1 w-1 rounded-full bg-amber-400" />
                   {ing}
@@ -751,7 +874,9 @@ export const LandingPage: React.FC = () => {
               ))}
             </ul>
             <div className="mt-4 flex items-center gap-2 rounded-2xl border border-amber-200/20 bg-amber-400/5 px-3 py-2">
-              <span className="text-[9px] font-black tracking-[0.25em] text-amber-300/80">{t('story.cardAi')}</span>
+              <span className="text-[9px] font-black tracking-[0.25em] text-amber-300/80">
+                {t('story.cardAi')}
+              </span>
               <span className="text-xs font-medium text-stone-300">{t('story.cardAiText')}</span>
             </div>
             <button
@@ -769,10 +894,15 @@ export const LandingPage: React.FC = () => {
       {/* ---------- Chapter VII — Finale / CTA ---------- */}
       <Chapter k="cta" register={registerChapter} className="items-center justify-center">
         <div className="mx-auto max-w-3xl px-6 text-center">
-          <h2 className="text-5xl font-black tracking-tight text-stone-50 sm:text-7xl" style={DISPLAY_FONT}>
+          <h2
+            className="text-5xl font-black tracking-tight text-stone-50 sm:text-7xl"
+            style={DISPLAY_FONT}
+          >
             {t('story.ctaTitle')}
           </h2>
-          <p className="mx-auto mt-5 max-w-md text-sm font-medium text-stone-300/90 sm:text-base">{t('story.ctaSub')}</p>
+          <p className="mx-auto mt-5 max-w-md text-sm font-medium text-stone-300/90 sm:text-base">
+            {t('story.ctaSub')}
+          </p>
           <div className="pointer-events-auto mt-9 flex flex-wrap items-center justify-center gap-4">
             <button
               onClick={handleDemo}
@@ -809,7 +939,10 @@ export const LandingPage: React.FC = () => {
                 [`${stats.total_recipes}+`, t('landing.statsRecipes')],
                 [`${stats.total_ingredients}+`, t('landing.statsIngredients')],
               ].map(([value, label]) => (
-                <div key={label} className="rounded-2xl border border-stone-100/15 bg-stone-950/50 px-5 py-3 backdrop-blur-md">
+                <div
+                  key={label}
+                  className="rounded-2xl border border-stone-100/15 bg-stone-950/50 px-5 py-3 backdrop-blur-md"
+                >
                   <div className="text-lg font-black text-amber-200" style={DISPLAY_FONT}>
                     {value}
                   </div>
@@ -839,10 +972,10 @@ export const LandingPage: React.FC = () => {
                 >
                   <span
                     className={`block rounded-full transition-all duration-300 ${
- active
- ? 'h-3.5 w-3.5 bg-amber-400 ring-4 ring-amber-400/25 shadow-[0_0_14px_rgba(251,191,36,0.95)]'
- : 'h-2 w-2 bg-stone-500/80 group-hover:scale-125 group-hover:bg-amber-200'
- }`}
+                      active
+                        ? 'h-3.5 w-3.5 bg-amber-400 ring-4 ring-amber-400/25 shadow-[0_0_14px_rgba(251,191,36,0.95)]'
+                        : 'h-2 w-2 bg-stone-500/80 group-hover:scale-125 group-hover:bg-amber-200'
+                    }`}
                   />
                   <span
                     className="pointer-events-none absolute right-11 whitespace-nowrap rounded-full border border-stone-200/20 bg-stone-950/90 px-3.5 py-1.5 text-xs font-black tracking-wide text-amber-100 opacity-0 shadow-2xl backdrop-blur-md transition-all duration-200 group-hover:opacity-100 group-hover:-translate-x-1"

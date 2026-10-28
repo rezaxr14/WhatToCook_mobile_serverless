@@ -1,5 +1,6 @@
 import type { AIProvider, ProviderRequest, ProviderResult, ProviderUsage } from '../types.ts';
 import { providerError } from '../errors.ts';
+import { isFreeOpenRouterModel } from '../../../../packages/shared/src/ai-models.ts';
 
 interface OpenRouterTextPart {
   type: 'text';
@@ -181,7 +182,9 @@ export class OpenRouterProvider implements AIProvider {
         if (!response.ok || !response.body) {
           const body = await response.text().catch(() => '');
           if (isRateLimit(response.status, body)) rateLimited.push(model);
-          lastError = new Error(errorMessage(`${this.label} stream ${model}`, response.status, body));
+          lastError = new Error(
+            errorMessage(`${this.label} stream ${model}`, response.status, body),
+          );
           if (response.status === 401 || response.status === 403) break;
           continue;
         }
@@ -314,7 +317,14 @@ export class OpenRouterProvider implements AIProvider {
       model,
       messages,
       temperature: request.temperature ?? (vision ? 0.4 : 0.7),
-      max_tokens: request.maxOutputTokens,
+      // The free router often picks a reasoning model whose thinking tokens
+      // share this budget. Without headroom a long recipe comes back as an
+      // empty completion, so free structured calls get the same 4k floor as
+      // the cross-provider fallback. Free tokens cost nothing.
+      max_tokens:
+        structured && isFreeOpenRouterModel(model)
+          ? Math.max(request.maxOutputTokens, 4_096)
+          : request.maxOutputTokens,
       ...(this.jsonMode && structured ? { response_format: { type: 'json_object' } } : {}),
       ...(stream ? { stream: true, stream_options: { include_usage: true } } : {}),
     };

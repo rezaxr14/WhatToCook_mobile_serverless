@@ -117,6 +117,7 @@ export interface AIModelOption {
   id: string;
   displayName: string;
   description: string;
+  provider?: string;
 }
 
 export interface AIProviderOption {

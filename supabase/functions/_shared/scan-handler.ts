@@ -74,8 +74,10 @@ export async function handleScanPantry(request: Request, deps: GatewayDeps): Pro
     assertFeature(config, 'scan');
 
     const locale = resolveLocale(auth, input);
-    const provider = providerFor(deps, config);
-    const model = modelFor(config, 'scan', input.model);
+    const resolvedProvider = providerFor(deps, config, { feature: 'scan' });
+    const provider = resolvedProvider.provider;
+    const providerId = resolvedProvider.id;
+    const model = modelFor(config, 'scan', input.model, providerId);
     const bytes = decodeBase64(encoded);
     if (bytes.byteLength > auth.plan.max_image_bytes) {
       throw payloadTooLarge(
@@ -100,7 +102,7 @@ export async function handleScanPantry(request: Request, deps: GatewayDeps): Pro
       await recordCacheHit(deps, auth, {
         requestId: idempotency.requestId,
         feature: 'scan',
-        provider: idempotentHit.provider || provider.id,
+        provider: idempotentHit.provider || providerId,
         model: idempotentHit.model || model,
         latencyMs: Math.round(performance.now() - started),
       });
@@ -125,7 +127,7 @@ export async function handleScanPantry(request: Request, deps: GatewayDeps): Pro
     };
     const key = await cacheKeyFor({
       feature: 'scan',
-      provider: provider.id,
+      provider: providerId,
       model,
       locale,
       payload,
@@ -138,7 +140,7 @@ export async function handleScanPantry(request: Request, deps: GatewayDeps): Pro
       await recordCacheHit(deps, auth, {
         requestId: idempotency.requestId,
         feature: 'scan',
-        provider: hit.provider || provider.id,
+        provider: hit.provider || providerId,
         model: hit.model || model,
         latencyMs: Math.round(performance.now() - started),
       });
@@ -161,7 +163,7 @@ export async function handleScanPantry(request: Request, deps: GatewayDeps): Pro
       nonEnglishDisplayName: locale !== 'en',
     });
     const system = visionSystem(locale);
-    const price = await priceFor(deps, provider.id, model);
+    const price = await priceFor(deps, providerId, model);
     const reserveEstimate = estimateReserveMicroUsd({
       price,
       inputTokens: estimateInputTokens(`${system}\n${prompt}`) + 1_024,
@@ -173,7 +175,7 @@ export async function handleScanPantry(request: Request, deps: GatewayDeps): Pro
       requestId: idempotency.requestId,
       feature: 'scan',
       estimateMicroUsd: reserveEstimate,
-      provider: provider.id,
+      provider: providerId,
       model,
       rateLimits: config.rateLimits,
     });
