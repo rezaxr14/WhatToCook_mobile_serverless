@@ -153,9 +153,11 @@ cd android && ./gradlew :app:assembleDebug
 
 Prefer not to install the Android SDK locally? `.github/workflows/android-device.yml`
 builds a debug-signed release APK on every mobile change to `main` (and on manual
-dispatch). Download the `whattocook-device-<sha>` artifact from the run and install it
-with the same `adb install -r` command below. Production/Play signing stays in
-`android-release.yml` and still needs the release keystore secrets.
+dispatch). Each build refreshes the rolling
+[`android-device-latest` release](https://github.com/rezaxr14/WhatToCook_mobile_serverless/releases/tag/android-device-latest),
+so you can download `WhatToCook-android-device.apk` directly on a phone. The same APK is
+kept as the `whattocook-device-<sha>` Actions artifact for 14 days. Production/Play
+signing stays in `android-release.yml` and still needs the release keystore secrets.
 
 Install on a device that is visible to the Windows adb server (WSL2 NAT mode):
 

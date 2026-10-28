@@ -638,3 +638,6 @@ Expo SDK 58 supplies these defaults in `ExpoRootProjectPlugin`.
 - Refreshed the Android gallery from the CI-built release APK on a Xiaomi 22101320G
   (Android 14): pantry, cook matches, catalog, AI Chef creations, a generated recipe with
   a Storage dish photo, and the Persian RTL pantry.
+- `android-device.yml` now refreshes a rolling `android-device-latest` prerelease with
+  `WhatToCook-android-device.apk`, so the device build can be downloaded on a phone without
+  signing in to Actions. The 14-day SHA artifact is still uploaded alongside it.

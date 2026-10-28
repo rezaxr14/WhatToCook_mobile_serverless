@@ -2,7 +2,8 @@ name: Android device build
 
 # Builds an installable, debug-signed release APK on every mobile change to main
 # so device smoke tests no longer need a local Android SDK/Gradle toolchain.
-# Download the artifact and install it with `adb install -r <apk>`.
+# Every build refreshes a rolling `android-device-latest` GitHub Release, so the
+# APK can be downloaded from a phone without signing in to Actions.
 #
 # Production/Play builds stay in `android-release.yml` and still require the
 # release keystore secrets.
@@ -18,7 +19,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-device-${{ github.ref }}
@@ -70,3 +71,38 @@ jobs:
           path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish rolling device release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="android-device-latest"
+          asset="$RUNNER_TEMP/WhatToCook-android-device.apk"
+          notes="$RUNNER_TEMP/device-release-notes.md"
+
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "$asset"
+
+          cat > "$notes" <<EOF
+          Debug-signed APK built from [\`${GITHUB_SHA:0:7}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}) by the [Android device build](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}).
+
+          - Package: \`com.whattocook.app\`
+          - Version code: \`${APP_VERSION_CODE}\`
+          - Signed with the standard Android debug keystore. This is a device-testing build, not a Play Store build.
+          - Install with \`adb install -r WhatToCook-android-device.apk\`, or open the downloaded file on the phone.
+          EOF
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" \
+              --title "WhatToCook Android device build (latest)" \
+              --notes-file "$notes" \
+              --prerelease
+          else
+            gh release create "$tag" \
+              --target "$GITHUB_SHA" \
+              --title "WhatToCook Android device build (latest)" \
+              --notes-file "$notes" \
+              --prerelease
+          fi
+
+          gh release upload "$tag" "$asset" --clobber
