@@ -19,12 +19,17 @@ export interface ScannedIngredient {
   category: string;
   confidence: number;
   estimated_quantity?: string | null;
+  ingredient_id?: number | null;
+  slug?: string | null;
+  matched?: boolean;
 }
 
 export interface ScanFridgeResponse {
   status: string;
   detected_count: number;
+  matched_count?: number;
   detected_ingredients: ScannedIngredient[];
+  items?: ScannedIngredient[];
   auto_added: boolean;
   added_ingredients: string[];
   pantry?: any;

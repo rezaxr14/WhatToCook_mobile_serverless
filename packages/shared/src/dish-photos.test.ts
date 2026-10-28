@@ -12,7 +12,7 @@ describe('matchDishPhoto', () => {
   it('prefers a specific dish over a generic word', () => {
     expect(matchDishPhoto({ name: 'Spaghetti Carbonara' })).toBe('recipes/carbonara.jpg');
     expect(matchDishPhoto({ name: 'Creamy Shrimp Alfredo' })).toBe('dishes/shrimp_alfredo.webp');
-    expect(matchDishPhoto({ name: 'Lemon Garlic Pasta' })).toBe('recipes/spaghetti.jpg');
+    expect(matchDishPhoto({ name: 'Lemon Garlic Pasta' })).toBe('dishes/spaghetti.webp');
   });
 
   it('uses the provider hint before a playful dish name', () => {
@@ -71,19 +71,21 @@ describe('assignDishPhotoFiles', () => {
       { name: 'Tomato Basil Pasta' },
       { name: 'Creamy Mushroom Pasta' },
     ]);
-    expect(files[0]).toBe('recipes/spaghetti.jpg');
+    expect(files[0]).toBe('dishes/spaghetti.webp');
     for (const file of files) {
       expect(DISH_PHOTOS.find((entry) => entry.file === file)?.group).toBe('pasta');
     }
     expect(new Set(files).size).toBe(3);
   });
 
-  it('still rotates the pool when the food group is exhausted', () => {
+  it('reuses a same-group photo instead of rotating into another food group', () => {
     const files = assignDishPhotoFiles(
       Array.from({ length: 8 }, (_, index) => ({
         name: `Pasta ${index}`,
       })),
     );
-    expect(new Set(files).size).toBe(files.length);
+    for (const file of files) {
+      expect(DISH_PHOTOS.find((entry) => entry.file === file)?.group).toBe('pasta');
+    }
   });
 });

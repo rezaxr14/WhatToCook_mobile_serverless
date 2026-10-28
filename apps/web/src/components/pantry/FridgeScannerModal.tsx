@@ -96,7 +96,7 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
         setSelectedNames(res.detected_ingredients.map((i) => i.name));
         aiToast(
           `AI Vision identified ${res.detected_ingredients.length} edible ingredients!`,
-          'Visual AI Scan Complete 🔍'
+          'Visual AI Scan Complete 🔍',
         );
       } else {
         error('No ingredients could be detected in this photo. Try another angle or sample image.');
@@ -132,9 +132,20 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
 
     setIsAdding(true);
     try {
-      // Add items
-      for (const name of selectedNames) {
-        await pantryApi.addIngredient({ name });
+      const selectedItems = detectedItems.filter((item) => selectedNames.includes(item.name));
+      const ids = selectedItems
+        .map((item) => item.ingredient_id)
+        .filter((id): id is number => typeof id === 'number' && id > 0);
+      if (ids.length > 0) {
+        await pantryApi.addIngredient({ ingredient_ids: ids });
+      }
+      // The catalog could not map a few detections; add those by name so a
+      // close match still lands in the pantry instead of being dropped.
+      const unmatched = selectedItems.filter(
+        (item) => !item.ingredient_id || item.ingredient_id <= 0,
+      );
+      for (const item of unmatched) {
+        await pantryApi.addIngredient({ name: item.name });
       }
       await refreshPantry();
 
@@ -146,7 +157,7 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
 
       success(
         `Added ${selectedNames.length} scanned ingredients into your kitchen pantry!`,
-        'Pantry Updated 🛒'
+        'Pantry Updated 🛒',
       );
       handleReset();
       onClose();
@@ -315,8 +326,8 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
                   src={previewUrl}
                   alt="Scanned item"
                   className={`w-full h-full object-cover transition-opacity duration-300 ${
- isScanning ? 'opacity-80' : 'opacity-100'
- }`}
+                    isScanning ? 'opacity-80' : 'opacity-100'
+                  }`}
                 />
 
                 {/* Animated Scanning Laser Line */}
@@ -409,18 +420,18 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
                           key={idx}
                           onClick={() => toggleSelect(item.name)}
                           className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
- isChecked
- ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 shadow-xs'
- : 'bg-stone-50 border-stone-200 text-stone-500 opacity-60'
- }`}
+                            isChecked
+                              ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 shadow-xs'
+                              : 'bg-stone-50 border-stone-200 text-stone-500 opacity-60'
+                          }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div
                               className={`w-5 h-5 rounded-lg flex items-center justify-center border ${
- isChecked
- ? 'bg-emerald-600 border-emerald-600 text-white'
- : 'bg-white border-stone-300'
- }`}
+                                isChecked
+                                  ? 'bg-emerald-600 border-emerald-600 text-white'
+                                  : 'bg-white border-stone-300'
+                              }`}
                             >
                               {isChecked && <Check className="w-3.5 h-3.5" />}
                             </div>
@@ -429,7 +440,8 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
                                 {item.display_name || item.name}
                               </div>
                               <div className="text-[10px] text-stone-400">
-                                {t(ingredientCategoryKey(item.category))} {item.estimated_quantity && `• ${item.estimated_quantity}`}
+                                {t(ingredientCategoryKey(item.category))}{' '}
+                                {item.estimated_quantity && `• ${item.estimated_quantity}`}
                               </div>
                             </div>
                           </div>

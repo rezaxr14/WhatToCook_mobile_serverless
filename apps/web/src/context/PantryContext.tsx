@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  ReactNode,
+} from 'react';
 import { Ingredient } from '../types/ingredient';
 import { AIProvider, AIProvidersResponse } from '../types/ai';
 import { pantryApi } from '../api/pantryApi';
@@ -14,7 +22,13 @@ interface PantryContextValue {
   isLoading: boolean;
   activeAIProvider: AIProvider;
   activeModel: string;
-  availableModels: Array<{ id: string; displayName?: string; name?: string; description?: string }>;
+  availableModels: Array<{
+    id: string;
+    displayName?: string;
+    name?: string;
+    description?: string;
+    provider?: AIProvider;
+  }>;
   rateLimitedModels: string[];
   aiProvidersInfo: AIProvidersResponse | null;
   setActiveAIProvider: (provider: AIProvider) => void;
@@ -42,7 +56,15 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeAIProvider, setActiveAIProvider] = useState<AIProvider>('openrouter');
   const [activeModel, setActiveModel] = useState<string>('openrouter/free');
-  const [availableModels, setAvailableModels] = useState<Array<{ id: string; displayName?: string; name?: string; description?: string }>>([]);
+  const [availableModels, setAvailableModels] = useState<
+    Array<{
+      id: string;
+      displayName?: string;
+      name?: string;
+      description?: string;
+      provider?: AIProvider;
+    }>
+  >([]);
   const [rateLimitedModels, setRateLimitedModels] = useState<string[]>(() => {
     try {
       const stored = sessionStorage.getItem(RATE_LIMIT_STORAGE_KEY);
@@ -77,7 +99,15 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           }
         }
         if (modelsData) {
-          const rawModels = (modelsData.models || (modelsData as any).available_models || []) as Array<{ id: string; displayName?: string; name?: string; description?: string }>;
+          const rawModels = (modelsData.models ||
+            (modelsData as any).available_models ||
+            []) as Array<{
+            id: string;
+            displayName?: string;
+            name?: string;
+            description?: string;
+            provider?: AIProvider;
+          }>;
           if (rawModels.length > 0) {
             setAvailableModels(rawModels);
           }
@@ -90,11 +120,14 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const blocked: string[] = stored ? JSON.parse(stored) : [];
             if (!blocked.includes(modelsData.current_model)) {
               setActiveModel(modelsData.current_model);
+              const current = rawModels.find((m) => m.id === modelsData.current_model);
+              if (current?.provider) setActiveAIProvider(current.provider);
             } else {
               // Find first non-blocked model
               const nextModel = rawModels.find((m) => !blocked.includes(m.id));
               if (nextModel) {
                 setActiveModel(nextModel.id);
+                if (nextModel.provider) setActiveAIProvider(nextModel.provider);
               }
             }
           }
@@ -126,7 +159,7 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             if (fallbackCandidate) {
               info(
                 `Model '${modelId}' reached usage quota. Automatically switched to '${fallbackCandidate.displayName || fallbackCandidate.id}' ⚡`,
-                'AI Quota Limit Handled'
+                'AI Quota Limit Handled',
               );
               return fallbackCandidate.id;
             }
@@ -137,7 +170,7 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         return updated;
       });
     },
-    [availableModels, info]
+    [availableModels, info],
   );
 
   const handleRateLimitedModels = useCallback(
@@ -146,7 +179,7 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         models.forEach((m) => markModelRateLimited(m));
       }
     },
-    [markModelRateLimited]
+    [markModelRateLimited],
   );
 
   // Refresh user pantry
@@ -168,13 +201,14 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Derived available ingredients (system ingredients not in user pantry)
   const availableIngredients = useMemo(
-    () => allIngredients.filter((allIng) => !pantryIngredients.some((pIng) => pIng.id === allIng.id)),
-    [allIngredients, pantryIngredients]
+    () =>
+      allIngredients.filter((allIng) => !pantryIngredients.some((pIng) => pIng.id === allIng.id)),
+    [allIngredients, pantryIngredients],
   );
 
   const isInPantry = useCallback(
     (ingredientId: number) => pantryIngredients.some((i) => i.id === ingredientId),
-    [pantryIngredients]
+    [pantryIngredients],
   );
 
   const addIngredient = useCallback(
@@ -202,7 +236,7 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         error(err.message || 'Failed to add ingredient.', 'Error');
       }
     },
-    [allIngredients, success, error]
+    [allIngredients, success, error],
   );
 
   const addMultipleIngredients = useCallback(
@@ -215,7 +249,7 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         error(err.message || 'Failed to add ingredients.', 'Error');
       }
     },
-    [success, error]
+    [success, error],
   );
 
   const removeIngredient = useCallback(
@@ -229,7 +263,7 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         error(err.message || 'Failed to remove ingredient.', 'Error');
       }
     },
-    [pantryIngredients, info, error]
+    [pantryIngredients, info, error],
   );
 
   const clearPantry = useCallback(async () => {
@@ -241,6 +275,18 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       error(err.message || 'Failed to clear pantry.', 'Error');
     }
   }, [info, error]);
+
+  // Selecting a model also selects its provider. The AI Chef picker lists
+  // Gemini and the one configured OpenRouter model in the same menu, so the
+  // provider must follow the model instead of staying on the old vendor.
+  const selectModel = useCallback(
+    (modelId: string) => {
+      setActiveModel(modelId);
+      const match = availableModels.find((model) => model.id === modelId);
+      if (match?.provider) setActiveAIProvider(match.provider);
+    },
+    [availableModels],
+  );
 
   // Stable context identity — pantry consumers only re-render on real changes.
   const value = useMemo<PantryContextValue>(
@@ -255,7 +301,7 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       rateLimitedModels,
       aiProvidersInfo,
       setActiveAIProvider,
-      setActiveModel,
+      setActiveModel: selectModel,
       markModelRateLimited,
       handleRateLimitedModels,
       addIngredient,
@@ -280,6 +326,7 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       aiProvidersInfo,
       markModelRateLimited,
       handleRateLimitedModels,
+      selectModel,
       addIngredient,
       addMultipleIngredients,
       removeIngredient,
@@ -289,7 +336,7 @@ export const PantryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       isScannerOpen,
       openScanner,
       closeScanner,
-    ]
+    ],
   );
 
   return <PantryContext.Provider value={value}>{children}</PantryContext.Provider>;

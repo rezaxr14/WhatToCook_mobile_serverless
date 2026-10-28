@@ -78,6 +78,42 @@ Deno.test('ai-catalog: Gemini exposes the routed model plus its Lite fallback', 
   );
   assertEquals(catalog.models[0]?.description, 'Default Gemini model for every feature');
   assertEquals(catalog.models[1]?.description, 'Gemini fallback model');
+  assertEquals(
+    catalog.models.map((model) => model.provider),
+    ['gemini', 'gemini'],
+  );
+});
+
+Deno.test('ai-catalog: Gemini lists exactly one configured OpenRouter model beside Gemini', () => {
+  const config = parseRuntimeConfig(
+    {
+      ...baseRow,
+      model_routing: {
+        provider: 'gemini',
+        models: { suggestions: 'gemini-3.5-flash-lite' },
+        fallbacks: { text: ['gemini-3.1-flash-lite'] },
+      },
+    },
+    {
+      AI_FALLBACK_PROVIDER: 'openrouter',
+      OPENROUTER_MODEL: 'openrouter/free',
+      OPENROUTER_API_KEY: 'test-key',
+    },
+  );
+
+  const catalog = buildAICatalog(config, { online: false, models: [] });
+
+  assertEquals(catalog.default_provider, 'gemini');
+  assertEquals(catalog.has_openrouter, true);
+  assertEquals(catalog.openrouter_model, 'openrouter/free');
+  assertEquals(
+    catalog.models.map((model) => `${model.provider}:${model.id}`),
+    ['gemini:gemini-3.5-flash-lite', 'gemini:gemini-3.1-flash-lite', 'openrouter:openrouter/free'],
+  );
+  assertEquals(
+    catalog.providers.map((provider) => provider.id),
+    ['gemini', 'openrouter'],
+  );
 });
 
 Deno.test('ai-catalog: readLMStudioStatus reads the OpenAI-compatible model list', async () => {

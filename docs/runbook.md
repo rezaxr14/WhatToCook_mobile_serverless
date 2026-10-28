@@ -198,6 +198,34 @@ select count(*) as total,
 from public.ingredients;
 ```
 
+### Dish photos
+
+AI suggestions and recipe details get their `image` from the curated pool in
+`packages/shared/src/dish-photos.ts`, resolved to the public `recipe-images`
+Storage bucket by `supabase/functions/_shared/dish-images.ts`. The gateway
+attaches the URL server-side after schema validation, before the response is
+cached, so both clients just render `dish.image`. No external image host is
+called at request time.
+
+- Keep the object paths referenced by `dish-photos.ts` present in the bucket;
+  `npm run test` fails the shared test if a name match points at a missing file.
+- The matcher prefers the dish name, then the provider's `image_hint`, then the
+  cuisine. If two dishes on one screen match the same photo, the second gets
+  another photo from the same food group rather than an unrelated dish.
+- To replace a photo, upload the new object under the same path (or add a new
+  entry and path together). Cached AI responses keep the old URL for their
+  7-day TTL; use `force_refresh: true` or wait for expiry to see the change.
+- `recipes/spaghetti.jpg` does not exist; the pasta entry uses
+  `dishes/spaghetti.webp`.
+
+### Landing hero poster
+
+The web landing page captures its first rendered WebGL frame to
+`localStorage` under `wtc_hero_poster_v1` and shows that image on later visits
+while the live scene compiles. To force a new capture, clear that key (or the
+site data) and reload. Bump the key name when the opening shot changes so old
+posters are ignored.
+
 ### Applying the M4 migration
 
 `20261022100000_ai_gateway.sql` is additive and does the following:
@@ -247,12 +275,23 @@ request any of them. The server accepts a client-chosen model only when it is in
 selecting `gemini-3.1-flash-lite` changes the model for the next request instead of silently
 using the default. Every selectable model needs an active price row.
 
+When an OpenRouter key is available, the same catalog adds exactly one OpenRouter entry: the
+deploy-selected `OPENROUTER_MODEL` (staging uses `openrouter/free`). The AI Chef picker shows it
+next to Gemini and switching to it sends `provider: "openrouter"`, so the request really changes
+vendor. The catalog never lists the whole free router catalog; change the exposed model with the
+secret instead. Photo scans always use the primary provider (Gemini in staging).
+
 When `AI_FALLBACK_PROVIDER=openrouter` and `OPENROUTER_API_KEY` is set, a Gemini failure before
-any output is retried on `OPENROUTER_MODEL` (staging uses the free `openrouter/free` router). The
-fallback request raises the output budget to 4,096 tokens because the free router may spend part
-of it on reasoning. Free models are billed at $0, so `ai_usage_events` records a zero cost for
-those calls. Pantry photos stay on Gemini unless `AI_FALLBACK_VISION=true`; the free router
-returned invalid output for the pantry-scan schema in testing.
+any output is retried on `OPENROUTER_MODEL`. OpenRouter text calls allow 60 seconds (120 for
+streams) and structured free requests get at least 4,096 output tokens, because the free router
+may spend part of the budget on reasoning and can take 11–40 seconds for a full recipe. Free
+models are billed at $0, so `ai_usage_events` records a zero cost for those calls. Pantry photos
+stay on Gemini unless `AI_FALLBACK_VISION=true`; the free router returned invalid output for the
+pantry-scan schema in testing.
+
+Every suggestion and recipe detail response is decorated with an `image` URL from the public
+`recipe-images` bucket after validation and before caching. If a dish photo is wrong or missing,
+replace the object in Storage (see “Dish photos” below); no function redeploy is needed.
 
 Before enabling on a new project:
 
@@ -288,6 +327,25 @@ Gemini routing to an unavailable model produced `provider: "openrouter"`,
 network from `generativelanguage.googleapis.com`, so direct key checks run in the `Provider
 smoke` GitHub workflow; the Edge Function itself reaches Google from Supabase's network.
 
+Staging smoke on 2026-10-28 (multi-provider picker, dish images, scanner, hero):
+
+- `ai-models` returned `providers: ["gemini", "openrouter"]` and exactly three models:
+  `gemini:gemini-3.5-flash-lite`, `gemini:gemini-3.1-flash-lite`, and
+  `openrouter:openrouter/free`. No other OpenRouter model is listed.
+- Default Gemini suggestions (5 ingredients) settled in 6.2 s on `gemini-3.5-flash-lite`; an
+  explicit `gemini-3.1-flash-lite` request settled in 15.1 s with that exact `model_used`.
+- An explicit `openrouter/free` request settled in 14.3 s with `provider: "openrouter"`, five
+  valid recipes, and five unique Storage images. OpenRouter detail for a short recipe (Tomato
+  Soup) returned a valid 14-ingredient recipe in 33.2 s. A long recipe on the free router can
+  still fail schema validation after the repair attempt; the response is refunded and the user
+  can retry or switch back to Gemini.
+- Every returned image URL answered `200` from the public `recipe-images` bucket.
+- The web scanner payload (`{ image, mime_type }` JSON, no multipart) returned three items in
+  5.1 s, two with catalog `ingredient_id`s (`Bell Pepper` 9, `Broccoli` 7) and one unmatched.
+- The landing hero capture is browser-local; verify it by loading the page once, confirming the
+  `wtc_hero_poster_v1` key appears in localStorage, then reloading and checking the poster paints
+  before the live canvas.
+
 If the provider returns `429`, the client sees `429 rate_limited`; do not retry more than once
 without checking the provider quota. If the provider returns `502 provider_error`, check the
 function logs for `gemini_http_<status>` and the model/pricing configuration.
@@ -308,6 +366,13 @@ AI_FALLBACK_PROVIDER=openrouter
 OPENROUTER_API_KEY=...
 OPENROUTER_MODEL=openrouter/free
 ```
+
+In this setup `ai-models` exposes Gemini Flash-Lite plus exactly one OpenRouter
+model (`OPENROUTER_MODEL`); the picker does not enumerate the rest of the free
+router catalog. Selecting it sends `provider: "openrouter"` for text, chat and
+stream. Optional timing overrides (milliseconds) are
+`OPENROUTER_TIMEOUT_MS` (default 60,000) and `OPENROUTER_STREAM_TIMEOUT_MS`
+(default 120,000).
 
 1. To use OpenRouter as the primary provider instead, put the key and model id in the root
    `.env.local` and in `supabase/functions/.env`:

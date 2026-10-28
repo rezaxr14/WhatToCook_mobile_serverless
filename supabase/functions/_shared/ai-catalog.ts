@@ -9,10 +9,12 @@ export interface AICatalogModel {
   id: string;
   displayName: string;
   description: string;
+  /** Provider that serves this model. The picker switches on this field. */
+  provider: AIProviderId;
 }
 
 export interface AIProviderInfo {
-  id: AIProviderId | 'gemini';
+  id: AIProviderId;
   name: string;
   active: boolean;
   online?: boolean;
@@ -20,7 +22,7 @@ export interface AIProviderInfo {
 }
 
 export interface AICatalogResponse {
-  default_provider: AIProviderId | 'gemini';
+  default_provider: AIProviderId;
   has_gemini: boolean;
   gemini_model: string;
   has_openrouter: boolean;
@@ -44,6 +46,7 @@ export function buildAICatalog(config: RuntimeConfig, lmStudio: LMStudioStatus):
   const currentModel =
     config.models.suggestions ?? config.models.scan ?? (provider === 'fake' ? 'fake-1' : '');
   const models = catalogModels(config, lmStudio, currentModel);
+  const allowOpenRouter = config.allowedProviders.includes('openrouter');
 
   if (provider === 'openrouter') {
     return {
@@ -51,7 +54,7 @@ export function buildAICatalog(config: RuntimeConfig, lmStudio: LMStudioStatus):
       has_gemini: false,
       gemini_model: '',
       has_openrouter: true,
-      openrouter_model: currentModel || DEFAULT_OPENROUTER_MODEL,
+      openrouter_model: currentModel || config.openRouterModel || DEFAULT_OPENROUTER_MODEL,
       has_lmstudio: false,
       lmstudio_online: false,
       lmstudio_model: '',
@@ -65,7 +68,7 @@ export function buildAICatalog(config: RuntimeConfig, lmStudio: LMStudioStatus):
         },
       ],
       models,
-      current_model: currentModel || DEFAULT_OPENROUTER_MODEL,
+      current_model: currentModel || config.openRouterModel || DEFAULT_OPENROUTER_MODEL,
       is_live: true,
     };
   }
@@ -96,24 +99,37 @@ export function buildAICatalog(config: RuntimeConfig, lmStudio: LMStudioStatus):
   }
 
   const isFake = provider === 'fake';
+  const providers: AIProviderInfo[] = [
+    {
+      // Fake is a demo engine, not a vendor. Keep reporting it through the
+      // existing Gemini slot so the web client's provider union stays stable.
+      id: 'gemini',
+      name: isFake ? 'Demo AI' : 'Google Gemini',
+      active: true,
+      online: true,
+      badge: isFake ? 'Demo' : 'Cloud AI',
+    },
+  ];
+  if (allowOpenRouter) {
+    providers.push({
+      id: 'openrouter',
+      name: 'OpenRouter',
+      active: true,
+      online: true,
+      badge: 'Free AI',
+    });
+  }
+
   return {
     default_provider: 'gemini',
     has_gemini: true,
     gemini_model: currentModel,
-    has_openrouter: false,
-    openrouter_model: '',
+    has_openrouter: allowOpenRouter,
+    openrouter_model: allowOpenRouter ? config.openRouterModel : '',
     has_lmstudio: false,
     lmstudio_online: false,
     lmstudio_model: '',
-    providers: [
-      {
-        id: 'gemini',
-        name: isFake ? 'Demo AI' : 'Google Gemini',
-        active: true,
-        online: true,
-        badge: isFake ? 'Demo' : 'Cloud AI',
-      },
-    ],
+    providers,
     models,
     current_model: currentModel,
     is_live: !isFake,
@@ -150,43 +166,58 @@ function catalogModels(
   lmStudio: LMStudioStatus,
   currentModel: string,
 ): AICatalogModel[] {
-  const ids =
-    config.providerId === 'openrouter'
-      ? config.allowedModels
-      : config.providerId === 'lmstudio'
-        ? [...lmStudio.models, ...config.allowedModels, currentModel]
-        : config.providerId === 'fake'
-          ? [currentModel || 'fake-1']
-          : [
-              ...Object.values(config.models),
-              ...config.fallbacks.text,
-              ...config.fallbacks.vision,
-              currentModel,
-            ];
+  const provider = config.providerId;
 
-  return unique(ids).map((id) => {
-    if (config.providerId === 'openrouter') return openRouterModelInfo(id);
-    if (config.providerId === 'lmstudio') {
-      return {
-        id,
-        displayName: id,
-        description: 'Local model served by LM Studio',
-      };
-    }
-    if (config.providerId === 'fake') {
-      return {
-        id,
-        displayName: id,
-        description: 'Deterministic demo provider',
-      };
-    }
-    return {
+  if (provider === 'openrouter') {
+    return unique([...config.allowedModels, currentModel || config.openRouterModel]).map((id) => ({
+      ...openRouterModelInfo(id),
+      provider: 'openrouter',
+    }));
+  }
+
+  if (provider === 'lmstudio') {
+    return unique([...lmStudio.models, ...config.allowedModels, currentModel]).map((id) => ({
       id,
       displayName: id,
-      description:
-        id === currentModel ? 'Default Gemini model for every feature' : 'Gemini fallback model',
-    };
-  });
+      description: 'Local model served by LM Studio',
+      provider: 'lmstudio',
+    }));
+  }
+
+  if (provider === 'fake') {
+    return [
+      {
+        id: currentModel || 'fake-1',
+        displayName: currentModel || 'fake-1',
+        description: 'Deterministic demo provider',
+        provider: 'gemini',
+      },
+    ];
+  }
+
+  const models: AICatalogModel[] = unique([
+    ...Object.values(config.models),
+    ...config.fallbacks.text,
+    ...config.fallbacks.vision,
+    currentModel,
+  ]).map((id) => ({
+    id,
+    displayName: id,
+    description:
+      id === currentModel ? 'Default Gemini model for every feature' : 'Gemini fallback model',
+    provider: 'gemini',
+  }));
+
+  // Exactly one OpenRouter entry: the free model configured through
+  // OPENROUTER_MODEL. The picker never lists the whole free router catalog.
+  if (config.allowedProviders.includes('openrouter')) {
+    const openRouterId = config.openRouterModel || DEFAULT_OPENROUTER_MODEL;
+    if (!models.some((model) => model.id === openRouterId)) {
+      models.push({ ...openRouterModelInfo(openRouterId), provider: 'openrouter' });
+    }
+  }
+
+  return models;
 }
 
 function unique(values: Array<string | undefined>): string[] {

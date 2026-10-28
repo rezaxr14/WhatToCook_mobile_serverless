@@ -207,24 +207,29 @@ Provider selection and model IDs come from `app_config.model_routing` and deploy
 ids. Gemini uses `GEMINI_MODEL`/`GEMINI_VISION_MODEL`; OpenRouter and LM Studio share the
 OpenAI-compatible chat-completions adapter but keep their own `OPENROUTER_*` / `LMSTUDIO_*`
 model and fallback settings, because their model ids are namespaced and cannot reuse the Gemini
-routing. A client-supplied `provider` is accepted for compatibility but ignored; a client
-`model` is honored only when it is server-allowlisted (OpenRouter additionally accepts free
-`*:free` ids). `fake` is a deterministic, zero-cost adapter used in Deno tests and staging; LM
-Studio is a local-only, zero-cost provider for development.
+routing. A client-supplied `provider` is honored when it is in the deployment's
+`allowedProviders`, and a namespaced free model id without a provider implies OpenRouter; a
+client `model` is honored only when it is server-allowlisted (OpenRouter additionally accepts
+free `*:free` ids). Photo scans always use the deployment's primary provider. `fake` is a
+deterministic, zero-cost adapter used in Deno tests and staging; LM Studio is a local-only,
+zero-cost provider for development.
 
 Gemini routes every feature to `gemini-3.5-flash-lite`, with `gemini-3.1-flash-lite` as the
 single fallback. Only Flash-Lite models are used: Lite is cheaper and far faster than the
 thinking models, 3.8 was dropped after repeated `503 UNAVAILABLE` responses, and 3.6 is disabled
 so the fallback stays in the same family. `ai-models` exposes the routed model plus its
 fallbacks, and a client `model` from that catalog is honored, so the AI Chef dropdown changes the
-model rather than only the label. When `AI_FALLBACK_PROVIDER=openrouter` is set and an
-OpenRouter key exists, a Gemini failure before any output is retried on `OPENROUTER_MODEL`
-(staging uses the free `openrouter/free`). The fallback request raises the output budget to 4,096
-because the free router may spend part of it on reasoning, free ids settle at $0, and pantry
-photos stay on Gemini unless `AI_FALLBACK_VISION=true` because the free router did not satisfy
-the scan schema in testing. All user text and image-derived
-labels are untrusted data, never instructions; structured output is schema-validated with at
-most one repair attempt.
+model rather than only the label. When an OpenRouter key is present, the catalog also exposes
+exactly one OpenRouter entry: the deploy-selected `OPENROUTER_MODEL` (staging uses
+`openrouter/free`), never the whole free catalog. Selecting it switches the request provider to
+OpenRouter even under a Gemini-primary deployment. When `AI_FALLBACK_PROVIDER=openrouter` is set
+and an OpenRouter key exists, a Gemini failure before any output is retried on
+`OPENROUTER_MODEL`. Free calls allow 60 seconds (120 for streams) and structured free requests get
+at least 4,096 output tokens because the router may spend part of the budget on reasoning; free
+ids settle at $0. Pantry photos stay on Gemini unless `AI_FALLBACK_VISION=true` because the free
+router did not satisfy the scan schema in testing. All user text and image-derived labels are
+untrusted data, never instructions; structured output is schema-validated with at most one repair
+attempt.
 
 `verify_jwt = false` is set on all four functions so browser CORS preflight reaches the shared
 layer. Every non-`OPTIONS` request to an AI function is still rejected by `_shared/auth.ts`
@@ -305,3 +310,28 @@ The web app is still React 18 while mobile is React 19. pnpm's hidden hoist reso
 **Consequences:** no NativeWind dependency; screens are plain React Native styles that can be
 migrated later. New mobile copy must be added to every locale; the shared locale test enforces
 mobile key parity. The first Android dev-client build still needs the Android SDK or EAS login.
+
+## ADR-015 - Client AI polish: mixed picker, server dish photos, resilient scanner, hero poster
+
+**Context:** the AI Chef picker listed only one vendor at a time, AI recipes could arrive without
+a usable photo, the web fridge scanner posted multipart data the JSON-only function rejected, and
+the landing page's WebGL hero made every visit feel slow before the first frame appeared.
+
+**Decision:** the model picker renders both Gemini models and the single deploy-selected
+OpenRouter model in one menu; `provider` follows the selected model, and the mobile client infers
+OpenRouter from a namespaced free model id. The gateway assigns a curated `recipe-images` Storage
+photo to every suggestion and detail response before caching, so clients never render a
+model-supplied image or an external hotlink. The web scanner sends `{ image, mime_type }` JSON,
+normalizes the server's `items` array, and adds catalog `ingredient_id`s (falling back to a name
+for unmatched detections). A photo scan always runs on the primary provider. On the landing page,
+the first visit captures the rendered WebGL frame to `localStorage` (`wtc_hero_poster_v1`); later
+visits paint that poster immediately and fade it out when the live scene is ready. The
+full-screen loading veil was replaced by a small pill so hero copy is readable during shader
+compilation, and the drawing buffer is only preserved on the visit that captures the poster.
+
+**Consequences:** the picker has one OpenRouter entry instead of a catalog, so operators change
+the exposed free model with `OPENROUTER_MODEL` rather than a code change. Dish photos are
+revalidated manually by replacing objects in `recipe-images`; there is no per-request external
+image fetch. The hero poster is a per-browser cache: clearing site data or changing the scene
+without bumping `HERO_POSTER_KEY` shows the previous frame until the next capture. Free-router
+latency remains variable, so OpenRouter calls use longer timeouts than Gemini.

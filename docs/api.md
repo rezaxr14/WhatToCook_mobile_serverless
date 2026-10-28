@@ -20,26 +20,32 @@ selected server-side from `app_config.model_routing`, with `AI_PROVIDER`,
 `OPENROUTER_VISION_MODEL`, and `LMSTUDIO_MODEL` / `LMSTUDIO_VISION_MODEL` as
 deploy-time overrides. Gemini routes every feature to `gemini-3.5-flash-lite`
 with `gemini-3.1-flash-lite` as the only fallback; non-Lite Flash models are
-disabled. `ai-models` lists the routed model and its fallbacks, and a request
-may select one of those ids with `model`. When `AI_PROVIDER=openrouter`,
-`OPENROUTER_MODEL` selects the model for every feature and replaces the Gemini
-routing from `app_config.model_routing`; optional OpenRouter fallback model ids
-are read from `OPENROUTER_FALLBACK_MODELS` /
-`OPENROUTER_VISION_FALLBACK_MODELS`. `AI_FALLBACK_PROVIDER=openrouter` keeps
-Gemini primary and retries a failed text/stream/chat call on `OPENROUTER_MODEL`
-(staging uses the free `openrouter/free`, billed at $0); pantry photos only
-follow the fallback when `AI_FALLBACK_VISION=true`. When
-`AI_PROVIDER=lmstudio`, LM Studio's OpenAI-compatible server at
-`LMSTUDIO_BASE_URL` (default `http://127.0.0.1:1234/v1`) serves every feature
-with `LMSTUDIO_MODEL`; `LMSTUDIO_FALLBACK_MODELS` /
-`LMSTUDIO_VISION_FALLBACK_MODELS` may add local fallbacks, and local models are
-priced at zero. A client-supplied `provider` is accepted for forward
-compatibility but **ignored**. A client-supplied `model` is honored only when it
-is in the server allowlist (`OPENROUTER_ALLOWED_MODELS` or
-`LMSTUDIO_ALLOWED_MODELS`); for OpenRouter, free models (`openrouter/free` or a
-`*:free` id) are always accepted. Otherwise the server-routed model is used.
-Free and local models are priced at zero, so they do not consume the monthly
-budget.
+disabled. `ai-models` lists the routed model and its fallbacks. When an
+OpenRouter key is available, it also lists exactly one OpenRouter entry: the
+deploy-selected `OPENROUTER_MODEL` (staging uses `openrouter/free`), never the
+whole free catalog. A request may select a model from that catalog with
+`model`.
+
+A client-supplied `provider` is honored when it is enabled for the deployment
+(`allowedProviders`); selecting the OpenRouter entry switches the request to
+OpenRouter even when Gemini is primary. A namespaced free model id sent without
+`provider` (the mobile client only sends `model`) implies OpenRouter. Photo
+scans always use the deployment's primary provider (`gemini` in staging)
+because the free router does not reliably satisfy the scan schema. A client
+`model` is honored only when it is in the server allowlist; free OpenRouter ids
+(`openrouter/free` or a `*:free` id) are accepted and priced at $0. Free calls
+allow a 60-second non-stream timeout (120 seconds for streams) and structured
+free requests get at least 4,096 output tokens, because the router may spend
+part of the budget on reasoning. Otherwise the server-routed model is used.
+
+Suggestions and recipe detail responses include an `image` URL for a real dish
+photo. The gateway picks a curated photo from the public `recipe-images`
+Storage bucket after schema validation and before caching, so clients never
+depend on model-provided image URLs. When `AI_PROVIDER=lmstudio`, LM Studio's
+OpenAI-compatible server at `LMSTUDIO_BASE_URL` (default
+`http://127.0.0.1:1234/v1`) serves every feature with `LMSTUDIO_MODEL`;
+`LMSTUDIO_FALLBACK_MODELS` / `LMSTUDIO_VISION_FALLBACK_MODELS` may add local
+fallbacks, and local models are priced at zero.
 
 ## Authentication and CORS
 
@@ -123,6 +129,7 @@ Response:
       "difficulty": "Easy",
       "prep_time": "20 mins",
       "image_hint": "eggs",
+      "image": "https://<project>.supabase.co/storage/v1/object/public/recipe-images/dishes/stir_fry.webp",
       "provider": "gemini",
       "model_used": "gemini-3.5-flash-lite"
     }
@@ -146,8 +153,9 @@ Response:
 
 The response is the validated recipe object spread at the top level (`name`,
 `description`, `cuisine`, `difficulty`, `time_minutes`, `ingredients`,
-`instructions`, optional `nutrition`/`chef_tips`) plus `cached`, `duplicate`,
-`provider`, `model_used`, `rate_limited_models`, `usage`, and `remaining`.
+`instructions`, optional `nutrition`/`chef_tips`, and `image`) plus `cached`,
+`duplicate`, `provider`, `model_used`, `rate_limited_models`, `usage`, and
+`remaining`.
 
 ### Chat
 
@@ -230,6 +238,12 @@ Limits: request body 20 MiB (to accommodate base64 of the 10 MiB Pro image
 cap), plan image cap 5 MiB (anonymous/free) or 10 MiB (pro), maximum 30
 detected items, `min_confidence` between 0 and 1.
 
+The scan always uses the deployment's primary provider, regardless of the
+selected text model; in staging that is Gemini Flash-Lite. Clients send the
+image as JSON base64 (`image` / `image_base64`), not multipart form data. The
+web client also accepts `detected_ingredients` as a display alias for `items`
+and adds the returned `ingredient_id` values to the pantry.
+
 Response:
 
 ```json
@@ -305,34 +319,56 @@ Response:
 A public, read-only metadata endpoint for the client model selector. It needs no
 bearer token and exposes no provider secrets: it reports the deploy-time
 provider, whether a local LM Studio server is reachable, and the models the
-client may request. The web client calls it once per session and falls back to
-the curated static OpenRouter catalog if the function is not deployed.
+client may request. Each model includes the `provider` that serves it; clients
+switch the request provider when the selected model belongs to another allowed
+provider. The web client calls it once per session and falls back to the
+curated static OpenRouter catalog if the function is not deployed.
 
 Request: `POST /functions/v1/ai-models` (no body).
 
-Response:
+Staging (Gemini primary with the single OpenRouter free model):
 
 ```json
 {
-  "default_provider": "lmstudio",
-  "has_gemini": false,
-  "gemini_model": "",
-  "has_openrouter": false,
-  "openrouter_model": "",
-  "has_lmstudio": true,
-  "lmstudio_online": true,
-  "lmstudio_model": "gemma-4-e4b-uncensored-hauhaucs-aggressive",
+  "default_provider": "gemini",
+  "has_gemini": true,
+  "gemini_model": "gemini-3.5-flash-lite",
+  "has_openrouter": true,
+  "openrouter_model": "openrouter/free",
+  "has_lmstudio": false,
+  "lmstudio_online": false,
+  "lmstudio_model": "",
   "providers": [
-    { "id": "lmstudio", "name": "LM Studio", "active": true, "online": true, "badge": "Local AI" }
+    {
+      "id": "gemini",
+      "name": "Google Gemini",
+      "active": true,
+      "online": true,
+      "badge": "Cloud AI"
+    },
+    { "id": "openrouter", "name": "OpenRouter", "active": true, "online": true, "badge": "Free AI" }
   ],
   "models": [
     {
-      "id": "gemma-4-e4b-uncensored-hauhaucs-aggressive",
-      "displayName": "gemma-4-e4b-uncensored-hauhaucs-aggressive",
-      "description": "Local model served by LM Studio"
+      "id": "gemini-3.5-flash-lite",
+      "displayName": "gemini-3.5-flash-lite",
+      "description": "Default Gemini model for every feature",
+      "provider": "gemini"
+    },
+    {
+      "id": "gemini-3.1-flash-lite",
+      "displayName": "gemini-3.1-flash-lite",
+      "description": "Gemini fallback model",
+      "provider": "gemini"
+    },
+    {
+      "id": "openrouter/free",
+      "displayName": "OpenRouter Free",
+      "description": "Free model configured by the server",
+      "provider": "openrouter"
     }
   ],
-  "current_model": "gemma-4-e4b-uncensored-hauhaucs-aggressive",
+  "current_model": "gemini-3.5-flash-lite",
   "is_live": true
 }
 ```

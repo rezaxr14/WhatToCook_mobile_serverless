@@ -1,8 +1,10 @@
 /**
- * Curated OpenRouter models that are safe to expose in the client model
- * selector. Every entry is free (`openrouter/free` or a `:free` model id), so
- * choosing one never increases the AI budget. Paid models can still be routed
- * server-side with `OPENROUTER_MODEL` / `OPENROUTER_ALLOWED_MODELS`.
+ * The single OpenRouter model exposed in the client model selector.
+ *
+ * The deploy selects it with `OPENROUTER_MODEL` (staging uses the free
+ * `openrouter/free` router). We deliberately do not list the whole OpenRouter
+ * free catalog: the picker should show exactly the model the operator chose.
+ * Paid models can still be routed server-side with `OPENROUTER_MODEL`.
  */
 export interface AIModelCatalogEntry {
   id: string;
@@ -15,48 +17,8 @@ export const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 export const OPENROUTER_FREE_MODELS = [
   {
     id: DEFAULT_OPENROUTER_MODEL,
-    displayName: 'Free Models Router',
-    description: 'Automatically routes across free models',
-  },
-  {
-    id: 'minimax/minimax-m3.1-flash:free',
-    displayName: 'MiniMax M3.1 Flash',
-    description: 'Fast free model with a large context window',
-  },
-  {
-    id: 'nvidia/nemotron-3.5-super-vl:free',
-    displayName: 'Nemotron 3.5 Super VL',
-    description: 'Vision-language free model',
-  },
-  {
-    id: 'nvidia/nemotron-3-super-120b-a12b:free',
-    displayName: 'Nemotron 3 Super',
-    description: 'Large free model for detailed recipes',
-  },
-  {
-    id: 'google/gemma-4-31b-it:free',
-    displayName: 'Gemma 4 31B',
-    description: 'Google Gemma free model',
-  },
-  {
-    id: 'google/gemma-4-26b-a4b-it:free',
-    displayName: 'Gemma 4 26B A4B',
-    description: 'Efficient Google Gemma free model',
-  },
-  {
-    id: 'thinkingmachines/inkling:free',
-    displayName: 'Inkling',
-    description: 'Experimental free model',
-  },
-  {
-    id: 'dots-studio/dots-3-note-preview:free',
-    displayName: 'Dots3 Note Preview',
-    description: 'Free preview model',
-  },
-  {
-    id: 'liquid/lfm-2.5-2.6b:free',
-    displayName: 'LFM2.5 2.6B',
-    description: 'Small, fast free text model',
+    displayName: 'OpenRouter Free',
+    description: 'Free model configured by the server',
   },
 ] as const satisfies readonly AIModelCatalogEntry[];
 

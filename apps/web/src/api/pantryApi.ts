@@ -4,7 +4,7 @@ import { authApi } from './authApi';
 import { ApiError, toApiError } from './client';
 import { mapIngredient } from '../lib/catalog';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import type { Ingredient, ScanFridgeResponse } from '../types/ingredient';
+import type { Ingredient, ScanFridgeResponse, ScannedIngredient } from '../types/ingredient';
 import type { UserPantry } from '../types/pantry';
 import type { User } from '../types/auth';
 
@@ -48,12 +48,32 @@ async function buildPantry(user: User | null): Promise<UserPantry> {
   };
 }
 
-function base64ToBlob(value: string): Blob {
-  const base64 = value.includes(',') ? value.slice(value.indexOf(',') + 1) : value;
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: 'image/jpeg' });
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(reader.error ?? new Error('Could not read the image.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function imageBase64Payload(
+  image: File | string,
+): Promise<{ image: string; mime_type: 'image/jpeg' | 'image/png' | 'image/webp' }> {
+  let dataUrl: string;
+  let declaredType = '';
+  if (typeof image === 'string') {
+    dataUrl = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`;
+  } else {
+    declaredType = image.type;
+    dataUrl = await readFileAsDataUrl(image);
+  }
+
+  const match = /^data:([^;,]+)?(?:;[^,]*)?;base64,(.*)$/s.exec(dataUrl);
+  if (!match) throw new ApiError('Could not read that image. Try a JPG, PNG, or WebP photo.', 400);
+  const mime = (declaredType || match[1] || 'image/jpeg').toLowerCase();
+  const mime_type = mime === 'image/png' || mime === 'image/webp' ? mime : ('image/jpeg' as const);
+  return { image: match[2], mime_type };
 }
 
 export const pantryApi = {
@@ -176,19 +196,29 @@ export const pantryApi = {
       );
     }
 
-    const formData = new FormData();
-    if (typeof image === 'string') {
-      formData.append('image', base64ToBlob(image), 'fridge.jpg');
-    } else {
-      formData.append('image', image);
-    }
-    formData.append('auto_add', autoAdd ? 'true' : 'false');
-    formData.append('provider', provider);
-    formData.append('language', language ?? i18n.resolvedLanguage ?? i18n.language ?? 'en');
-
-    const { data, error } = await supabase.functions.invoke('scan-pantry', { body: formData });
+    const payload = await imageBase64Payload(image);
+    const locale = language ?? i18n.resolvedLanguage ?? i18n.language ?? 'en';
+    const { data, error } = await supabase.functions.invoke('scan-pantry', {
+      body: {
+        image: payload.image,
+        mime_type: payload.mime_type,
+        min_confidence: 0.45,
+        max_items: 25,
+        provider,
+        language: locale,
+        locale,
+      },
+    });
     if (error) {
       const status = (error as { context?: { status?: number } }).context?.status;
+      if (status === 401) {
+        throw new ApiError(
+          'Start the guest demo or sign in before scanning a fridge photo.',
+          401,
+          null,
+          'not_authenticated',
+        );
+      }
       if (!status || status === 404 || status === 501) {
         throw new ApiError(
           'Fridge scanning is part of the AI gateway milestone (M4) and is not connected yet.',
@@ -200,6 +230,28 @@ export const pantryApi = {
       throw toApiError(error, 'Could not analyse the fridge photo.');
     }
 
-    return data as ScanFridgeResponse;
+    const response = (data ?? {}) as Partial<ScanFridgeResponse> & {
+      items?: ScannedIngredient[];
+      detected_ingredients?: ScannedIngredient[];
+    };
+    const ingredients = response.items ?? response.detected_ingredients ?? [];
+
+    if (autoAdd) {
+      const ids = ingredients
+        .map((item) => item.ingredient_id)
+        .filter((id): id is number => typeof id === 'number' && id > 0);
+      if (ids.length > 0) await pantryApi.addIngredient({ ingredient_ids: ids });
+    }
+
+    return {
+      status: response.status ?? 'done',
+      detected_count: response.detected_count ?? ingredients.length,
+      matched_count:
+        response.matched_count ?? ingredients.filter((item) => item.matched !== false).length,
+      detected_ingredients: ingredients,
+      items: ingredients,
+      auto_added: autoAdd,
+      added_ingredients: autoAdd ? ingredients.map((item) => item.display_name || item.name) : [],
+    };
   },
 };

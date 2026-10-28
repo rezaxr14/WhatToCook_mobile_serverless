@@ -55,8 +55,8 @@ export function createProvider(
             siteUrl: env.OPENROUTER_SITE_URL?.trim() || undefined,
             appName: env.OPENROUTER_APP_NAME?.trim() || 'WhatToCook',
             jsonMode: env.OPENROUTER_JSON_MODE !== 'false',
-            timeoutMs: 60_000,
-            streamTimeoutMs: 120_000,
+            timeoutMs: numberFromEnv(env.OPENROUTER_TIMEOUT_MS, 60_000),
+            streamTimeoutMs: numberFromEnv(env.OPENROUTER_STREAM_TIMEOUT_MS, 120_000),
           }),
           env.OPENROUTER_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL,
           env.AI_FALLBACK_VISION === 'true',
@@ -73,19 +73,29 @@ export function createProvider(
     if (!apiKey) {
       throw providerError('OpenRouter is not configured on the server.');
     }
-    const textFallbacks = unique([
-      ...config.fallbacks.text,
-      config.models.suggestions,
-      config.models.recipe,
-      config.models.chat,
-      config.models.stream,
-      config.models.substitution,
-    ]);
-    const visionFallbacks = unique([
-      ...config.fallbacks.vision,
-      config.models.scan,
-      config.models.recipe,
-    ]);
+    // When OpenRouter is selected next to a Gemini deployment, the app_config
+    // model ids are Gemini ids and must never be sent to OpenRouter. The single
+    // OpenRouter model comes from OPENROUTER_MODEL instead.
+    const isPrimary = config.providerId === 'openrouter';
+    const textFallbacks = isPrimary
+      ? unique([
+          ...config.fallbacks.text,
+          ...config.allowedModels,
+          config.models.suggestions,
+          config.models.recipe,
+          config.models.chat,
+          config.models.stream,
+          config.models.substitution,
+        ])
+      : [];
+    const visionFallbacks = isPrimary
+      ? unique([
+          ...config.fallbacks.vision,
+          ...config.allowedModels,
+          config.models.scan,
+          config.models.recipe,
+        ])
+      : [];
     return new OpenRouterProvider({
       apiKey,
       textFallbacks,
@@ -93,6 +103,10 @@ export function createProvider(
       siteUrl: env.OPENROUTER_SITE_URL?.trim() || undefined,
       appName: env.OPENROUTER_APP_NAME?.trim() || 'WhatToCook',
       jsonMode: env.OPENROUTER_JSON_MODE !== 'false',
+      // The free router routinely takes 11–40s for a full recipe, so the 30s
+      // provider default is too tight and surfaces as a spurious failure.
+      timeoutMs: numberFromEnv(env.OPENROUTER_TIMEOUT_MS, 60_000),
+      streamTimeoutMs: numberFromEnv(env.OPENROUTER_STREAM_TIMEOUT_MS, 120_000),
     });
   }
 

@@ -59,7 +59,11 @@ async function invokeAi<T>(name: string, body: Record<string, unknown>): Promise
 
     if (isResponse(context)) {
       try {
-        const payload = (await context.json()) as { message?: string; error?: string; code?: string };
+        const payload = (await context.json()) as {
+          message?: string;
+          error?: string;
+          code?: string;
+        };
         message = payload.message ?? payload.error;
         code = payload.code ?? code;
       } catch {
@@ -71,11 +75,7 @@ async function invokeAi<T>(name: string, body: Record<string, unknown>): Promise
       throw new AIRequestError(i18n.t('mobile.ai.notConnected'), 'ai_not_ready', status);
     }
     if (status === 401) {
-      throw new AIRequestError(
-        message ?? i18n.t('mobile.common.error'),
-        'unauthorized',
-        status,
-      );
+      throw new AIRequestError(message ?? i18n.t('mobile.common.error'), 'unauthorized', status);
     }
     if (status === 429) {
       throw new AIRequestError(
@@ -127,11 +127,14 @@ function normaliseDetail(detail: AIRecipeDetail): AIRecipeDetail {
 function staticCatalog(): AICatalogResponse {
   return {
     default_provider: 'openrouter',
-    providers: [{ id: 'openrouter', name: 'OpenRouter', active: true, online: true, badge: 'Cloud AI' }],
+    providers: [
+      { id: 'openrouter', name: 'OpenRouter', active: true, online: true, badge: 'Cloud AI' },
+    ],
     models: OPENROUTER_FREE_MODELS.map((model) => ({
       id: model.id,
       displayName: model.displayName,
       description: model.description,
+      provider: 'openrouter',
     })),
     current_model: DEFAULT_OPENROUTER_MODEL,
     is_live: true,
@@ -177,23 +180,20 @@ export interface SuggestionsInput {
   forceRefresh?: boolean;
 }
 
-export async function generateSuggestions(
-  input: SuggestionsInput,
-): Promise<AISuggestionsResponse> {
-  const response = await invokeAi<AISuggestionsResponse & { recipes?: AISuggestionsResponse['recipes'] }>(
-    'generate-recipe',
-    {
-      mode: 'suggestions',
-      ingredients: input.ingredients,
-      dietary: input.dietary ?? [],
-      servings: input.servings ?? 4,
-      surprise: input.surprise ?? 0,
-      model: input.model || undefined,
-      force_refresh: input.forceRefresh ?? false,
-      language: language(),
-      locale: language(),
-    },
-  );
+export async function generateSuggestions(input: SuggestionsInput): Promise<AISuggestionsResponse> {
+  const response = await invokeAi<
+    AISuggestionsResponse & { recipes?: AISuggestionsResponse['recipes'] }
+  >('generate-recipe', {
+    mode: 'suggestions',
+    ingredients: input.ingredients,
+    dietary: input.dietary ?? [],
+    servings: input.servings ?? 4,
+    surprise: input.surprise ?? 0,
+    model: input.model || undefined,
+    force_refresh: input.forceRefresh ?? false,
+    language: language(),
+    locale: language(),
+  });
 
   if (!Array.isArray(response.recipes) || response.recipes.length === 0) {
     throw new AIRequestError(i18n.t('mobile.ai.error'), 'invalid_model_output');

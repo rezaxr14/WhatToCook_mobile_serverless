@@ -2,7 +2,15 @@ import React, { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { journey, seg, win, pointer, isMobileDevice, prefersReducedMotion, canAffordPostFX } from './state';
+import {
+  journey,
+  seg,
+  win,
+  pointer,
+  isMobileDevice,
+  prefersReducedMotion,
+  canAffordPostFX,
+} from './state';
 import { KitchenRoom } from './KitchenRoom';
 import { Constellation } from './Constellation';
 import { Galaxy, RecipeMatchCards } from './Galaxy';
@@ -102,7 +110,7 @@ const CameraRig: React.FC = () => {
       _sway.set(
         Math.sin(t * 1.05) * 0.0045,
         Math.cos(t * 0.9) * 0.0035,
-        Math.sin(t * 0.75) * 0.003
+        Math.sin(t * 0.75) * 0.003,
       );
       pos.add(_sway);
     }
@@ -153,8 +161,22 @@ const ChapterLights: React.FC = () => {
       <ambientLight ref={ambient} intensity={0.5} color="#ffedd5" />
       <hemisphereLight ref={hemi} args={['#6b543a', '#1a120b', 0.45]} />
       <directionalLight ref={fill} position={[2.5, 5.5, 7]} intensity={0.55} color="#ffe6c4" />
-      <pointLight ref={aiLight} position={[0, 3.4, 2.4]} intensity={0} distance={12} decay={1.6} color="#ffe1a8" />
-      <pointLight ref={galaxyFill} position={[0, 2.2, 4]} intensity={0} distance={18} decay={1.4} color="#ffcf9a" />
+      <pointLight
+        ref={aiLight}
+        position={[0, 3.4, 2.4]}
+        intensity={0}
+        distance={12}
+        decay={1.6}
+        color="#ffe1a8"
+      />
+      <pointLight
+        ref={galaxyFill}
+        position={[0, 2.2, 4]}
+        intensity={0}
+        distance={18}
+        decay={1.4}
+        color="#ffcf9a"
+      />
       <spotLight
         ref={keyLight}
         position={[3.2, 6.5, 4.5]}
@@ -175,7 +197,12 @@ const ChapterLights: React.FC = () => {
 
 // ---------- Scene ----------
 
-export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => {
+export const JourneyScene: React.FC<{
+  onReady: () => void;
+  onPoster?: (poster: string) => void;
+  /** Only preserve the drawing buffer on the visit that captures the poster. */
+  capturePoster?: boolean;
+}> = ({ onReady, onPoster, capturePoster = false }) => {
   const mobile = isMobileDevice();
   const reduced = prefersReducedMotion();
   const fx = canAffordPostFX();
@@ -188,6 +215,9 @@ export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => 
         antialias: false,
         alpha: false,
         powerPreference: 'high-performance',
+        // Capture needs the buffer; preserving it every frame costs bandwidth,
+        // so only enable it on the visit that has no cached poster yet.
+        preserveDrawingBuffer: capturePoster,
       }}
       shadows="basic"
       onCreated={({ scene, camera, gl }) => {
@@ -230,6 +260,20 @@ export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => 
         }
 
         setTimeout(onReady, 650);
+
+        // Capture the hero the first time the scene is ready. The landing page
+        // persists this image and uses it as an instant poster on later visits.
+        if (onPoster && capturePoster) {
+          window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+              try {
+                onPoster(gl.domElement.toDataURL('image/jpeg', 0.72));
+              } catch {
+                // Poster capture is a progressive enhancement; WebGL still works.
+              }
+            });
+          });
+        }
       }}
       style={{ position: 'absolute', inset: 0, background: '#070503' }}
       aria-hidden
@@ -243,7 +287,13 @@ export const JourneyScene: React.FC<{ onReady: () => void }> = ({ onReady }) => 
       <Cooking />
       <Starback />
       <ShootingStar />
-      <EmberField position={[0, 0.9, -0.1]} window={[0.93, 0.95, 1.01, 1.02]} count={10} spread={1.1} rise={0.8} />
+      <EmberField
+        position={[0, 0.9, -0.1]}
+        window={[0.93, 0.95, 1.01, 1.02]}
+        count={10}
+        spread={1.1}
+        rise={0.8}
+      />
       <DustField count={mobile ? 45 : 120} hide={[0.1, 0.16]} show={[0.42, 0.5]} />
       {fx && !reduced && <CinematicFX />}
     </Canvas>

@@ -61,13 +61,17 @@ export interface RateLimitInput extends RateLimits {
 
 export interface RuntimeConfig {
   providerId: AIProviderId;
+  /** Providers the client may pick. Always contains `providerId`. */
+  allowedProviders: string[];
   killSwitch: boolean;
   featureFlags: Record<string, boolean>;
   globalDailyCapMicroUsd: number;
   rateLimits: RateLimits;
   models: Partial<Record<AIFeature, string>>;
-  /** Client-selectable models. Empty means client model choices are ignored. */
+  /** Client-selectable Gemini models (routed models plus fallbacks). */
   allowedModels: string[];
+  /** Default OpenRouter model, used when the client picks the OpenRouter provider. */
+  openRouterModel: string;
   fallbacks: {
     text: string[];
     vision: string[];
@@ -187,5 +191,7 @@ export interface GatewayDeps {
   cache: CacheGateway;
   loadCatalog(): Promise<CatalogIngredient[]>;
   provider(providerId: string, config: RuntimeConfig): AIProvider;
+  /** Public URL for a file in the `recipe-images` Storage bucket. */
+  imageUrl(file: string): string;
   now(): Date;
 }

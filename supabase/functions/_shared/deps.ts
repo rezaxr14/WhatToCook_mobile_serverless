@@ -34,6 +34,15 @@ export function createGatewayDeps(
     cache: createCacheGateway(serviceDb, now),
     loadCatalog: () => loadCatalog(serviceDb),
     provider: (providerId, config) => createProvider(providerId, config, env),
+    imageUrl: (file) => {
+      const base = (env.SUPABASE_URL ?? '').trim().replace(/\/+$/, '');
+      const encoded = file
+        .replace(/^\/+/, '')
+        .split('/')
+        .map((part) => encodeURIComponent(part))
+        .join('/');
+      return `${base}/storage/v1/object/public/recipe-images/${encoded}`;
+    },
     now,
   };
 }

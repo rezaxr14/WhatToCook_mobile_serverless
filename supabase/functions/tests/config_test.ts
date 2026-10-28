@@ -147,9 +147,24 @@ Deno.test('config: OpenRouter uses its own model and fallbacks, ignoring Gemini 
   assertEquals(config.models.scan, 'openai/gpt-4o');
   assertEquals(config.fallbacks.text, ['openai/gpt-4.1-mini', 'openai/gpt-4o-mini']);
   assertEquals(config.fallbacks.vision, ['openai/gpt-4.1-mini', 'openai/gpt-4o-mini']);
-  assertEquals(config.allowedModels.includes('openai/gpt-4o-mini'), true);
-  assertEquals(config.allowedModels.includes('openrouter/free'), true);
-  assertEquals(config.allowedModels.includes('google/gemma-4-31b-it:free'), true);
+  assertEquals(config.allowedModels, ['openai/gpt-4o-mini']);
+  assertEquals(config.allowedProviders, ['openrouter']);
+  assertEquals(config.openRouterModel, 'openai/gpt-4o-mini');
+});
+
+Deno.test('config: Gemini exposes the configured OpenRouter model beside Gemini', () => {
+  const config = parseRuntimeConfig(baseRow, {
+    AI_PROVIDER: 'gemini',
+    AI_FALLBACK_PROVIDER: 'openrouter',
+    OPENROUTER_MODEL: 'openrouter/free',
+    OPENROUTER_API_KEY: 'test-key',
+  });
+
+  assertEquals(config.providerId, 'gemini');
+  assertEquals(config.allowedProviders, ['gemini', 'openrouter']);
+  assertEquals(config.openRouterModel, 'openrouter/free');
+  assertEquals(config.allowedModels.includes('gemini-lite'), true);
+  assertEquals(config.allowedModels.includes('openrouter/free'), false);
 });
 
 Deno.test('config: OpenRouter can restrict the client-selectable model list', () => {

@@ -1,5 +1,5 @@
 import type { AIFeature, AIProviderId } from '../../../packages/shared/src/ai-contracts.ts';
-import { OPENROUTER_FREE_MODEL_IDS } from '../../../packages/shared/src/ai-models.ts';
+import { DEFAULT_OPENROUTER_MODEL } from '../../../packages/shared/src/ai-models.ts';
 import { mapDatabaseError, providerError } from './errors.ts';
 import type { DbClient } from './db.ts';
 import { parseAllowedOrigins } from './cors.ts';
@@ -53,28 +53,28 @@ export function parseRuntimeConfig(row: AppConfigRow | null, env: Env): RuntimeC
     ? stringArray(fallbacks.vision)
     : stringArray(routing.vision_fallbacks);
   let allowedModels: string[] = [];
+  let openRouterModel = env.OPENROUTER_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL;
+  const allowedProviders = new Set<string>([providerId]);
 
   if (providerId === 'openrouter') {
     // OpenRouter model ids are namespaced (for example `openai/gpt-4o-mini`),
     // so the Gemini routing in app_config cannot be reused. A single model can
     // cover every feature; the optional vision override is for multimodal
     // models. Fallbacks are opt-in and must also be OpenRouter model ids.
-    const openRouterModel = env.OPENROUTER_MODEL?.trim();
-    if (!openRouterModel) {
+    const configuredOpenRouterModel = env.OPENROUTER_MODEL?.trim();
+    if (!configuredOpenRouterModel) {
       throw providerError('OPENROUTER_MODEL is not configured for the OpenRouter provider.');
     }
+    openRouterModel = configuredOpenRouterModel;
     for (const feature of TEXT_FEATURES) models[feature] = openRouterModel;
     models.scan = env.OPENROUTER_VISION_MODEL?.trim() || openRouterModel;
     textFallbacks = commaList(env.OPENROUTER_FALLBACK_MODELS);
     visionFallbacks = commaList(env.OPENROUTER_VISION_FALLBACK_MODELS);
     if (!visionFallbacks.length) visionFallbacks = textFallbacks;
+    // The picker shows the deploy-selected model only. Operators can opt into a
+    // larger allowlist explicitly with OPENROUTER_ALLOWED_MODELS.
     const configuredModels = commaList(env.OPENROUTER_ALLOWED_MODELS);
-    allowedModels = [
-      ...new Set([
-        openRouterModel,
-        ...(configuredModels.length ? configuredModels : OPENROUTER_FREE_MODEL_IDS),
-      ]),
-    ];
+    allowedModels = uniqueStrings([openRouterModel, ...configuredModels]);
   } else if (providerId === 'lmstudio') {
     const lmStudioModel = env.LMSTUDIO_MODEL?.trim();
     if (!lmStudioModel) {
@@ -101,10 +101,25 @@ export function parseRuntimeConfig(row: AppConfigRow | null, env: Env): RuntimeC
     // model instead of silently falling back to the routed default. Pricing is
     // still resolved server-side, so a model without a price row is rejected.
     allowedModels = uniqueStrings([...Object.values(models), ...textFallbacks, ...visionFallbacks]);
+
+    // Keep OpenRouter's free router selectable next to Gemini. It is opt-in so a
+    // deployment never sends prompts to a second vendor without the key, and
+    // only the single `OPENROUTER_MODEL` from the environment is exposed.
+    const configuredProviders = commaList(env.AI_ALLOWED_PROVIDERS).map((entry) =>
+      entry.toLowerCase(),
+    );
+    const fallbackProvider = env.AI_FALLBACK_PROVIDER?.trim().toLowerCase();
+    const wantsOpenRouter =
+      configuredProviders.includes('openrouter') ||
+      fallbackProvider === 'openrouter' ||
+      Boolean(env.OPENROUTER_API_KEY?.trim());
+    if (wantsOpenRouter) allowedProviders.add('openrouter');
   }
 
   return {
     providerId,
+    allowedProviders: [...allowedProviders],
+    openRouterModel,
     killSwitch: row?.ai_kill_switch === true,
     featureFlags: parseFeatureFlags(row?.feature_flags),
     globalDailyCapMicroUsd: Number(row?.global_daily_cap_micro_usd ?? 5_000_000),

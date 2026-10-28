@@ -48,3 +48,18 @@ Deno.test('gateway: rejects a feature without routing', () => {
   );
   assertThrows(() => modelFor(unrouted, 'scan'), Error);
 });
+
+Deno.test('gateway: an OpenRouter free model under Gemini resolves to OpenRouter', () => {
+  const mixed = parseRuntimeConfig(row, {
+    AI_FALLBACK_PROVIDER: 'openrouter',
+    OPENROUTER_MODEL: 'openrouter/free',
+    OPENROUTER_API_KEY: 'test-key',
+  });
+  assertEquals(mixed.allowedProviders, ['gemini', 'openrouter']);
+  assertEquals(modelFor(mixed, 'suggestions', 'openrouter/free', 'openrouter'), 'openrouter/free');
+  // Gemini must not try to run a namespaced OpenRouter id.
+  assertEquals(
+    modelFor(mixed, 'suggestions', 'openrouter/free', 'gemini'),
+    'gemini-3.5-flash-lite',
+  );
+});

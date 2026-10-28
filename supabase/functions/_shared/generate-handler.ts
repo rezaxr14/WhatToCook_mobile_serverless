@@ -6,6 +6,7 @@ import {
   type GenerateRecipeRequest,
 } from '../../../packages/shared/src/ai-contracts.ts';
 import { checkCors } from './cors.ts';
+import { attachDetailImage, attachSuggestionImages } from './dish-images.ts';
 import { badRequest, invalidModelOutput } from './errors.ts';
 import {
   buildProviderRequest,
@@ -90,8 +91,14 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
     const feature = featureForMode(input.mode);
     assertFeature(config, feature);
     const locale = resolveLocale(auth, input);
-    const provider = providerFor(deps, config);
-    const model = modelFor(config, feature, input.model);
+    const resolvedProvider = providerFor(deps, config, {
+      feature,
+      provider: input.provider,
+      model: input.model,
+    });
+    const provider = resolvedProvider.provider;
+    const providerId = resolvedProvider.id;
+    const model = modelFor(config, feature, input.model, providerId);
     const prompt = buildPrompt(input, locale);
     const idempotency = await idempotencyKeyFor(
       auth.userId,
@@ -104,7 +111,7 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
       await recordCacheHit(deps, auth, {
         requestId: idempotency.requestId,
         feature,
-        provider: idempotentHit.provider || provider.id,
+        provider: idempotentHit.provider || providerId,
         model: idempotentHit.model || model,
         latencyMs: Math.round(performance.now() - started),
       });
@@ -127,7 +134,7 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
     const payload = cachePayload(input, locale);
     const key = await cacheKeyFor({
       feature,
-      provider: provider.id,
+      provider: providerId,
       model,
       locale,
       payload,
@@ -141,7 +148,7 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
         await recordCacheHit(deps, auth, {
           requestId: idempotency.requestId,
           feature,
-          provider: hit.provider || provider.id,
+          provider: hit.provider || providerId,
           model: hit.model || model,
           latencyMs: Math.round(performance.now() - started),
         });
@@ -162,7 +169,7 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
       }
     }
 
-    const price = await priceFor(deps, provider.id, model);
+    const price = await priceFor(deps, providerId, model);
     const reserveEstimate = estimateReserveMicroUsd({
       price,
       inputTokens: estimateInputTokens(`${prompt.system}\n${prompt.prompt}`),
@@ -173,7 +180,7 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
       requestId: idempotency.requestId,
       feature,
       estimateMicroUsd: reserveEstimate,
-      provider: provider.id,
+      provider: providerId,
       model,
       rateLimits: config.rateLimits,
     });
@@ -195,6 +202,7 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
         feature,
         locale,
         provider,
+        providerId,
         model,
         prompt,
         key,
@@ -208,7 +216,7 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
     try {
       const generated = await generatePayload(input, feature, provider, prompt, locale, model);
       const cached: CachedGeneration = {
-        data: generated.data,
+        data: withDishImages(generated.data, feature, deps),
         model: generated.providerResult.model,
         provider: generated.providerResult.provider,
         rate_limited_models: generated.providerResult.rate_limited_models,
@@ -260,6 +268,7 @@ function streamGenerated(
     feature: ReturnType<typeof featureForMode>;
     locale: string;
     provider: AIProvider;
+    providerId: string;
     model: string;
     prompt: PromptBundle;
     key: string;
@@ -279,7 +288,7 @@ function streamGenerated(
       cached: false,
       remaining: input.remaining,
       model: input.model,
-      provider: input.provider.id,
+      provider: input.providerId,
     });
 
     try {
@@ -320,7 +329,11 @@ function streamGenerated(
 
       const finalProviderResult = providerResult;
       if (!finalProviderResult) throw invalidModelOutput('The AI returned no response.');
-      const data = dataForMode(input.input, finalProviderResult, outputText);
+      const data = withDishImages(
+        dataForMode(input.input, finalProviderResult, outputText),
+        input.feature,
+        input.deps,
+      );
       const cached: CachedGeneration = {
         data,
         model: finalProviderResult.model,
@@ -359,7 +372,7 @@ function streamGenerated(
           try {
             await settleUsage(input.deps, {
               eventId: input.eventId,
-              provider: providerResult?.provider ?? input.provider.id,
+              provider: providerResult?.provider ?? input.providerId,
               model: providerResult?.model ?? input.model,
               usage,
             });
@@ -573,6 +586,16 @@ function dataForMode(
     default:
       return JSON.parse(outputText);
   }
+}
+
+function withDishImages(
+  data: unknown,
+  feature: ReturnType<typeof featureForMode>,
+  deps: GatewayDeps,
+): unknown {
+  if (feature === 'suggestions') return attachSuggestionImages(data, deps.imageUrl);
+  if (feature === 'recipe') return attachDetailImage(data, deps.imageUrl);
+  return data;
 }
 
 function buildJsonResponse(

@@ -56,7 +56,7 @@ export const DISH_PHOTOS: readonly DishPhotoEntry[] = [
     group: 'pasta',
   },
   {
-    file: 'recipes/spaghetti.jpg',
+    file: 'dishes/spaghetti.webp',
     keywords: [
       'spaghetti',
       'pasta',
@@ -290,9 +290,10 @@ export function pickDishPhoto(seed: string): string {
 }
 
 /**
- * One distinct photo per dish on a screen. Matched photos keep priority; a
- * collision picks another photo from the same food group first, so a second
- * pasta still looks like pasta, then rotates through the pool.
+ * One photo per dish on a screen. Matched photos keep priority; a collision
+ * picks another photo from the same food group first, so a second pasta still
+ * looks like pasta. If the group is exhausted we reuse the best match instead
+ * of rotating into an unrelated dish (a tomato pasta must never show shrimp).
  */
 export function assignDishPhotoFiles(subjects: readonly DishPhotoSubject[]): string[] {
   const used = new Set<string>();
@@ -313,15 +314,8 @@ export function assignDishPhotoFiles(subjects: readonly DishPhotoSubject[]): str
       return choice;
     }
 
-    const start = Math.max(0, DISH_PHOTO_FILES.indexOf(natural));
-    for (let step = 1; step <= DISH_PHOTO_FILES.length; step += 1) {
-      const candidate = DISH_PHOTO_FILES[(start + step) % DISH_PHOTO_FILES.length]!;
-      if (!used.has(candidate)) {
-        used.add(candidate);
-        return candidate;
-      }
-    }
-
+    // Same group exhausted: a duplicate photo is far better than a photo of a
+    // different dish. Returning `natural` also guarantees a real food image.
     return natural;
   });
 }

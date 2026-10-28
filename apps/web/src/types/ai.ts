@@ -66,6 +66,7 @@ export interface AIModelInfo {
   id: string;
   displayName: string;
   description?: string;
+  provider?: AIProvider;
 }
 
 export interface AIModelsResponse {
@@ -100,4 +101,3 @@ export interface RecipeChatResponse {
   rate_limited_models?: string[];
   recipe_name: string;
 }
-

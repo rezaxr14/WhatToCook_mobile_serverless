@@ -269,6 +269,8 @@ export function createHarness(
   const monthlyBudget = options.monthlyBudget ?? 2_000_000;
   const config: RuntimeConfig = {
     providerId: options.providerId ?? 'fake',
+    allowedProviders: [options.providerId ?? 'fake'],
+    openRouterModel: 'openrouter/free',
     killSwitch: options.killSwitch ?? false,
     featureFlags: {
       suggestions: true,
@@ -342,6 +344,8 @@ export function createHarness(
     cache,
     loadCatalog: async () => TEST_CATALOG,
     provider: () => provider,
+    imageUrl: (file) =>
+      `https://example.supabase.co/storage/v1/object/public/recipe-images/${file}`,
     now,
   };
 

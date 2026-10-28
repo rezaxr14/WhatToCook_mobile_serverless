@@ -59,8 +59,14 @@ export async function handleSuggestSubstitution(
     const input = parsed.data;
     assertFeature(config, 'substitution');
     const locale = resolveLocale(auth, input);
-    const provider = providerFor(deps, config);
-    const model = modelFor(config, 'substitution', input.model);
+    const resolvedProvider = providerFor(deps, config, {
+      feature: 'substitution',
+      provider: input.provider,
+      model: input.model,
+    });
+    const provider = resolvedProvider.provider;
+    const providerId = resolvedProvider.id;
+    const model = modelFor(config, 'substitution', input.model, providerId);
     const idempotency = await idempotencyKeyFor(
       auth.userId,
       request.headers.get('idempotency-key'),
@@ -72,7 +78,7 @@ export async function handleSuggestSubstitution(
       await recordCacheHit(deps, auth, {
         requestId: idempotency.requestId,
         feature: 'substitution',
-        provider: idempotentHit.provider || provider.id,
+        provider: idempotentHit.provider || providerId,
         model: idempotentHit.model || model,
         latencyMs: Math.round(performance.now() - started),
       });
@@ -100,7 +106,7 @@ export async function handleSuggestSubstitution(
     };
     const key = await cacheKeyFor({
       feature: 'substitution',
-      provider: provider.id,
+      provider: providerId,
       model,
       locale,
       payload,
@@ -114,7 +120,7 @@ export async function handleSuggestSubstitution(
         await recordCacheHit(deps, auth, {
           requestId: idempotency.requestId,
           feature: 'substitution',
-          provider: hit.provider || provider.id,
+          provider: hit.provider || providerId,
           model: hit.model || model,
           latencyMs: Math.round(performance.now() - started),
         });
@@ -142,7 +148,7 @@ export async function handleSuggestSubstitution(
       'You are a practical professional chef. Always respond with clean, valid JSON without markdown formatting.',
       locale,
     );
-    const price = await priceFor(deps, provider.id, model);
+    const price = await priceFor(deps, providerId, model);
     const reserveEstimate = estimateReserveMicroUsd({
       price,
       inputTokens: estimateInputTokens(`${system}\n${prompt}`),
@@ -153,7 +159,7 @@ export async function handleSuggestSubstitution(
       requestId: idempotency.requestId,
       feature: 'substitution',
       estimateMicroUsd: reserveEstimate,
-      provider: provider.id,
+      provider: providerId,
       model,
       rateLimits: config.rateLimits,
     });

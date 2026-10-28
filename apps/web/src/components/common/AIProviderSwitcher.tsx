@@ -22,18 +22,29 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
     aiProvidersInfo?.default_provider && aiProvidersInfo.default_provider !== 'lmstudio'
       ? aiProvidersInfo.default_provider
       : 'openrouter';
+  const providerDefaults = (provider: AIProvider): string => {
+    if (provider === 'openrouter') return aiProvidersInfo?.openrouter_model || 'openrouter/free';
+    if (provider === 'gemini') return aiProvidersInfo?.gemini_model || '';
+    return '';
+  };
+  const activeModelInfo = availableModels.find((model) => model.id === activeModel);
   const cloudModel =
-    activeModel ||
-    aiProvidersInfo?.openrouter_model ||
-    aiProvidersInfo?.gemini_model ||
-    'openrouter/free';
+    (activeModelInfo?.provider === cloudProvider ? activeModel : '') ||
+    providerDefaults(cloudProvider);
   const lmModel = aiProvidersInfo?.lmstudio_model || 'Local Model';
+  const cloudProviders = new Set(
+    availableModels
+      .map((model) => model.provider)
+      .filter((provider): provider is AIProvider => !!provider),
+  );
   const cloudModelsLabel =
-    cloudProvider === 'openrouter'
-      ? 'OpenRouter Free Models'
-      : cloudProvider === 'gemini'
-        ? 'Google Gemini Models'
-        : 'Cloud AI Models';
+    cloudProviders.size > 1
+      ? 'Gemini + OpenRouter'
+      : cloudProviders.has('openrouter')
+        ? 'OpenRouter Free Model'
+        : cloudProviders.has('gemini')
+          ? 'Google Gemini Models'
+          : 'Cloud AI Models';
 
   const currentModelDisplay =
     availableModels.find((m) => m.id === activeModel)?.displayName ||
@@ -44,18 +55,20 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
     <div className="flex flex-wrap items-center gap-2">
       <div
         className={`inline-flex items-center gap-1 p-1 rounded-2xl bg-stone-100/90 border border-stone-200/80 ${
- compact ? 'text-xs' : 'text-sm'
- }`}
+          compact ? 'text-xs' : 'text-sm'
+        }`}
       >
         {/* Cloud AI Button */}
         <button
           type="button"
-          onClick={() => setActiveAIProvider(cloudProvider)}
+          onClick={() => {
+            setActiveAIProvider(cloudProvider);
+            const target = providerDefaults(cloudProvider);
+            if (target) setActiveModel(target);
+          }}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
- isCloudActive
- ? 'bg-white text-stone-900'
- : 'text-stone-500 hover:text-stone-900'
- }`}
+            isCloudActive ? 'bg-white text-stone-900' : 'text-stone-500 hover:text-stone-900'
+          }`}
           title={`Cloud AI Engine (${cloudModel})`}
         >
           <Sparkles className="w-3.5 h-3.5 text-brand-500" />
@@ -72,12 +85,12 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
           }}
           disabled={!isLMStudioOnline}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all relative ${
- !isLMStudioOnline
- ? 'opacity-40 cursor-not-allowed text-stone-400 bg-stone-100'
- : activeAIProvider === 'lmstudio'
- ? 'bg-white text-stone-900 cursor-pointer'
- : 'text-stone-500 hover:text-stone-900 cursor-pointer'
- }`}
+            !isLMStudioOnline
+              ? 'opacity-40 cursor-not-allowed text-stone-400 bg-stone-100'
+              : activeAIProvider === 'lmstudio'
+                ? 'bg-white text-stone-900 cursor-pointer'
+                : 'text-stone-500 hover:text-stone-900 cursor-pointer'
+          }`}
           title={
             isLMStudioOnline
               ? `Local AI Engine (${lmModel}) - Ready`
@@ -102,7 +115,9 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
             onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-stone-900/85 hover:bg-stone-900 text-stone-200 text-xs font-semibold border border-stone-700/80 cursor-pointer transition-colors"
           >
-            <span className="text-[10px] text-amber-400 font-black uppercase tracking-wider">Model:</span>
+            <span className="text-[10px] text-amber-400 font-black uppercase tracking-wider">
+              Model:
+            </span>
             <span className="truncate max-w-[140px] font-mono text-[11px]">
               {currentModelDisplay}
             </span>
@@ -111,14 +126,13 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
 
           {modelDropdownOpen && (
             <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setModelDropdownOpen(false)}
-              />
+              <div className="fixed inset-0 z-40" onClick={() => setModelDropdownOpen(false)} />
               <div className="fixed left-1/2 -translate-x-1/2 top-24 w-[min(18rem,calc(100vw-1.5rem))] max-h-96 overflow-y-auto bg-stone-900 border border-stone-700 rounded-2xl shadow-2xl z-50 p-2 space-y-1 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:translate-x-0 sm:mt-1.5 sm:w-72">
                 <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-stone-400 flex items-center justify-between">
                   <span>{cloudModelsLabel}</span>
-                  <span className="text-[9px] text-amber-400/80 lowercase">auto-fallback active</span>
+                  <span className="text-[9px] text-amber-400/80 lowercase">
+                    auto-fallback active
+                  </span>
                 </div>
                 {availableModels.map((m) => {
                   const isRateLimited = rateLimitedModels.includes(m.id);
@@ -137,12 +151,12 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
                         }
                       }}
                       className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
- isRateLimited
- ? 'opacity-40 bg-stone-800/40 text-stone-500 cursor-not-allowed border border-dashed border-stone-700/50'
- : isSelected
- ? 'bg-brand-500 text-white font-bold cursor-pointer'
- : 'text-stone-300 hover:bg-stone-800 cursor-pointer'
- }`}
+                        isRateLimited
+                          ? 'opacity-40 bg-stone-800/40 text-stone-500 cursor-not-allowed border border-dashed border-stone-700/50'
+                          : isSelected
+                            ? 'bg-brand-500 text-white font-bold cursor-pointer'
+                            : 'text-stone-300 hover:bg-stone-800 cursor-pointer'
+                      }`}
                       title={
                         isRateLimited
                           ? `${label} reached rate/quota limit. Auto-fallback will use other available models.`
@@ -159,7 +173,9 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
                           )}
                         </div>
                         {m.description && (
-                          <div className={`text-[10px] truncate ${isSelected ? 'text-amber-100' : 'text-stone-400'}`}>
+                          <div
+                            className={`text-[10px] truncate ${isSelected ? 'text-amber-100' : 'text-stone-400'}`}
+                          >
                             {m.description}
                           </div>
                         )}
@@ -176,5 +192,3 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
     </div>
   );
 };
-
-
