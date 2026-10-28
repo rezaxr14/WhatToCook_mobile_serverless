@@ -225,8 +225,7 @@ degrade to a translated "not connected" state, and `ai-models` falls back to the
 catalog. Staging API smoke and the Android bundle pass; mobile helper tests cover the dish
 photography helper. A debug-signed release APK is now built by
 `.github/workflows/android-device.yml` and installed on a physical Android 14 device; the
-on-device AI/scanner walkthrough is verified, while refreshed device screenshots are still
-pending.
+on-device AI/scanner walkthrough and the refreshed device screenshots are verified.
 M6 - mobile recipe catalog: a searchable `/recipes` screen with quick, vegetarian and sweet
 filters, plus a `/recipe/[id]` detail screen with serving scaling, pantry-aware ingredient
 checklists, inline substitutions, missing-only grocery export, step completion, an in-app
