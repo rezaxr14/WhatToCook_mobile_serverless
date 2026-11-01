@@ -7,8 +7,8 @@
 
 export const INGREDIENT_IMAGE_BUCKET = 'ingredient-images';
 export const INGREDIENT_IMAGE_PREFIX = 'ingredients';
-/** One year. Object names are content-hashed, so replacing a photo changes the URL. */
-export const INGREDIENT_IMAGE_CACHE_CONTROL = '31536000';
+/** Ten years. Object names are content-hashed, so replacing a photo changes the URL. */
+export const INGREDIENT_IMAGE_CACHE_CONTROL = '315360000';
 export const MAX_INGREDIENT_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const CONTENT_TYPE_EXTENSIONS: Record<string, string> = {

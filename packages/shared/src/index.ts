@@ -4,6 +4,7 @@ export * from './ai-models';
 export * from './ingredient-images';
 export * from './ingredient-categories';
 export * from './dish-photos';
+export * from './image-manifest';
 export * from './locales';
 export * from './localize';
 

@@ -1,3 +1,4 @@
+import { resolveImagePath } from '../../../packages/shared/src/image-manifest.ts';
 import { authenticate, userDbFor } from './auth.ts';
 import { createCacheGateway } from './cache.ts';
 import { loadCatalog } from './catalog.ts';
@@ -36,7 +37,7 @@ export function createGatewayDeps(
     provider: (providerId, config) => createProvider(providerId, config, env),
     imageUrl: (file) => {
       const base = (env.SUPABASE_URL ?? '').trim().replace(/\/+$/, '');
-      const encoded = file
+      const encoded = resolveImagePath(file)
         .replace(/^\/+/, '')
         .split('/')
         .map((part) => encodeURIComponent(part))
