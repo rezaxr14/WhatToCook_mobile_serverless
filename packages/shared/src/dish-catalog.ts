@@ -3645,7 +3645,7 @@ export const DISH_CATALOG: readonly CatalogDish[] = [
     ],
     "cuisine": "italian",
     "group": "rice",
-    "photo": "dishes/risotto.5217d29c.webp"
+    "photo": "dishes/risotto.6ffa9ed3.webp"
   },
   {
     "key": "pizza-margherita",

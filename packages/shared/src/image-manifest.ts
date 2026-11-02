@@ -337,7 +337,7 @@ export const IMAGE_MANIFEST: Readonly<Record<string, string>> = {
   "dishes/rice-krispie-treats.webp": "dishes/rice-krispie-treats.88505744.webp",
   "dishes/rice-pudding.webp": "dishes/rice-pudding.f29f70eb.webp",
   "dishes/risotto-alla-milanese.webp": "dishes/risotto-alla-milanese.2ad738a9.webp",
-  "dishes/risotto.webp": "dishes/risotto.7a4e51eb.webp",
+  "dishes/risotto.webp": "dishes/risotto.6ffa9ed3.webp",
   "dishes/rogan-josh.webp": "dishes/rogan-josh.227cb235.webp",
   "dishes/roti.webp": "dishes/roti.669e6b58.webp",
   "dishes/s-mores.webp": "dishes/s-mores.f707f1a5.webp",
