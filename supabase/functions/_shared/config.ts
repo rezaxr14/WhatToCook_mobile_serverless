@@ -13,6 +13,7 @@ export interface AppConfigRow {
   feature_flags: Record<string, unknown> | null;
   model_routing: Record<string, unknown> | null;
   challenge_every_n_calls?: number | null;
+  challenge_web_enforce?: boolean | null;
   challenge_mobile_enforce?: boolean | null;
   challenge_turnstile_action?: string | null;
   anonymous_unattested_daily_cap?: number | null;
@@ -151,8 +152,10 @@ export function parseRuntimeConfig(row: AppConfigRow | null, env: Env): RuntimeC
     allowedOrigins: parseAllowedOrigins(env.ALLOWED_ORIGINS),
     challenge: {
       everyNCalls: positiveInt(row?.challenge_every_n_calls, 3),
-      // Plan H2 is missing, so mobile stays opt-in until the service account
-      // exists. Web/Turnstile is enforced independently.
+      // Plan H1/H2 are human prerequisites: web stays enforced unless the flag
+      // is explicitly off, and mobile stays opt-in until the Play Integrity
+      // service account exists.
+      webEnforce: row?.challenge_web_enforce !== false,
       mobileEnforce: row?.challenge_mobile_enforce === true,
       turnstileAction: stringValue(row?.challenge_turnstile_action) ?? 'ai_gate',
       unattestedDailyCap: nonNegativeInt(row?.anonymous_unattested_daily_cap, 10),
@@ -170,7 +173,7 @@ export async function loadRuntimeConfig(db: DbClient, env: Env): Promise<Runtime
   const { data, error } = await db
     .from('app_config')
     .select(
-      'ai_kill_switch, global_daily_cap_micro_usd, feature_flags, model_routing, challenge_every_n_calls, challenge_mobile_enforce, challenge_turnstile_action, anonymous_unattested_daily_cap, pool_anonymous_pct, pool_registered_pct',
+      'ai_kill_switch, global_daily_cap_micro_usd, feature_flags, model_routing, challenge_every_n_calls, challenge_web_enforce, challenge_mobile_enforce, challenge_turnstile_action, anonymous_unattested_daily_cap, pool_anonymous_pct, pool_registered_pct',
     )
     .eq('id', 1)
     .maybeSingle();

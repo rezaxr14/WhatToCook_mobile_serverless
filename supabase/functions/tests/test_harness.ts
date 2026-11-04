@@ -398,6 +398,7 @@ export function createHarness(options: HarnessOptions = {}): TestHarness {
     allowedOrigins: ['http://localhost:5173'],
     challenge: {
       everyNCalls: 3,
+      webEnforce: true,
       mobileEnforce: false,
       turnstileAction: 'ai_gate',
       unattestedDailyCap: 10,

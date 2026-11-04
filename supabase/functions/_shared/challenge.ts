@@ -22,8 +22,9 @@ export function challengeKinds(
  * so they cost nothing and never trigger a challenge.
  *
  * Service calls keep their own pool and are not challenged. Android is skipped
- * while `challenge_mobile_enforce` is false; its lower unattested daily cap is
- * applied by `reserveUsage` instead.
+ * while `challenge_mobile_enforce` is false and web is skipped while
+ * `challenge_web_enforce` is false (both default to the plan's posture); the
+ * lower unattested Android daily cap is applied by `reserveUsage` instead.
  */
 export async function enforceChallenge(input: {
   auth: AuthContext;
@@ -33,6 +34,7 @@ export async function enforceChallenge(input: {
 }): Promise<void> {
   if (input.auth.service) return;
   if (input.auth.challengeExempt) return;
+  if (input.platform === 'web' && !input.config.challenge.webEnforce) return;
   if (input.platform === 'android' && !input.config.challenge.mobileEnforce) return;
 
   const decision = await input.quota.consumeChallenge(

@@ -7,6 +7,7 @@ import { AuthProvider } from './context/AuthContext';
 import { PantryProvider } from './context/PantryContext';
 import { ShoppingListProvider } from './context/ShoppingListContext';
 import { Navbar } from './components/common/Navbar';
+import { ChallengeModal } from './components/common/ChallengeModal';
 import { Footer } from './components/common/Footer';
 import { RouteMetadata } from './components/common/RouteMetadata';
 import { PWAInstallBanner } from './components/common/PWAInstallBanner';
@@ -115,6 +116,7 @@ export const App: React.FC = () => {
             <ShoppingListProvider>
               <LanguageProvider>
                 <AppContent />
+                <ChallengeModal />
               </LanguageProvider>
             </ShoppingListProvider>
           </PantryProvider>

@@ -423,8 +423,9 @@ the service snapshot.
 **Consequences:** `challenge_required` is a normal 403, not a quota charge, and clients must
 route it to a verification UI; the web and mobile clients already map it to localized copy.
 `ai_pool_exhausted` means "today's capacity", not "your limit", and prompts anonymous users to
-sign in. Deployments without H1 (`TURNSTILE_SECRET_KEY`) cannot complete web verification, so web
-AI fails closed with `provider_error`; this is intentional until the keys are supplied. Deploying
+sign in. Deployments without H1 (`TURNSTILE_SECRET_KEY`) cannot complete web verification, so
+`challenge_web_enforce` is switched off there (ADR-020) instead of leaving every web AI call
+failing closed; turn it on when the keys exist. Deploying
 H2 only requires setting `PLAY_INTEGRITY_SERVICE_ACCOUNT` (and optionally the package name),
 flipping `challenge_mobile_enforce`, and shipping the Android attestation UI. Service keys are a
 shared secret: rotate `MAIN_SERVICE_KEY` in both projects together. Only a short end-user hash is
@@ -461,3 +462,22 @@ handlers are idempotent enough for a replay (link codes are single-use, pantry w
 The helper RPCs are revoked from `anon`/`authenticated`; only the service role can call them.
 Without H3 the code ships untested against a real bot, and the web modal shows a linking error
 rather than a dead link.
+
+## ADR-020 - Web Turnstile has its own enforcement switch
+
+**Context:** plan prerequisite H1 (Cloudflare Turnstile keys) is still missing. Without a secret,
+verify-challenge returns provider_error, and because the adaptive gate asks new users to verify
+before their first provider call, every web AI request failed. Failing closed is the right default,
+but it makes the deployed web app unusable, and the static build also needs a public site key
+(VITE_TURNSTILE_SITE_KEY) before it can show the widget.
+
+**Decision:** add app_config.challenge_web_enforce (default true) and honour it in
+enforceChallenge, the same way challenge_mobile_enforce gates Android. The web client now mounts a
+ChallengeModal; on 403 challenge_required it renders Turnstile, calls verify-challenge, and
+retries the AI request once. While H1 is missing the live project runs with the flag off, so web
+traffic stays in the anonymous pool under its caps; the modal shows an explanatory error if a
+challenge is somehow requested without a site key.
+
+**Consequences:** enabling web attestation is a config update plus a rebuild with the site key, not a
+code change. Turning it off weakens abuse protection, so it is a temporary deployment state, not
+a supported long-term default; record the flag when reporting deployments.
