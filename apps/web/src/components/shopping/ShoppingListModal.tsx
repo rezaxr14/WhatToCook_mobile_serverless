@@ -233,7 +233,7 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({ isOpen, on
             className="space-y-2.5 rounded-2xl border border-stone-200 bg-stone-50/80 p-3"
           >
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
               <input
                 ref={nameInputRef}
                 type="text"
@@ -250,7 +250,7 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({ isOpen, on
                 placeholder="Add an item — type to search the catalog..."
                 aria-label="Grocery item name"
                 autoComplete="off"
-                className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-9 pr-3 text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-brand-500"
+                className="w-full rounded-xl border border-stone-200 bg-white py-2.5 ps-9 pe-3 text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-brand-500"
               />
 
               {showSuggestions && suggestions.length > 0 && (
@@ -263,7 +263,7 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({ isOpen, on
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => pickSuggestion(ingredient.name, ingredient.category)}
-                        className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition-colors ${
+                        className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-start transition-colors ${
                           index === activeSuggestion ? 'bg-brand-50' : 'hover:bg-stone-50'
                         }`}
                       >
@@ -360,7 +360,7 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({ isOpen, on
 
           {/* Popular picks — one tap fills the item and its quantity controls. */}
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-stone-400">
+            <span className="me-1 inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-stone-400">
               <Sparkles className="h-3 w-3" />
               Popular
             </span>
@@ -394,7 +394,7 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({ isOpen, on
               </p>
             </div>
           ) : (
-            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-72 overflow-y-auto pe-1">
               {items.map((item) => (
                 <div
                   key={item.id}
@@ -407,7 +407,7 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({ isOpen, on
                   <button
                     type="button"
                     onClick={() => toggleItem(item.id)}
-                    className="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer"
+                    className="flex items-center gap-3 min-w-0 flex-1 text-start cursor-pointer"
                   >
                     {item.checked ? (
                       <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />

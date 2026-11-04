@@ -138,7 +138,7 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
           if (trimmed.startsWith('* ') || trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
             const textPart = trimmed.substring(2);
             return (
-              <div key={idx} className="flex items-start gap-2 pl-2">
+              <div key={idx} className="flex items-start gap-2 ps-2">
                 <span className="text-amber-500 font-bold mt-0.5">•</span>
                 <span>{renderInlineStyles(textPart)}</span>
               </div>
@@ -149,7 +149,7 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
           const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
           if (numMatch) {
             return (
-              <div key={idx} className="flex items-start gap-2 pl-2">
+              <div key={idx} className="flex items-start gap-2 ps-2">
                 <span className="text-amber-600 font-bold text-xs mt-0.5">{numMatch[1]}.</span>
                 <span>{renderInlineStyles(numMatch[2])}</span>
               </div>
@@ -299,7 +299,7 @@ export const RecipeChatBox: React.FC<RecipeChatBoxProps> = ({
               <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
               <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse delay-150" />
               <div className="w-2 h-2 rounded-full bg-stone-700 animate-pulse delay-300" />
-              <span className="text-xs font-semibold text-stone-500 ml-2">
+              <span className="text-xs font-semibold text-stone-500 ms-2">
                 Chef is preparing your culinary answer...
               </span>
             </div>

@@ -215,7 +215,7 @@ export const RecipeDetailPage: React.FC = () => {
                   return (
                     <div
                       key={ri.id}
-                      className={`w-full flex items-center justify-between p-3 rounded-2xl border text-left transition-all ${
+                      className={`w-full flex items-center justify-between p-3 rounded-2xl border text-start transition-all ${
  isChecked
  ? 'bg-emerald-50 border-emerald-200 text-emerald-950 opacity-70'
  : 'bg-stone-50/80 border-stone-200 hover:border-brand-300 text-stone-800'
@@ -223,7 +223,7 @@ export const RecipeDetailPage: React.FC = () => {
                     >
                       <button
                         onClick={() => toggleIngredientCheck(ri.ingredient.id)}
-                        className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+                        className="flex items-center gap-2.5 min-w-0 flex-1 text-start"
                       >
                         <div
                           className={`w-5 h-5 rounded-lg flex items-center justify-center border ${
@@ -274,7 +274,7 @@ export const RecipeDetailPage: React.FC = () => {
                   return (
                     <div
                       key={ing.id}
-                      className={`w-full flex items-center justify-between p-3 rounded-2xl border text-left transition-all ${
+                      className={`w-full flex items-center justify-between p-3 rounded-2xl border text-start transition-all ${
  isChecked
  ? 'bg-emerald-50 border-emerald-200 text-emerald-950 opacity-70'
  : 'bg-stone-50/80 border-stone-200 hover:border-brand-300 text-stone-800'
@@ -282,7 +282,7 @@ export const RecipeDetailPage: React.FC = () => {
                     >
                       <button
                         onClick={() => toggleIngredientCheck(ing.id)}
-                        className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+                        className="flex items-center gap-2.5 min-w-0 flex-1 text-start"
                       >
                         <div
                           className={`w-5 h-5 rounded-lg flex items-center justify-center border ${
