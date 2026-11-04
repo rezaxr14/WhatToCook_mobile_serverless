@@ -424,6 +424,14 @@ verify_jwt = false
 [functions.cache-ingredient-images]
 verify_jwt = false
 
+# Adaptive challenge endpoints (plan 4.1). They authenticate the caller's
+# bearer token themselves and return the project's CORS headers.
+[functions.verify-challenge]
+verify_jwt = false
+
+[functions.challenge-nonce]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

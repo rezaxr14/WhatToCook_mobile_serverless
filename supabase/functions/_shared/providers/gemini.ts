@@ -28,6 +28,8 @@ export interface GeminiProviderOptions {
   timeoutMs?: number;
   streamTimeoutMs?: number;
   fetchImpl?: typeof fetch;
+  /** Called once per HTTP attempt (including model fallbacks). */
+  onAttempt?: () => Promise<void>;
 }
 
 export class GeminiProvider implements AIProvider {
@@ -38,6 +40,7 @@ export class GeminiProvider implements AIProvider {
   private readonly timeoutMs: number;
   private readonly streamTimeoutMs: number;
   private readonly fetchImpl: typeof fetch;
+  private readonly onAttempt?: () => Promise<void>;
 
   constructor(options: GeminiProviderOptions) {
     if (!options.apiKey) throw providerError('Gemini is not configured.');
@@ -47,6 +50,7 @@ export class GeminiProvider implements AIProvider {
     this.timeoutMs = options.timeoutMs ?? 30_000;
     this.streamTimeoutMs = options.streamTimeoutMs ?? 60_000;
     this.fetchImpl = options.fetchImpl ?? fetch;
+    this.onAttempt = options.onAttempt;
   }
 
   async generateText(request: ProviderRequest): Promise<ProviderResult> {
@@ -77,6 +81,7 @@ export class GeminiProvider implements AIProvider {
     let lastError: unknown = null;
 
     for (const model of candidates) {
+      await this.onAttempt?.();
       try {
         const response = await this.fetchImpl(
           `${ENDPOINT}/${encodeURIComponent(model)}:generateContent`,
@@ -124,6 +129,7 @@ export class GeminiProvider implements AIProvider {
 
     for (const model of candidates) {
       let yielded = false;
+      await this.onAttempt?.();
       try {
         const response = await this.fetchImpl(
           `${ENDPOINT}/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`,

@@ -383,3 +383,50 @@ someone adds translations), which is intentional: the next scan matches them nor
 Catalog writes are possible only through this validated RPC, and the unique pantry constraint
 makes repeated scans idempotent. The CI APK uses the debug keystore, so it cannot upgrade a
 Play-signed install; uninstall first or keep the keystore consistent.
+
+## ADR-018 - Adaptive challenge, provider pools, and a service principal without an account
+
+**Context:** the cost-bearing AI calls were protected only by per-user quotas. A script could
+still create accounts, the anonymous demo could consume the provider's entire daily quota, and
+main's Django app needs to call the gateway without minting a synthetic `auth.users` row. The
+plan also requires a captcha that does not break the native Android app, and two prerequisites
+are still missing: Turnstile keys (H1) and the Play Integrity service account (H2).
+
+**Decision:** every provider-bound request (cache hits and idempotent replays excluded) calls
+`consume_ai_challenge(user_id, challenge_every_n_calls)`. When the counter has reached the
+threshold, the gateway returns `403 challenge_required` with the acceptable `kinds` at the top
+level and does not touch quota. A successful `verify-challenge` call resets the counter and
+records the verification kind. Web always uses Turnstile (`action=ai_gate`, optional hostname
+allowlist); Android uses Play Integrity with a server-issued, single-use nonce. Because H2 does
+not exist yet, `challenge_mobile_enforce` defaults to `false`: web is challenged, Android is
+skipped and instead gets the lower `anonymous_unattested_daily_cap` (10) when it draws from the
+anonymous pool. When a Play Integrity token is submitted without a configured service account,
+`verify-challenge` returns `502 provider_error` and enforces nothing.
+
+Provider capacity is split into daily anonymous (60 %) and registered (40 %) pools of the
+`AI_RPD_LIMIT` guard, which is itself set to 95 % of the provider's real limit. Pool accounting
+is atomic inside `reserve_ai_quota`; exhaustion returns `429 ai_pool_exhausted` with
+`details.pool`. Every provider HTTP attempt — primary, fallback, and schema retry — increments
+`ai_provider_attempts` through `record_provider_attempt`, so a retry cannot hide behind a single
+reservation. Per-user daily caps are 20 AI requests + 5 scans for anonymous and 60 + 15 for free;
+they remain plan data.
+
+Main's adapter authenticates with `X-Service-Key`, compared against `MAIN_SERVICE_KEY` as
+SHA-256 digests (constant time, minimum 32 characters). Service calls set
+`principal_class: "anonymous" | "registered"` and may send `end_user_ref`; only an 8-hex FNV-1a
+hash of that reference is stored. Service traffic bypasses the challenge and per-user caps but
+consumes the matching anonymous/registered pool, so it cannot exceed the provider guard. There is
+no `auth.users` row: `ai_usage_events.user_id` is nullable, every service row carries
+`service_principal`, and a check constraint requires one of the two. `get_service_usage` supplies
+the service snapshot.
+
+**Consequences:** `challenge_required` is a normal 403, not a quota charge, and clients must
+route it to a verification UI; the web and mobile clients already map it to localized copy.
+`ai_pool_exhausted` means "today's capacity", not "your limit", and prompts anonymous users to
+sign in. Deployments without H1 (`TURNSTILE_SECRET_KEY`) cannot complete web verification, so web
+AI fails closed with `provider_error`; this is intentional until the keys are supplied. Deploying
+H2 only requires setting `PLAY_INTEGRITY_SERVICE_ACCOUNT` (and optionally the package name),
+flipping `challenge_mobile_enforce`, and shipping the Android attestation UI. Service keys are a
+shared secret: rotate `MAIN_SERVICE_KEY` in both projects together. Only a short end-user hash is
+stored, so service usage can be attributed for abuse review but not tied back to a person from
+the database alone.

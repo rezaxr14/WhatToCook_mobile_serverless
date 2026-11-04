@@ -39,6 +39,25 @@ function language(): string {
   return i18n.resolvedLanguage || i18n.language || 'en';
 }
 
+/**
+ * Android requests are tagged so the gateway can apply the unattested-device
+ * cap and request Play Integrity instead of Turnstile. The header is harmless
+ * on iOS/web builds, but only the Android client sends it.
+ */
+const CLIENT_HEADERS = { 'x-client-platform': 'android' } as const;
+
+/** Localised copy for the gateway's challenge and pool errors. */
+function messageForCode(code: string): string | null {
+  switch (code) {
+    case 'challenge_required':
+      return i18n.t('mobile.ai.challengeRequired');
+    case 'ai_pool_exhausted':
+      return i18n.t('mobile.ai.poolExhausted');
+    default:
+      return null;
+  }
+}
+
 function isResponse(value: unknown): value is Response {
   return (
     typeof value === 'object' &&
@@ -49,7 +68,10 @@ function isResponse(value: unknown): value is Response {
 }
 
 async function invokeAi<T>(name: string, body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke(name, { body });
+  const { data, error } = await supabase.functions.invoke(name, {
+    body,
+    headers: CLIENT_HEADERS,
+  });
 
   if (error) {
     const context = (error as { context?: unknown }).context;
@@ -76,6 +98,10 @@ async function invokeAi<T>(name: string, body: Record<string, unknown>): Promise
     }
     if (status === 401) {
       throw new AIRequestError(message ?? i18n.t('mobile.common.error'), 'unauthorized', status);
+    }
+    const mapped = messageForCode(code);
+    if (mapped) {
+      throw new AIRequestError(mapped, code, status);
     }
     if (status === 429) {
       throw new AIRequestError(

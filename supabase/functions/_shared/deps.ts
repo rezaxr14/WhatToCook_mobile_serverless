@@ -7,6 +7,7 @@ import type { DbClient } from './db.ts';
 import { getActivePrice, localPrice, openRouterPriceFromEnv } from './prices.ts';
 import { createProvider } from './providers/index.ts';
 import { createQuotaGateway } from './quota.ts';
+import { authenticateService } from './service-auth.ts';
 import { createServiceClient, readSupabaseEnv, type SupabaseEnv } from './supabase.ts';
 import type { GatewayDeps } from './types.ts';
 
@@ -21,6 +22,7 @@ export function createGatewayDeps(
   return {
     allowedOrigins: () => parseAllowedOrigins(env.ALLOWED_ORIGINS),
     auth: (request) => authenticate(request, supabaseEnv, serviceDb),
+    serviceAuth: (request) => authenticateService(request, env),
     loadConfig: () => loadRuntimeConfig(serviceDb, env),
     getPrice: async (provider, model) =>
       (await getActivePrice(serviceDb, provider, model, now())) ??
@@ -33,7 +35,7 @@ export function createGatewayDeps(
     ),
     cache: createCacheGateway(serviceDb, now),
     loadCatalog: () => loadCatalog(serviceDb),
-    provider: (providerId, config) => createProvider(providerId, config, env),
+    provider: (providerId, config, hooks) => createProvider(providerId, config, env, hooks),
     imageUrl: (file) => {
       const base = (env.SUPABASE_URL ?? '').trim().replace(/\/+$/, '');
       const encoded = file

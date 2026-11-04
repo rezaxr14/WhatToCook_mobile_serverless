@@ -641,3 +641,29 @@ Expo SDK 58 supplies these defaults in `ExpoRootProjectPlugin`.
 - `android-device.yml` now refreshes a rolling `android-device-latest` prerelease with
   `WhatToCook-android-device.apk`, so the device build can be downloaded on a phone without
   signing in to Actions. The 14-day SHA artifact is still uploaded alongside it.
+
+## Adaptive challenge, provider pools and service principal (2026-11-03)
+
+- Migration `20261103120000_challenge_pools_gateway.sql` adds `ai_challenge_state`,
+  single-use `ai_challenge_nonces`, `ai_pool_daily`, and `ai_provider_attempts`. It also adds
+  the `challenge_*`, `anonymous_unattested_daily_cap`, and `pool_*_pct` config knobs, sets the
+  plan caps to anonymous 20 AI + 5 scans / free 60 + 15, and replaces `reserve_ai_quota` with a
+  10-argument version that accepts a pool, its limit, a service principal, and a daily cap.
+- Web requests are adaptively challenged with Cloudflare Turnstile; Android is skipped while
+  `challenge_mobile_enforce` is false and gets the lower unattested anonymous cap. New
+  `challenge-nonce` (GET) and `verify-challenge` (POST) functions issue the Play Integrity
+  nonce and verify Turnstile or Play Integrity tokens. Missing H1/H2 secrets fail closed.
+- Provider capacity is split 60/40 between anonymous and registered pools of the 95 % RPD
+  guard. Every provider attempt (fallback and schema retry included) increments
+  `ai_provider_attempts`; exhaustion is `503 ai_budget_exhausted`, pool exhaustion is
+  `429 ai_pool_exhausted` with `details.pool`.
+- Main's adapter authenticates with `X-Service-Key` (SHA-256 constant-time compare against
+  `MAIN_SERVICE_KEY`, 32+ chars). Service calls send `principal_class` and an optional hashed
+  `end_user_ref`, bypass the challenge and per-user caps, and consume the matching pool. Service
+  usage rows have a null `user_id` and a `service_principal`; `get_service_usage` serves them.
+- Clients: the web gateway wrapper now parses error bodies and maps `challenge_required` /
+  `ai_pool_exhausted`; mobile sends `X-Client-Platform: android` and maps both codes with new
+  copy in all five locales. CORS allows the platform header.
+- Verified: 152 Deno tests, 176 pgTAP tests (including concurrent pool reservations), web and
+  mobile typecheck. Live Turnstile/Play Integrity and the Telegram/M2 parity checks wait on the
+  missing human prerequisites.
