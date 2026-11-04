@@ -393,6 +393,8 @@
       "remaining": "Bugün {{count}} AI isteği kaldı",
       "notConnected": "AI bu sunucuda henüz bağlı değil.",
       "noQuota": "Günlük AI limitine ulaştın. Yarın tekrar dene.",
+      "challengeRequired": "AI'yi kullanmaya devam etmek için hızlı doğrulamayı tamamla.",
+      "poolExhausted": "Demo kapasitesi bugün doldu. Giriş yap veya yarın tekrar dene.",
       "cached": "Önbellekten",
       "engine": "Motor",
       "free": "Ücretsiz",

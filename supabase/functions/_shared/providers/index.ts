@@ -4,12 +4,13 @@ import { FakeProvider } from './fake.ts';
 import { FallbackProvider } from './fallback.ts';
 import { GeminiProvider } from './gemini.ts';
 import { OpenRouterProvider } from './openrouter.ts';
-import type { AIProvider, RuntimeConfig } from '../types.ts';
+import type { AIProvider, ProviderHooks, RuntimeConfig } from '../types.ts';
 
 export function createProvider(
   providerId: string,
   config: RuntimeConfig,
   env: Record<string, string | undefined>,
+  hooks: ProviderHooks = {},
 ): AIProvider {
   if (providerId === 'fake') {
     return new FakeProvider({
@@ -38,7 +39,12 @@ export function createProvider(
       config.models.scan,
       config.models.recipe,
     ]);
-    const primary = new GeminiProvider({ apiKey, textFallbacks, visionFallbacks });
+    const primary = new GeminiProvider({
+      apiKey,
+      textFallbacks,
+      visionFallbacks,
+      onAttempt: attemptFor(hooks, 'gemini'),
+    });
 
     // Optional cross-provider fallback: keep serving from OpenRouter's free
     // model when Gemini is unavailable or the key hits its quota. Opt-in so a
@@ -57,6 +63,7 @@ export function createProvider(
             jsonMode: env.OPENROUTER_JSON_MODE !== 'false',
             timeoutMs: numberFromEnv(env.OPENROUTER_TIMEOUT_MS, 60_000),
             streamTimeoutMs: numberFromEnv(env.OPENROUTER_STREAM_TIMEOUT_MS, 120_000),
+            onAttempt: attemptFor(hooks, 'openrouter'),
           }),
           env.OPENROUTER_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL,
           env.AI_FALLBACK_VISION === 'true',
@@ -107,6 +114,7 @@ export function createProvider(
       // provider default is too tight and surfaces as a spurious failure.
       timeoutMs: numberFromEnv(env.OPENROUTER_TIMEOUT_MS, 60_000),
       streamTimeoutMs: numberFromEnv(env.OPENROUTER_STREAM_TIMEOUT_MS, 120_000),
+      onAttempt: attemptFor(hooks, 'openrouter'),
     });
   }
 
@@ -139,6 +147,7 @@ export function createProvider(
       jsonMode: env.LMSTUDIO_JSON_MODE === 'true',
       timeoutMs: numberFromEnv(env.LMSTUDIO_TIMEOUT_MS, 120_000),
       streamTimeoutMs: numberFromEnv(env.LMSTUDIO_STREAM_TIMEOUT_MS, 180_000),
+      onAttempt: attemptFor(hooks, 'lmstudio'),
     });
   }
 
@@ -147,6 +156,13 @@ export function createProvider(
 
 function unique(values: Array<string | undefined>): string[] {
   return [...new Set(values.filter((value): value is string => Boolean(value?.trim())))];
+}
+
+function attemptFor(
+  hooks: ProviderHooks,
+  providerId: string,
+): (() => Promise<void>) | undefined {
+  return hooks.onAttempt ? () => hooks.onAttempt!(providerId) : undefined;
 }
 
 function numberFromEnv(value: string | undefined, fallback: number): number {

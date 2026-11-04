@@ -65,6 +65,26 @@ export function budgetExhausted(
   return new AppError('ai_budget_exhausted', message, 503);
 }
 
+/** The caller must complete an adaptive verification before the next AI call. */
+export function challengeRequired(
+  kinds: Array<'turnstile' | 'play_integrity'>,
+  message = 'Verify that you are human to keep using AI.',
+): AppError {
+  return new AppError('challenge_required', message, 403, { details: { kinds } });
+}
+
+/** The anonymous pool ran out while registered capacity is still available. */
+export function poolExhausted(pool: string): AppError {
+  return new AppError(
+    'ai_pool_exhausted',
+    pool === 'anonymous'
+      ? 'Demo capacity is reached for today. Sign in or try again tomorrow.'
+      : 'AI capacity is reached for today. Please try again tomorrow.',
+    429,
+    { details: { pool }, resetsAt: nextUtcMidnight() },
+  );
+}
+
 export function providerError(message = 'The AI provider failed. Please try again.', cause?: unknown): AppError {
   return new AppError('provider_error', message, 502, { cause });
 }
@@ -101,6 +121,7 @@ export function mapDatabaseError(message: string, cause?: unknown): AppError {
     case 'monthly_budget_exceeded':
       return quotaExceeded('Your monthly AI budget has been reached.', nextUtcMonth());
     case 'global_budget_exceeded':
+    case 'provider_daily_guard_exceeded':
       return budgetExhausted();
     case 'profile_not_found':
       return new AppError('unauthorized', 'Your profile is not available. Sign in again.', 403);
@@ -124,6 +145,11 @@ export function mapDatabaseError(message: string, cause?: unknown): AppError {
     return quotaExceeded('Your monthly AI budget has been reached.', nextUtcMonth());
   }
   if (value.includes('global_budget_exceeded')) return budgetExhausted();
+  if (value.includes('provider_daily_guard_exceeded')) return budgetExhausted();
+  if (value.includes('ai_pool_exhausted')) {
+    const pool = value.includes('anonymous') ? 'anonymous' : 'registered';
+    return poolExhausted(pool);
+  }
   if (value.includes('ai_kill_switch') || value.includes('feature_disabled')) return aiDisabled();
 
   return internalError('The AI service could not complete the request.', cause);

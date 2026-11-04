@@ -132,7 +132,7 @@ export const PantryShelf: React.FC<PantryShelfProps> = ({
                     e.stopPropagation();
                     onRemove(ing.id);
                   }}
-                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-stone-900/60 hover:bg-rose-600 text-white flex items-center justify-center transition-colors shadow-xs cursor-pointer"
+                  className="absolute top-1.5 end-1.5 w-6 h-6 rounded-full bg-stone-900/60 hover:bg-rose-600 text-white flex items-center justify-center transition-colors shadow-xs cursor-pointer"
                   title="Remove from pantry"
                 >
                   <X className="w-3.5 h-3.5" />

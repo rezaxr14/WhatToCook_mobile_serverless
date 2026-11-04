@@ -9,6 +9,7 @@ import { checkCors } from './cors.ts';
 import { attachDetailImage, attachSuggestionImages } from './dish-images.ts';
 import { badRequest, invalidModelOutput } from './errors.ts';
 import {
+  applyServicePrincipal,
   buildProviderRequest,
   cacheKeyFor,
   ensureNotIdempotentDuplicate,
@@ -83,46 +84,107 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
     cors = contextCors;
 
     const body = await readJsonBody(request, AI_LIMITS.maxJsonBodyBytes);
+    applyServicePrincipal(auth, body);
     const parsed = generateRecipeRequestSchema.safeParse(body);
     if (!parsed.success) {
       throw badRequest('Invalid generate-recipe request.', parsed.error.issues);
     }
     const input = parsed.data;
-    const feature = featureForMode(input.mode);
-    assertFeature(config, feature);
-    const locale = resolveLocale(auth, input);
-    const resolvedProvider = providerFor(deps, config, {
-      feature,
-      provider: input.provider,
-      model: input.model,
-    });
-    const provider = resolvedProvider.provider;
-    const providerId = resolvedProvider.id;
-    const model = modelFor(config, feature, input.model, providerId);
-    const prompt = buildPrompt(input, locale);
-    const idempotency = await idempotencyKeyFor(
-      auth.userId,
-      request.headers.get('idempotency-key'),
-    );
+    return await generateForAuth({ request, deps, auth, config, cors, input });
+  } catch (error) {
+    return errorResponse(error, cors);
+  }
+}
 
-    const idempotentHit = await readGenerationCache(deps, idempotency.key);
-    if (idempotentHit) {
+export interface GenerateForAuthInput {
+  request: Request;
+  deps: GatewayDeps;
+  auth: AuthContext;
+  config: RuntimeConfig;
+  cors: Headers;
+  input: GenerateRecipeRequest;
+}
+
+/**
+ * Runs the generation pipeline for an already-authenticated principal. The
+ * HTTP entry point uses it after parsing the body; the Telegram bot uses it
+ * with the linked profile's context so the same quota, cache and pool rules
+ * apply without a browser session.
+ */
+export async function generateForAuth(ctx: GenerateForAuthInput): Promise<Response> {
+  const { request, deps, auth, config, cors, input } = ctx;
+  const feature = featureForMode(input.mode);
+  assertFeature(config, feature);
+  const locale = resolveLocale(auth, input);
+  const resolvedProvider = providerFor(deps, config, {
+    feature,
+    provider: input.provider,
+    model: input.model,
+  });
+  const provider = resolvedProvider.provider;
+  const providerId = resolvedProvider.id;
+  const model = modelFor(config, feature, input.model, providerId);
+  const prompt = buildPrompt(input, locale);
+  const idempotency = await idempotencyKeyFor(
+    auth.userId,
+    request.headers.get('idempotency-key'),
+  );
+
+  const idempotentHit = await readGenerationCache(deps, idempotency.key);
+  if (idempotentHit) {
+    const started = performance.now();
+    await recordCacheHit(deps, auth, {
+      requestId: idempotency.requestId,
+      feature,
+      provider: idempotentHit.provider || providerId,
+      model: idempotentHit.model || model,
+      latencyMs: Math.round(performance.now() - started),
+    });
+    const remaining = await usageSnapshot(deps, auth);
+    if (input.stream) {
+      return streamCached(request, cors, input, feature, remaining, idempotentHit);
+    }
+    return jsonResponse(
+      buildJsonResponse(input, feature, idempotentHit, {
+        cached: true,
+        duplicate: true,
+        usage: zeroUsage(),
+        remaining,
+      }),
+      200,
+      cors,
+    );
+  }
+
+  const payload = cachePayload(input, locale);
+  const key = await cacheKeyFor({
+    feature,
+    provider: providerId,
+    model,
+    locale,
+    payload,
+  });
+
+  if (!input.force_refresh) {
+    const hit = await readGenerationCache(deps, key);
+    if (hit) {
       const started = performance.now();
+      await deps.cache.touch(key).catch(() => undefined);
       await recordCacheHit(deps, auth, {
         requestId: idempotency.requestId,
         feature,
-        provider: idempotentHit.provider || providerId,
-        model: idempotentHit.model || model,
+        provider: hit.provider || providerId,
+        model: hit.model || model,
         latencyMs: Math.round(performance.now() - started),
       });
       const remaining = await usageSnapshot(deps, auth);
       if (input.stream) {
-        return streamCached(request, cors, input, feature, remaining, idempotentHit);
+        return streamCached(request, cors, input, feature, remaining, hit);
       }
       return jsonResponse(
-        buildJsonResponse(input, feature, idempotentHit, {
+        buildJsonResponse(input, feature, hit, {
           cached: true,
-          duplicate: true,
+          duplicate: false,
           usage: zeroUsage(),
           remaining,
         }),
@@ -130,130 +192,91 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
         cors,
       );
     }
+  }
 
-    const payload = cachePayload(input, locale);
-    const key = await cacheKeyFor({
-      feature,
-      provider: providerId,
-      model,
-      locale,
-      payload,
-    });
-
-    if (!input.force_refresh) {
-      const hit = await readGenerationCache(deps, key);
-      if (hit) {
-        const started = performance.now();
-        await deps.cache.touch(key).catch(() => undefined);
-        await recordCacheHit(deps, auth, {
-          requestId: idempotency.requestId,
-          feature,
-          provider: hit.provider || providerId,
-          model: hit.model || model,
-          latencyMs: Math.round(performance.now() - started),
-        });
-        const remaining = await usageSnapshot(deps, auth);
-        if (input.stream) {
-          return streamCached(request, cors, input, feature, remaining, hit);
-        }
-        return jsonResponse(
-          buildJsonResponse(input, feature, hit, {
-            cached: true,
-            duplicate: false,
-            usage: zeroUsage(),
-            remaining,
-          }),
-          200,
-          cors,
-        );
-      }
-    }
-
-    const price = await priceFor(deps, providerId, model);
-    const reserveEstimate = estimateReserveMicroUsd({
-      price,
-      inputTokens: estimateInputTokens(`${prompt.system}\n${prompt.prompt}`),
-      maxOutputTokens: outputBudget(feature),
-    });
-    const reserve = await reserveUsage(deps, auth, {
-      request: request,
-      requestId: idempotency.requestId,
-      feature,
-      estimateMicroUsd: reserveEstimate,
-      provider: providerId,
-      model,
-      rateLimits: config.rateLimits,
-    });
-    ensureNotIdempotentDuplicate(reserve);
-    let initialRemaining: UsageSnapshot;
-    try {
-      initialRemaining = await usageSnapshot(deps, auth);
-    } catch (error) {
-      await refundQuietly(deps, reserve.eventId, error);
-      throw error;
-    }
-
-    if (input.stream) {
-      return streamGenerated(request, cors, {
-        deps,
-        auth,
-        config,
-        input,
-        feature,
-        locale,
-        provider,
-        providerId,
-        model,
-        prompt,
-        key,
-        idempotencyKey: idempotency.key,
-        eventId: reserve.eventId,
-        remaining: initialRemaining,
-      });
-    }
-
-    let settled = false;
-    try {
-      const generated = await generatePayload(input, feature, provider, prompt, locale, model);
-      const cached: CachedGeneration = {
-        data: withDishImages(generated.data, feature, deps),
-        model: generated.providerResult.model,
-        provider: generated.providerResult.provider,
-        rate_limited_models: generated.providerResult.rate_limited_models,
-      };
-      await writeIdempotencyCache(deps, idempotency.key, feature, cached);
-      const usage = usageWithTokenFallback(generated.providerResult.usage, {
-        input_tokens: estimateInputTokens(`${prompt.system}\n${prompt.prompt}`),
-        output_tokens: 0,
-      });
-      const cost = await settleUsage(deps, {
-        eventId: reserve.eventId,
-        provider: generated.providerResult.provider,
-        model: generated.providerResult.model,
-        usage,
-      });
-      settled = true;
-      await writeGenerationCache(deps, key, feature, cached);
-      const remaining = await usageSnapshot(deps, auth).catch(() => initialRemaining);
-      return jsonResponse(
-        buildJsonResponse(input, feature, cached, {
-          cached: false,
-          duplicate: false,
-          usage: { ...usage, cost_micro_usd: cost },
-          remaining,
-        }),
-        200,
-        cors,
-      );
-    } catch (error) {
-      if (!settled) {
-        await deps.cache.delete(idempotency.key).catch(() => undefined);
-        await refundQuietly(deps, reserve.eventId, error);
-      }
-      throw error;
-    }
+  const price = await priceFor(deps, providerId, model);
+  const reserveEstimate = estimateReserveMicroUsd({
+    price,
+    inputTokens: estimateInputTokens(`${prompt.system}\n${prompt.prompt}`),
+    maxOutputTokens: outputBudget(feature),
+  });
+  const reserve = await reserveUsage(deps, auth, {
+    request: request,
+    requestId: idempotency.requestId,
+    feature,
+    estimateMicroUsd: reserveEstimate,
+    provider: providerId,
+    model,
+    rateLimits: config.rateLimits,
+    config,
+  });
+  ensureNotIdempotentDuplicate(reserve);
+  let initialRemaining: UsageSnapshot;
+  try {
+    initialRemaining = await usageSnapshot(deps, auth);
   } catch (error) {
-    return errorResponse(error, cors);
+    await refundQuietly(deps, reserve.eventId, error);
+    throw error;
+  }
+
+  if (input.stream) {
+    return streamGenerated(request, cors, {
+      deps,
+      auth,
+      config,
+      input,
+      feature,
+      locale,
+      provider,
+      providerId,
+      model,
+      prompt,
+      key,
+      idempotencyKey: idempotency.key,
+      eventId: reserve.eventId,
+      remaining: initialRemaining,
+    });
+  }
+
+  let settled = false;
+  try {
+    const generated = await generatePayload(input, feature, provider, prompt, locale, model);
+    const cached: CachedGeneration = {
+      data: withDishImages(generated.data, feature, deps),
+      model: generated.providerResult.model,
+      provider: generated.providerResult.provider,
+      rate_limited_models: generated.providerResult.rate_limited_models,
+    };
+    await writeIdempotencyCache(deps, idempotency.key, feature, cached);
+    const usage = usageWithTokenFallback(generated.providerResult.usage, {
+      input_tokens: estimateInputTokens(`${prompt.system}\n${prompt.prompt}`),
+      output_tokens: 0,
+    });
+    const cost = await settleUsage(deps, {
+      eventId: reserve.eventId,
+      provider: generated.providerResult.provider,
+      model: generated.providerResult.model,
+      usage,
+    });
+    settled = true;
+    await writeGenerationCache(deps, key, feature, cached);
+    const remaining = await usageSnapshot(deps, auth).catch(() => initialRemaining);
+    return jsonResponse(
+      buildJsonResponse(input, feature, cached, {
+        cached: false,
+        duplicate: false,
+        usage: { ...usage, cost_micro_usd: cost },
+        remaining,
+      }),
+      200,
+      cors,
+    );
+  } catch (error) {
+    if (!settled) {
+      await deps.cache.delete(idempotency.key).catch(() => undefined);
+      await refundQuietly(deps, reserve.eventId, error);
+    }
+    throw error;
   }
 }
 

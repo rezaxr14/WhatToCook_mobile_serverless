@@ -12,6 +12,7 @@ import {
 } from './catalog.ts';
 import { badRequest, payloadTooLarge } from './errors.ts';
 import {
+  applyServicePrincipal,
   assertFeature,
   buildProviderRequest,
   cacheKeyFor,
@@ -66,6 +67,7 @@ export async function handleScanPantry(request: Request, deps: GatewayDeps): Pro
     cors = contextCors;
 
     const body = await readJsonBody(request, AI_LIMITS.maxScanBodyBytes);
+    applyServicePrincipal(auth, body);
     const parsed = scanPantryRequestSchema.safeParse(body);
     if (!parsed.success) throw badRequest('Invalid scan-pantry request.', parsed.error.issues);
     const input = parsed.data;
@@ -178,6 +180,7 @@ export async function handleScanPantry(request: Request, deps: GatewayDeps): Pro
       provider: providerId,
       model,
       rateLimits: config.rateLimits,
+      config,
     });
     ensureNotIdempotentDuplicate(reserve);
     let initialRemaining: UsageSnapshot;

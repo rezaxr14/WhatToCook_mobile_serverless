@@ -541,12 +541,106 @@ select * from ai_usage_events where status = 'reserved' order by created_at;
 select refund_ai_usage('<event-id>', 'manual_recovery');
 ```
 
+### Challenge gate, pools, and the service principal
+
+`20261103120000_challenge_pools_gateway.sql` adds the adaptive gate and pool accounting. The
+knobs are data in `app_config`; no redeploy is needed to change them:
+
+| Column                            | Default | Meaning                                                       |
+| --------------------------------- | ------- | ------------------------------------------------------------- |
+| `challenge_every_n_calls`         | `3`     | Provider-bound calls allowed between verifications            |
+| `challenge_mobile_enforce`        | `false` | Challenge Android with Play Integrity (enable after H2)       |
+| `challenge_turnstile_action`      | `ai_gate` | Turnstile action that `verify-challenge` accepts            |
+| `anonymous_unattested_daily_cap`  | `10`    | Android anonymous cap while mobile enforcement is off         |
+| `pool_anonymous_pct`              | `60`    | Anonymous share of the 95 % provider guard                    |
+| `pool_registered_pct`             | `40`    | Registered share of the same guard                            |
+
+```sql
+select challenge_every_n_calls, challenge_mobile_enforce, challenge_turnstile_action,
+       anonymous_unattested_daily_cap, pool_anonymous_pct, pool_registered_pct
+from app_config where id = 1;
+
+-- Today's provider usage by pool and every counted attempt.
+select * from ai_pool_daily where day = current_date order by pool, provider;
+select * from ai_provider_attempts where day = current_date;
+```
+
+Enable Android attestation only after `PLAY_INTEGRITY_SERVICE_ACCOUNT` is set and the Android
+client that requests a nonce and posts the token has shipped:
+
+```sql
+update app_config set challenge_mobile_enforce = true where id = 1;
+```
+
+Rolling it back is the same update with `false`; Android then falls back to the unattested cap.
+To reset a user who is stuck behind the challenge (for example after a test loop), delete their
+state row; it is recreated at the threshold:
+
+```sql
+delete from ai_challenge_state where user_id = '<user-id>';
+```
+
+Service traffic is identified by `service_principal = 'main-app-service'` and a null `user_id`.
+Inspect it with:
+
+```sql
+select created_at, feature, status, cache_hit, provider, model, cost_micro_usd, error_code
+from ai_usage_events
+where service_principal is not null
+order by created_at desc
+limit 50;
+
+select get_service_usage('main-app-service');
+```
+
+Rotate `MAIN_SERVICE_KEY` in the Supabase function secrets and in main's environment in the
+same change; a mismatch produces `401 unauthorized` on service calls while user calls keep
+working.
+
+### Telegram bot
+
+`telegram-webhook` handles `/start [code]`, `/pantry`, `/add <item>`, `/remove <item>`, and
+`/cook`. `telegram-link` (called by the web settings modal) issues a one-time 10-character code
+valid for 10 minutes. The bot runs AI as the linked profile, so registered daily caps and the
+registered pool apply and no captcha is needed.
+
+Required function secrets:
+
+```powershell
+pnpm exec supabase secrets set "TELEGRAM_BOT_TOKEN=$env:TELEGRAM_BOT_TOKEN"
+pnpm exec supabase secrets set "TELEGRAM_WEBHOOK_SECRET=$env:TELEGRAM_WEBHOOK_SECRET"
+# Optional; defaults to WhatToCookChefBot and 20 messages/minute per chat.
+pnpm exec supabase secrets set TELEGRAM_BOT_USERNAME=WhatToCookChefBot
+pnpm exec supabase secrets set TELEGRAM_RATE_LIMIT_PER_MINUTE=20
+```
+
+Register the webhook once per deployment. Telegram sends `secret_token` back in the
+`X-Telegram-Bot-Api-Secret-Token` header; without `TELEGRAM_WEBHOOK_SECRET` the function fails
+closed with `503 webhook_secret_not_configured`.
+
+```powershell
+$url = "https://<project-ref>.supabase.co/functions/v1/telegram-webhook"
+Invoke-RestMethod "https://api.telegram.org/bot$env:TELEGRAM_BOT_TOKEN/setWebhook" `
+  -Method Post -ContentType 'application/json' `
+  -Body (@{ url = $url; secret_token = $env:TELEGRAM_WEBHOOK_SECRET } | ConvertTo-Json)
+```
+
+Per-chat throttling lives in `telegram_rate_windows`; link codes live in
+`telegram_link_codes`. Both are service-role only. Clear a stuck window with:
+
+```sql
+delete from telegram_rate_windows where chat_id = <chat-id>;
+delete from telegram_link_codes where used_at is null and expires_at < now();
+```
+
 ## 7. Error triage
 
 | Symptom                    | Check                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `401 unauthorized`         | Bearer token missing/expired; local token expires hourly. `verify_jwt=false` does not mean anonymous access.                                                                                                                                                                                                                                                                                                               |
 | `403 origin_not_allowed`   | Exact scheme/host/port in `ALLOWED_ORIGINS`; native apps send no `Origin`. Include the GitHub Pages origin when the web app is hosted, and re-check the secret after a domain change. In PowerShell quote the whole `ALLOWED_ORIGINS=...` argument, otherwise the comma is parsed as an array and the CLI stores a space-separated value. The parser accepts both commas and whitespace, but use the canonical comma form. |
+| `403 challenge_required`   | Expected after `challenge_every_n_calls`. Web needs `TURNSTILE_SECRET_KEY` + `TURNSTILE_ALLOWED_HOSTNAMES`; check `verify-challenge` logs and that the widget action matches `challenge_turnstile_action`. A missing secret returns `502 provider_error` instead. |
+| `429 ai_pool_exhausted`    | Today's anonymous/registered pool is full; see `details.pool` and `ai_pool_daily`. Check `pool_*_pct` against `AI_RPD_LIMIT`; raising the percentage above 100 total lets the two pools overlap the guard. |
 | `413 payload_too_large`    | JSON > 64 KiB or scan body > 20 MiB; decoded image > plan cap.                                                                                                                                                                                                                                                                                                                                                             |
 | `429 quota_exceeded`       | `ai_usage_counters`, plan feature limits, monthly budget. Cache hits do not count.                                                                                                                                                                                                                                                                                                                                         |
 | `429 rate_limited`         | Provider rate limit; respect `Retry-After`.                                                                                                                                                                                                                                                                                                                                                                                |
@@ -555,6 +649,8 @@ select refund_ai_usage('<event-id>', 'manual_recovery');
 | `502 provider_error`       | Missing/invalid key, model id, price row, provider outage, or timeout.                                                                                                                                                                                                                                                                                                                                                     |
 | `502 invalid_model_output` | Provider JSON failed schema validation twice; inspect the prompt/schema.                                                                                                                                                                                                                                                                                                                                                   |
 | `500 internal_error`       | Service-role configuration, DB/RLS, or an unexpected gateway error.                                                                                                                                                                                                                                                                                                                                                        |
+| `503 webhook_secret_not_configured` | `TELEGRAM_WEBHOOK_SECRET` is unset; the webhook fails closed so a public URL cannot spend AI quota. Set it and re-run `setWebhook`.                                                                                                                                                                                                                                                                                |
+| `403 invalid_webhook_secret` | The `X-Telegram-Bot-Api-Secret-Token` Telegram sends does not match `TELEGRAM_WEBHOOK_SECRET`; re-run `setWebhook` with the current value.                                                                                                                                                                                                                                                                              |
 
 Function logs:
 

@@ -33,8 +33,29 @@ export interface AIModelOption {
 const AI_UNAVAILABLE_MESSAGE =
   'The AI kitchen is unavailable right now. Please try again in a moment.';
 
+const AI_CODE_MESSAGES: Record<string, string> = {
+  challenge_required: 'Please complete the quick verification to keep using AI.',
+  ai_pool_exhausted: "Today's AI capacity is used up. Please try again after the daily reset.",
+};
+
+interface AIErrorPayload {
+  message?: string;
+  error?: string;
+  code?: string;
+  retry_after?: number;
+}
+
 function aiNotReady(): ApiError {
   return new ApiError(AI_UNAVAILABLE_MESSAGE, 503, null, 'ai_not_ready');
+}
+
+function isResponse(value: unknown): value is Response {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { json?: unknown }).json === 'function' &&
+    typeof (value as { status?: unknown }).status === 'number'
+  );
 }
 
 function language(): string {
@@ -77,9 +98,44 @@ async function invokeAi<T>(
 
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (error) {
-    const status = (error as { context?: { status?: number } }).context?.status;
+    const context = (error as { context?: unknown }).context;
+    const status = isResponse(context)
+      ? context.status
+      : typeof (error as { status?: unknown }).status === 'number'
+        ? (error as { status: number }).status
+        : undefined;
     if (!status || status === 404 || status === 501) throw aiNotReady();
-    throw toApiError(error, fallback);
+
+    let payload: AIErrorPayload | null = null;
+    if (isResponse(context)) {
+      try {
+        payload = (await context.json()) as AIErrorPayload;
+      } catch {
+        // The body was empty or not JSON; keep the SDK message.
+      }
+    }
+
+    const errorCode =
+      payload?.code ??
+      (typeof (error as { code?: unknown }).code === 'string'
+        ? (error as { code: string }).code
+        : null);
+    const mapped = errorCode ? AI_CODE_MESSAGES[errorCode] : undefined;
+    const message =
+      mapped ??
+      payload?.message ??
+      payload?.error ??
+      (typeof (error as { message?: unknown }).message === 'string'
+        ? (error as { message: string }).message
+        : fallback);
+    const retryAfter =
+      typeof payload?.retry_after === 'number'
+        ? payload.retry_after
+        : typeof (error as { retryAfter?: unknown }).retryAfter === 'number'
+          ? (error as { retryAfter: number }).retryAfter
+          : null;
+
+    throw new ApiError(message, status, retryAfter, errorCode);
   }
   return data as T;
 }

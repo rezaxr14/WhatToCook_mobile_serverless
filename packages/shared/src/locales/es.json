@@ -393,6 +393,8 @@
       "remaining": "Quedan {{count}} solicitudes de IA hoy",
       "notConnected": "La IA aún no está conectada en este servidor.",
       "noQuota": "Has alcanzado el límite diario de IA. Inténtalo mañana.",
+      "challengeRequired": "Completa la verificación rápida para seguir usando la IA.",
+      "poolExhausted": "La capacidad de demostración se agotó hoy. Inicia sesión o inténtalo mañana.",
       "cached": "En caché",
       "engine": "Motor",
       "free": "Gratis",
