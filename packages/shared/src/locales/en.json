@@ -521,5 +521,13 @@
     "condiments": "Condiments",
     "bakery": "Bakery",
     "beverage": "Beverages"
+  },
+  "challenge": {
+    "title": "Quick verification",
+    "body": "Confirm you're human to keep using the AI. This keeps the free daily capacity available for everyone.",
+    "verifying": "Verifying…",
+    "error": "Verification didn't pass. Please try again.",
+    "unavailable": "Verification isn't available in this build.",
+    "cancel": "Cancel"
   }
 }

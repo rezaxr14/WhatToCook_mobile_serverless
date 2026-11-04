@@ -231,6 +231,7 @@ Deno.test('config: reads the challenge, pool, and provider guard knobs', () => {
     {
       ...baseRow,
       challenge_every_n_calls: 5,
+      challenge_web_enforce: false,
       challenge_mobile_enforce: true,
       challenge_turnstile_action: 'login_gate',
       anonymous_unattested_daily_cap: 3,
@@ -242,6 +243,7 @@ Deno.test('config: reads the challenge, pool, and provider guard knobs', () => {
 
   assertEquals(config.challenge, {
     everyNCalls: 5,
+    webEnforce: false,
     mobileEnforce: true,
     turnstileAction: 'login_gate',
     unattestedDailyCap: 3,
@@ -255,6 +257,7 @@ Deno.test('config: challenge defaults are off for mobile and the guard is option
 
   assertEquals(config.challenge, {
     everyNCalls: 3,
+    webEnforce: true,
     mobileEnforce: false,
     turnstileAction: 'ai_gate',
     unattestedDailyCap: 10,

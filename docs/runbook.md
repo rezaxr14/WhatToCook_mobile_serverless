@@ -549,6 +549,7 @@ knobs are data in `app_config`; no redeploy is needed to change them:
 | Column                            | Default | Meaning                                                       |
 | --------------------------------- | ------- | ------------------------------------------------------------- |
 | `challenge_every_n_calls`         | `3`     | Provider-bound calls allowed between verifications            |
+| `challenge_web_enforce`           | `true`  | Challenge web with Turnstile (turn off until H1 exists)       |
 | `challenge_mobile_enforce`        | `false` | Challenge Android with Play Integrity (enable after H2)       |
 | `challenge_turnstile_action`      | `ai_gate` | Turnstile action that `verify-challenge` accepts            |
 | `anonymous_unattested_daily_cap`  | `10`    | Android anonymous cap while mobile enforcement is off         |
@@ -556,7 +557,7 @@ knobs are data in `app_config`; no redeploy is needed to change them:
 | `pool_registered_pct`             | `40`    | Registered share of the same guard                            |
 
 ```sql
-select challenge_every_n_calls, challenge_mobile_enforce, challenge_turnstile_action,
+select challenge_every_n_calls, challenge_web_enforce, challenge_mobile_enforce, challenge_turnstile_action,
        anonymous_unattested_daily_cap, pool_anonymous_pct, pool_registered_pct
 from app_config where id = 1;
 
@@ -573,6 +574,8 @@ update app_config set challenge_mobile_enforce = true where id = 1;
 ```
 
 Rolling it back is the same update with `false`; Android then falls back to the unattested cap.
+Web Turnstile has the same switch: keep `challenge_web_enforce = false` while
+`TURNSTILE_SECRET_KEY` / `VITE_TURNSTILE_SITE_KEY` are missing, then set it back to `true`.
 To reset a user who is stuck behind the challenge (for example after a test loop), delete their
 state row; it is recreated at the threshold:
 

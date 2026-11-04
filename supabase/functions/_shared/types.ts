@@ -91,6 +91,7 @@ export interface RuntimeConfig {
   /** Adaptive challenge gate (plan 4.1). */
   challenge: {
     everyNCalls: number;
+    webEnforce: boolean;
     mobileEnforce: boolean;
     turnstileAction: string;
     unattestedDailyCap: number;

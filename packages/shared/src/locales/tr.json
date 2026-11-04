@@ -521,5 +521,13 @@
     "condiments": "Çeşniler",
     "bakery": "Fırın Ürünleri",
     "beverage": "İçecekler"
+  },
+  "challenge": {
+    "title": "Hızlı doğrulama",
+    "body": "Yapay zekayı kullanmaya devam etmek için insan olduğunuzu doğrulayın. Bu, günlük ücretsiz kapasiteyi herkes için korur.",
+    "verifying": "Doğrulanıyor…",
+    "error": "Doğrulama geçmedi. Lütfen tekrar deneyin.",
+    "unavailable": "Doğrulama bu sürümde kullanılamıyor.",
+    "cancel": "İptal"
   }
 }

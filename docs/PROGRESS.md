@@ -689,3 +689,13 @@ Expo SDK 58 supplies these defaults in `ExpoRootProjectPlugin`.
   web lint, 19 web unit tests and a production build.
 - Blocked on H3: no `TELEGRAM_BOT_TOKEN`, so the webhook is not registered and no live message
   round trip has run. `TELEGRAM_WEBHOOK_SECRET` is required before enabling the function.
+
+## Web Turnstile gate completes S2 on the client (2026-11-04)
+
+- `app_config.challenge_web_enforce` (default true) mirrors the Android flag, and the web client
+  now mounts a Turnstile modal: a `403 challenge_required` opens it, `verify-challenge` resets the
+  counter, and the AI request is retried once. Copy is in all five locales; an unset
+  `VITE_TURNSTILE_SITE_KEY` fails the modal with a clear message instead of hanging.
+- Live project runs with web enforcement off until H1 (`TURNSTILE_SECRET_KEY` and
+  `VITE_TURNSTILE_SITE_KEY`) exists; turning it back on is a config update plus a web rebuild.
+- Verified: 171 Deno tests, 23 web unit tests, web lint, typecheck and production build.

@@ -521,5 +521,13 @@
     "condiments": "Condimentos",
     "bakery": "Panadería",
     "beverage": "Bebidas"
+  },
+  "challenge": {
+    "title": "Verificación rápida",
+    "body": "Confirma que eres humano para seguir usando la IA. Así mantenemos la capacidad gratuita diaria para todos.",
+    "verifying": "Verificando…",
+    "error": "La verificación no se completó. Inténtalo de nuevo.",
+    "unavailable": "La verificación no está disponible en esta compilación.",
+    "cancel": "Cancelar"
   }
 }

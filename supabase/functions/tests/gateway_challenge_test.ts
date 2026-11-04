@@ -54,6 +54,18 @@ Deno.test('gateway challenge: Android bypasses the challenge while mobile enforc
   assertEquals(harness.quota.reservations.length, 1);
 });
 
+Deno.test('gateway challenge: web bypasses the challenge while web enforcement is off', async () => {
+  const harness = createHarness({
+    challenge: { webEnforce: false },
+    quota: { challengeAllowed: false },
+  });
+  const response = await generate(harness);
+
+  assertEquals(response.status, 200);
+  assertEquals(harness.quota.challengeCalls.length, 0);
+  assertEquals(harness.quota.reservations.length, 1);
+});
+
 Deno.test('gateway challenge: anonymous Android gets the lower unattested daily cap', async () => {
   const harness = createHarness({ challenge: { mobileEnforce: false } });
   harness.auth.plan.id = 'anonymous';

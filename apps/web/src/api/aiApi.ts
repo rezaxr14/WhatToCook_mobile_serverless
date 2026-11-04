@@ -1,5 +1,6 @@
 import { DEFAULT_OPENROUTER_MODEL, OPENROUTER_FREE_MODELS } from '@whattocook/shared';
 import i18n from '../i18n';
+import { requestChallenge } from '../lib/challenge';
 import { ApiError, toApiError } from './client';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type {
@@ -80,6 +81,54 @@ async function ensureSession(): Promise<void> {
   }
 }
 
+async function invokeOnce<T>(
+  name: string,
+  body: Record<string, unknown>,
+  fallback: string,
+): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(name, { body });
+  if (!error) return data as T;
+
+  const context = (error as { context?: unknown }).context;
+  const status = isResponse(context)
+    ? context.status
+    : typeof (error as { status?: unknown }).status === 'number'
+      ? (error as { status: number }).status
+      : undefined;
+  if (!status || status === 404 || status === 501) throw aiNotReady();
+
+  let payload: AIErrorPayload | null = null;
+  if (isResponse(context)) {
+    try {
+      payload = (await context.json()) as AIErrorPayload;
+    } catch {
+      // The body was empty or not JSON; keep the SDK message.
+    }
+  }
+
+  const errorCode =
+    payload?.code ??
+    (typeof (error as { code?: unknown }).code === 'string'
+      ? (error as { code: string }).code
+      : null);
+  const mapped = errorCode ? AI_CODE_MESSAGES[errorCode] : undefined;
+  const message =
+    mapped ??
+    payload?.message ??
+    payload?.error ??
+    (typeof (error as { message?: unknown }).message === 'string'
+      ? (error as { message: string }).message
+      : fallback);
+  const retryAfter =
+    typeof payload?.retry_after === 'number'
+      ? payload.retry_after
+      : typeof (error as { retryAfter?: unknown }).retryAfter === 'number'
+        ? (error as { retryAfter: number }).retryAfter
+        : null;
+
+  throw new ApiError(message, status, retryAfter, errorCode);
+}
+
 async function invokeAi<T>(
   name: string,
   body: Record<string, unknown>,
@@ -96,48 +145,16 @@ async function invokeAi<T>(
 
   await ensureSession();
 
-  const { data, error } = await supabase.functions.invoke(name, { body });
-  if (error) {
-    const context = (error as { context?: unknown }).context;
-    const status = isResponse(context)
-      ? context.status
-      : typeof (error as { status?: unknown }).status === 'number'
-        ? (error as { status: number }).status
-        : undefined;
-    if (!status || status === 404 || status === 501) throw aiNotReady();
-
-    let payload: AIErrorPayload | null = null;
-    if (isResponse(context)) {
-      try {
-        payload = (await context.json()) as AIErrorPayload;
-      } catch {
-        // The body was empty or not JSON; keep the SDK message.
-      }
+  try {
+    return await invokeOnce<T>(name, body, fallback);
+  } catch (error) {
+    // The adaptive gate asks for a Turnstile step-up; verify, then retry once.
+    if (error instanceof ApiError && error.code === 'challenge_required') {
+      await requestChallenge();
+      return await invokeOnce<T>(name, body, fallback);
     }
-
-    const errorCode =
-      payload?.code ??
-      (typeof (error as { code?: unknown }).code === 'string'
-        ? (error as { code: string }).code
-        : null);
-    const mapped = errorCode ? AI_CODE_MESSAGES[errorCode] : undefined;
-    const message =
-      mapped ??
-      payload?.message ??
-      payload?.error ??
-      (typeof (error as { message?: unknown }).message === 'string'
-        ? (error as { message: string }).message
-        : fallback);
-    const retryAfter =
-      typeof payload?.retry_after === 'number'
-        ? payload.retry_after
-        : typeof (error as { retryAfter?: unknown }).retryAfter === 'number'
-          ? (error as { retryAfter: number }).retryAfter
-          : null;
-
-    throw new ApiError(message, status, retryAfter, errorCode);
+    throw error;
   }
-  return data as T;
 }
 
 interface AICatalogResponse extends AIProvidersResponse, AIModelsResponse {}
