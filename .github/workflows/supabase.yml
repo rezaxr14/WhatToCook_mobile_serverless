@@ -86,13 +86,13 @@ jobs:
         if: steps.gate.outputs.configured == 'true'
         run: >-
           supabase functions deploy cache-ingredient-images recache-images
-          --project-ref "$SUPABASE_PROJECT_ID" --use-api
+          --project-ref "$SUPABASE_PROJECT_ID" --use-api --yes
 
       - name: Deploy Telegram functions
         if: steps.gate.outputs.configured == 'true'
         run: >-
           supabase functions deploy telegram-webhook telegram-link
-          --project-ref "$SUPABASE_PROJECT_ID" --use-api
+          --project-ref "$SUPABASE_PROJECT_ID" --use-api --yes
 
       - name: Upload catalog images (add-only)
         if: steps.gate.outputs.configured == 'true'
