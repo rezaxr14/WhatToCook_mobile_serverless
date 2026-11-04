@@ -42,6 +42,10 @@ export interface AuthContext {
     principalClass: 'anonymous' | 'registered';
     endUserRefHash?: string;
   };
+  /** Trusted server-side caller (Telegram bot): no captcha, but quotas apply. */
+  internal?: boolean;
+  /** Skips the adaptive challenge for an internal caller. */
+  challengeExempt?: boolean;
 }
 
 export interface RateLimits {
@@ -209,6 +213,8 @@ export interface QuotaGateway {
   settle(input: SettleInput): Promise<void>;
   refund(eventId: string, errorCode: string): Promise<void>;
   getUsage(auth: AuthContext): Promise<UsageSnapshot>;
+  /** Usage for a linked profile without a user JWT (Telegram bot). */
+  getUsageForUser(userId: string): Promise<UsageSnapshot>;
   recordCacheHit(input: {
     userId: string;
     requestId: string;

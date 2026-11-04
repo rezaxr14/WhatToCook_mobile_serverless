@@ -32,6 +32,7 @@ export async function enforceChallenge(input: {
   quota: QuotaGateway;
 }): Promise<void> {
   if (input.auth.service) return;
+  if (input.auth.challengeExempt) return;
   if (input.platform === 'android' && !input.config.challenge.mobileEnforce) return;
 
   const decision = await input.quota.consumeChallenge(
