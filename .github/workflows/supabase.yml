@@ -78,12 +78,20 @@ jobs:
 
       - name: Push migrations
         if: steps.gate.outputs.configured == 'true'
-        run: supabase db push --password "$SUPABASE_DB_PASSWORD" --yes
+        # Newer Supabase CLI versions refuse `--password` unless the target is
+        # explicit; name the project instead of relying on a local link.
+        run: supabase db push --remote "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD" --yes
 
       - name: Deploy maintenance functions
         if: steps.gate.outputs.configured == 'true'
         run: >-
           supabase functions deploy cache-ingredient-images recache-images
+          --project-ref "$SUPABASE_PROJECT_ID" --use-api
+
+      - name: Deploy Telegram functions
+        if: steps.gate.outputs.configured == 'true'
+        run: >-
+          supabase functions deploy telegram-webhook telegram-link
           --project-ref "$SUPABASE_PROJECT_ID" --use-api
 
       - name: Upload catalog images (add-only)
