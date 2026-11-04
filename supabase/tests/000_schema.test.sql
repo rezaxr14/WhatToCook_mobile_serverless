@@ -4,7 +4,7 @@ create extension if not exists pgtap with schema extensions;
 begin;
 set search_path = public, extensions;
 
-select plan(32);
+select plan(40);
 
 select has_table('public', 'plans', 'plans table exists');
 select has_table('public', 'profiles', 'profiles table exists');
@@ -19,6 +19,10 @@ select has_table('public', 'ai_usage_counters', 'ai_usage_counters table exists'
 select has_table('public', 'ai_global_daily', 'ai_global_daily table exists');
 select has_table('public', 'ai_response_cache', 'ai_response_cache table exists');
 select has_table('public', 'app_config', 'app_config table exists');
+select has_table('public', 'ai_challenge_state', 'ai_challenge_state table exists');
+select has_table('public', 'ai_challenge_nonces', 'ai_challenge_nonces table exists');
+select has_table('public', 'ai_pool_daily', 'ai_pool_daily table exists');
+select has_table('public', 'ai_provider_attempts', 'ai_provider_attempts table exists');
 
 select is((select count(*)::integer from public.ingredients), 80, '80 canonical ingredients seeded');
 select is((select count(*)::integer from public.recipes), 12, '12 canonical recipes seeded');
@@ -33,8 +37,24 @@ select is(public.python_round(1.5), 2, 'bankers rounding: 1.5 -> 2');
 select ok(to_regprocedure('public.can_cook()') is not null, 'can_cook() exists');
 select ok(to_regprocedure('public.seed_demo_data()') is not null, 'seed_demo_data() exists');
 select ok(
-  to_regprocedure('public.reserve_ai_quota(uuid,uuid,text,bigint,text,text)') is not null,
+  to_regprocedure('public.reserve_ai_quota(uuid,uuid,text,bigint,text,text,text,integer,text,integer)') is not null,
   'reserve_ai_quota() exists'
+);
+select ok(
+  to_regprocedure('public.consume_ai_challenge(uuid,integer)') is not null,
+  'consume_ai_challenge() exists'
+);
+select ok(
+  to_regprocedure('public.record_provider_attempt(text,integer)') is not null,
+  'record_provider_attempt() exists'
+);
+select ok(
+  to_regprocedure('public.get_service_usage(text)') is not null,
+  'get_service_usage() exists'
+);
+select has_column(
+  'public', 'ai_usage_events', 'service_principal',
+  'ai_usage_events records the service principal'
 );
 select has_trigger('auth', 'users', 'on_auth_user_created', 'profile bootstrap trigger exists');
 
@@ -58,7 +78,9 @@ select is((
     and c.relname = any (array[
       'plans', 'profiles', 'ingredients', 'recipes', 'recipe_ingredients',
       'pantry_items', 'grocery_items', 'ai_model_prices', 'ai_usage_events',
-      'ai_usage_counters', 'ai_global_daily', 'ai_response_cache', 'app_config'
+      'ai_usage_counters', 'ai_global_daily', 'ai_response_cache', 'app_config',
+      'ai_challenge_state', 'ai_challenge_nonces', 'ai_pool_daily',
+      'ai_provider_attempts'
     ])
     and not c.relrowsecurity
 ), 0, 'RLS is enabled on every public domain table');

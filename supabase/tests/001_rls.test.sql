@@ -189,7 +189,7 @@ select ok(not has_table_privilege('anon', 'public.pantry_items', 'SELECT'), 'ano
 select ok(
   not has_function_privilege(
     'authenticated',
-    'public.reserve_ai_quota(uuid,uuid,text,bigint,text,text)',
+    'public.reserve_ai_quota(uuid,uuid,text,bigint,text,text,text,integer,text,integer)',
     'EXECUTE'
   ),
   'authenticated cannot execute reserve_ai_quota'
@@ -197,7 +197,7 @@ select ok(
 select ok(
   has_function_privilege(
     'service_role',
-    'public.reserve_ai_quota(uuid,uuid,text,bigint,text,text)',
+    'public.reserve_ai_quota(uuid,uuid,text,bigint,text,text,text,integer,text,integer)',
     'EXECUTE'
   ),
   'service_role can execute reserve_ai_quota'
