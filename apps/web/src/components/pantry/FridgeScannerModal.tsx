@@ -310,7 +310,7 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
                   <button
                     type="button"
                     onClick={() => handleUseSample(SAMPLE_FRIDGE_URL)}
-                    className="flex items-center gap-3 p-3 rounded-2xl border border-stone-200 hover:border-brand-400 bg-white hover:bg-stone-50 text-left transition-all group"
+                    className="flex items-center gap-3 p-3 rounded-2xl border border-stone-200 hover:border-brand-400 bg-white hover:bg-stone-50 text-start transition-all group"
                   >
                     <img
                       src={SAMPLE_FRIDGE_URL}
@@ -328,7 +328,7 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
                   <button
                     type="button"
                     onClick={() => handleUseSample(SAMPLE_COUNTER_URL)}
-                    className="flex items-center gap-3 p-3 rounded-2xl border border-stone-200 hover:border-brand-400 bg-white hover:bg-stone-50 text-left transition-all group"
+                    className="flex items-center gap-3 p-3 rounded-2xl border border-stone-200 hover:border-brand-400 bg-white hover:bg-stone-50 text-start transition-all group"
                   >
                     <img
                       src={SAMPLE_COUNTER_URL}
@@ -448,7 +448,7 @@ export const FridgeScannerModal: React.FC<FridgeScannerModalProps> = ({ isOpen, 
                   </div>
 
                   {/* Ingredients Checkbox Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pe-1">
                     {detectedItems.map((item, idx) => {
                       const key = itemKey(item);
                       const inCatalog =

@@ -115,7 +115,7 @@ export const IngredientPicker: React.FC<IngredientPickerProps> = ({
       {/* Search Input & Custom Add */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+          <Search className="w-4 h-4 absolute start-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
           <input
             type="text"
             value={searchTerm}
@@ -124,7 +124,7 @@ export const IngredientPicker: React.FC<IngredientPickerProps> = ({
               if (e.key === 'Enter') handleCustomAdd();
             }}
             placeholder="Search ingredients (e.g. Avocado, Ice Cream, Chicken, Mozzarella)..."
-            className="w-full pl-10 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+            className="w-full ps-10 pe-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
           />
         </div>
 
@@ -146,7 +146,7 @@ export const IngredientPicker: React.FC<IngredientPickerProps> = ({
                 type="button"
                 onClick={() => onAdd(ing)}
                 style={{ height: '180px' }}
-                className="group relative flex flex-col justify-between w-full p-2.5 rounded-2xl border border-stone-200 bg-stone-50/70 hover:bg-white hover:border-brand-400 hover:shadow-md text-stone-800 text-left transition-all cursor-pointer overflow-hidden"
+                className="group relative flex flex-col justify-between w-full p-2.5 rounded-2xl border border-stone-200 bg-stone-50/70 hover:bg-white hover:border-brand-400 hover:shadow-md text-stone-800 text-start transition-all cursor-pointer overflow-hidden"
               >
                 {/* Photo Thumbnail with Exact Uniform Fixed Dimensions */}
                 <div
@@ -171,7 +171,7 @@ export const IngredientPicker: React.FC<IngredientPickerProps> = ({
                     </div>
                   )}
 
-                  <span className="absolute bottom-1.5 right-1.5 w-6 h-6 rounded-lg bg-white/90 group-hover:bg-brand-500 group-hover:text-white text-stone-700 flex items-center justify-center transition-colors">
+                  <span className="absolute bottom-1.5 end-1.5 w-6 h-6 rounded-lg bg-white/90 group-hover:bg-brand-500 group-hover:text-white text-stone-700 flex items-center justify-center transition-colors">
                     <Plus className="w-3.5 h-3.5" />
                   </span>
                 </div>

@@ -210,6 +210,15 @@ export class MemoryQuota implements QuotaGateway {
     };
   }
 
+  async getUsageForUser(_userId: string): Promise<UsageSnapshot> {
+    return this.getUsage({
+      userId: _userId,
+      token: '',
+      profile: { id: _userId, username: 'linked', locale: 'en', plan_id: 'free' },
+      plan: { id: 'free', features: this.features, monthly_budget_micro_usd: this.monthlyBudget, max_image_bytes: 0 },
+    });
+  }
+
   async recordCacheHit(_input: {
     userId: string;
     requestId: string;

@@ -150,7 +150,7 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
                           setModelDropdownOpen(false);
                         }
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
+                      className={`w-full text-start px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
                         isRateLimited
                           ? 'opacity-40 bg-stone-800/40 text-stone-500 cursor-not-allowed border border-dashed border-stone-700/50'
                           : isSelected
@@ -163,7 +163,7 @@ export const AIProviderSwitcher: React.FC<{ compact?: boolean }> = ({ compact })
                           : m.description || label
                       }
                     >
-                      <div className="min-w-0 pr-2">
+                      <div className="min-w-0 pe-2">
                         <div className="flex items-center gap-1.5">
                           <span className="font-semibold truncate">{label}</span>
                           {isRateLimited && (

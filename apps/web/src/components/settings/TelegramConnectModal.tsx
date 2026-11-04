@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, X, Check, Copy, ExternalLink, Bot, Sparkles, Smartphone, Globe } from 'lucide-react';
+import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 
 interface TelegramConnectModalProps {
   isOpen: boolean;
@@ -11,10 +12,11 @@ interface TelegramConnectModalProps {
 export const TelegramConnectModal: React.FC<TelegramConnectModalProps> = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
   const [linkData, setLinkData] = useState<{
-    auth_token: string;
+    auth_token: string | null;
     is_connected: boolean;
-    telegram_username?: string;
+    telegram_username?: string | null;
     bot_username?: string;
     connect_url: string;
     direct_tg_url?: string;
@@ -40,18 +42,24 @@ export const TelegramConnectModal: React.FC<TelegramConnectModalProps> = ({ isOp
 
   const fetchTelegramLink = async () => {
     setLoading(true);
+    setLinkError(null);
     try {
-      const resp = await fetch('/api/telegram/link/', {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        setLinkData(data);
+      if (!isSupabaseConfigured) {
+        setLinkError('Telegram linking needs the cloud connection. Add the Supabase keys to this build.');
+        return;
       }
+      const { data, error } = await supabase.functions.invoke('telegram-link', {
+        method: 'POST',
+        body: {},
+      });
+      if (error) {
+        setLinkError('Sign in first, then try connecting Telegram again.');
+        return;
+      }
+      setLinkData(data as typeof linkData);
     } catch (e) {
       console.error('Failed to get Telegram link:', e);
+      setLinkError('Could not reach the Telegram service. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -112,6 +120,12 @@ export const TelegramConnectModal: React.FC<TelegramConnectModalProps> = ({ isOp
         </div>
 
         <div className="p-6 space-y-5">
+          {linkError && (
+            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
+              {linkError}
+            </div>
+          )}
+
           {/* Status Indicator */}
           {linkData?.is_connected ? (
             <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">

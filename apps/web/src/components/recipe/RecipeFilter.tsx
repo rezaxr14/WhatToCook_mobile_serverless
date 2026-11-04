@@ -25,18 +25,18 @@ export const RecipeFilter: React.FC<RecipeFilterProps> = ({
       {/* Top Search and Quick Stats */}
       <div className="flex flex-col sm:flex-row items-center gap-3">
         <div className="relative flex-1 w-full">
-          <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+          <Search className="w-5 h-5 absolute start-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search by recipe name or ingredients (e.g. Pasta, Chicken, Chocolate)..."
-            className="w-full pl-11 pr-10 py-3 bg-stone-50 border border-stone-200 rounded-2xl text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+            className="w-full ps-11 pe-10 py-3 bg-stone-50 border border-stone-200 rounded-2xl text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
           />
           {searchTerm && (
             <button
               onClick={() => onSearchChange('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-1"
+              className="absolute end-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-1"
             >
               <X className="w-4 h-4" />
             </button>

@@ -150,12 +150,35 @@ export function createQuotaGateway(
         }
         return parsed.data;
       }
+      if (auth.internal) {
+        const { data, error } = await serviceDb.rpc('get_user_usage_for_service', {
+          p_user_id: auth.userId,
+        });
+        if (error) throw mapDatabaseError(error.message, error);
+        const parsed = usageSnapshotSchema.safeParse(data);
+        if (!parsed.success) {
+          throw new Error('get_user_usage_for_service returned an unexpected payload');
+        }
+        return parsed.data;
+      }
       const userDb = userClientFor(auth);
       const { data, error } = await userDb.rpc('get_my_usage');
       if (error) throw mapDatabaseError(error.message, error);
       const parsed = usageSnapshotSchema.safeParse(data);
       if (!parsed.success) {
         throw new Error('get_my_usage returned an unexpected payload');
+      }
+      return parsed.data;
+    },
+
+    async getUsageForUser(userId: string): Promise<UsageSnapshot> {
+      const { data, error } = await serviceDb.rpc('get_user_usage_for_service', {
+        p_user_id: userId,
+      });
+      if (error) throw mapDatabaseError(error.message, error);
+      const parsed = usageSnapshotSchema.safeParse(data);
+      if (!parsed.success) {
+        throw new Error('get_user_usage_for_service returned an unexpected payload');
       }
       return parsed.data;
     },

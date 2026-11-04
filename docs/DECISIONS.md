@@ -430,3 +430,34 @@ flipping `challenge_mobile_enforce`, and shipping the Android attestation UI. Se
 shared secret: rotate `MAIN_SERVICE_KEY` in both projects together. Only a short end-user hash is
 stored, so service usage can be attributed for abuse review but not tied back to a person from
 the database alone.
+
+## ADR-019 - Telegram bot runs as the linked profile through the shared gateway
+
+**Context:** main already has a Telegram bot (`run_telegram_bot.py`) with `/start <token>`,
+`/pantry`, `/add`, `/remove`, `/cook` and `/shoppinglist`. The plan asks the serverless
+repo to port that behaviour, not to rewrite main's bot, and to put the bot's AI behind the same
+challenge/pool/quota rules as the apps. H3 (the bot token) is not available yet.
+
+**Decision:** the bot is an HTTPS webhook Edge Function (`telegram-webhook`), not a polling
+process. Telegram calls it with `X-Telegram-Bot-Api-Secret-Token`; the function returns
+`503 webhook_secret_not_configured` when `TELEGRAM_WEBHOOK_SECRET` is empty, so a mistake in
+deployment cannot leave a public endpoint that spends provider quota. Each chat is throttled with
+a fixed 60-second window in `telegram_rate_windows` (default 20 messages/minute).
+`telegram-link` issues a one-time 10-character code (unambiguous alphabet, 10-minute TTL) for
+the signed-in profile; `/start <code>` consumes it atomically and stores the chat id on
+`profiles`.
+
+`/cook` calls `generateForAuth`, the same pipeline as the HTTP gateway, with an
+`AuthContext` marked `internal` and `challengeExempt`. The linked profile's plan and daily
+caps apply, and the call draws from the registered pool. No captcha is involved because access is
+already gated by account linking. Usage is read through `get_user_usage_for_service` because
+`get_my_usage` depends on `auth.uid()` and the bot has no user JWT. Replies are plain text
+(no Markdown parse mode), matching main.
+
+**Consequences:** the bot must be redeployed when `TELEGRAM_BOT_TOKEN` or the webhook secret
+changes, and `setWebhook` must be re-run when the function URL changes. A failed send is logged
+and never retried by the function; Telegram retries the update if the response is not 200, so
+handlers are idempotent enough for a replay (link codes are single-use, pantry writes upsert).
+The helper RPCs are revoked from `anon`/`authenticated`; only the service role can call them.
+Without H3 the code ships untested against a real bot, and the web modal shows a linking error
+rather than a dead link.

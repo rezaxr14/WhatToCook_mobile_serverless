@@ -247,7 +247,7 @@ export const AIRecipeDetailPage: React.FC = () => {
                 return (
                   <div
                     key={idx}
-                    className={`w-full flex items-center justify-between p-3 rounded-2xl border text-left transition-all ${
+                    className={`w-full flex items-center justify-between p-3 rounded-2xl border text-start transition-all ${
                       isChecked
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-950 opacity-70'
                         : 'bg-stone-50/80 border-stone-200 hover:border-brand-300 text-stone-800'
@@ -255,7 +255,7 @@ export const AIRecipeDetailPage: React.FC = () => {
                   >
                     <button
                       onClick={() => toggleIngredient(ing.name)}
-                      className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+                      className="flex items-center gap-2.5 min-w-0 flex-1 text-start"
                     >
                       <div
                         className={`w-5 h-5 rounded-lg flex items-center justify-center border ${
@@ -360,7 +360,7 @@ export const AIRecipeDetailPage: React.FC = () => {
 
                     {/* Master Chef Secret Tip */}
                     {chefTip && (
-                      <div className="ml-12 p-3 rounded-xl bg-amber-50/90 border border-amber-200/80 text-xs text-amber-900 flex items-start gap-2">
+                      <div className="ms-12 p-3 rounded-xl bg-amber-50/90 border border-amber-200/80 text-xs text-amber-900 flex items-start gap-2">
                         <Lightbulb className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                         <div>
                           <strong className="font-bold">Chef's Secret: </strong>
