@@ -597,6 +597,42 @@ Rotate `MAIN_SERVICE_KEY` in the Supabase function secrets and in main's environ
 same change; a mismatch produces `401 unauthorized` on service calls while user calls keep
 working.
 
+### Telegram bot
+
+`telegram-webhook` handles `/start [code]`, `/pantry`, `/add <item>`, `/remove <item>`, and
+`/cook`. `telegram-link` (called by the web settings modal) issues a one-time 10-character code
+valid for 10 minutes. The bot runs AI as the linked profile, so registered daily caps and the
+registered pool apply and no captcha is needed.
+
+Required function secrets:
+
+```powershell
+pnpm exec supabase secrets set "TELEGRAM_BOT_TOKEN=$env:TELEGRAM_BOT_TOKEN"
+pnpm exec supabase secrets set "TELEGRAM_WEBHOOK_SECRET=$env:TELEGRAM_WEBHOOK_SECRET"
+# Optional; defaults to WhatToCookChefBot and 20 messages/minute per chat.
+pnpm exec supabase secrets set TELEGRAM_BOT_USERNAME=WhatToCookChefBot
+pnpm exec supabase secrets set TELEGRAM_RATE_LIMIT_PER_MINUTE=20
+```
+
+Register the webhook once per deployment. Telegram sends `secret_token` back in the
+`X-Telegram-Bot-Api-Secret-Token` header; without `TELEGRAM_WEBHOOK_SECRET` the function fails
+closed with `503 webhook_secret_not_configured`.
+
+```powershell
+$url = "https://<project-ref>.supabase.co/functions/v1/telegram-webhook"
+Invoke-RestMethod "https://api.telegram.org/bot$env:TELEGRAM_BOT_TOKEN/setWebhook" `
+  -Method Post -ContentType 'application/json' `
+  -Body (@{ url = $url; secret_token = $env:TELEGRAM_WEBHOOK_SECRET } | ConvertTo-Json)
+```
+
+Per-chat throttling lives in `telegram_rate_windows`; link codes live in
+`telegram_link_codes`. Both are service-role only. Clear a stuck window with:
+
+```sql
+delete from telegram_rate_windows where chat_id = <chat-id>;
+delete from telegram_link_codes where used_at is null and expires_at < now();
+```
+
 ## 7. Error triage
 
 | Symptom                    | Check                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -613,6 +649,8 @@ working.
 | `502 provider_error`       | Missing/invalid key, model id, price row, provider outage, or timeout.                                                                                                                                                                                                                                                                                                                                                     |
 | `502 invalid_model_output` | Provider JSON failed schema validation twice; inspect the prompt/schema.                                                                                                                                                                                                                                                                                                                                                   |
 | `500 internal_error`       | Service-role configuration, DB/RLS, or an unexpected gateway error.                                                                                                                                                                                                                                                                                                                                                        |
+| `503 webhook_secret_not_configured` | `TELEGRAM_WEBHOOK_SECRET` is unset; the webhook fails closed so a public URL cannot spend AI quota. Set it and re-run `setWebhook`.                                                                                                                                                                                                                                                                                |
+| `403 invalid_webhook_secret` | The `X-Telegram-Bot-Api-Secret-Token` Telegram sends does not match `TELEGRAM_WEBHOOK_SECRET`; re-run `setWebhook` with the current value.                                                                                                                                                                                                                                                                              |
 
 Function logs:
 

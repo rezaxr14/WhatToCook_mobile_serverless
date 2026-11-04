@@ -667,3 +667,25 @@ Expo SDK 58 supplies these defaults in `ExpoRootProjectPlugin`.
 - Verified: 152 Deno tests, 176 pgTAP tests (including concurrent pool reservations), web and
   mobile typecheck. Live Turnstile/Play Integrity and the Telegram/M2 parity checks wait on the
   missing human prerequisites.
+
+## Telegram bot, linking and a light web RTL pass (2026-11-04)
+
+- Migration `20261104120000_telegram.sql` adds `telegram_link_codes` and
+  `telegram_rate_windows` plus `consume_telegram_message`, `consume_telegram_link_code` and
+  `get_user_usage_for_service`. All three are service-role only; clients never read the tables.
+- New `telegram-webhook` and `telegram-link` functions. The webhook verifies
+  `X-Telegram-Bot-Api-Secret-Token`, fails closed without `TELEGRAM_WEBHOOK_SECRET`, throttles
+  each chat through a fixed window, and mirrors main's commands: `/start [code]`, `/pantry`,
+  `/add`, `/remove` and `/cook`. The link endpoint issues a one-time 10-character code for
+  10 minutes and returns the `t.me` deep links.
+- `generate-handler.ts` now exports `generateForAuth` so the bot runs the same pipeline as the
+  HTTP gateway: the linked profile's plan caps and the registered pool apply, cache and
+  idempotency still work, and the adaptive challenge is skipped for this trusted caller.
+- The web settings modal calls `telegram-link` instead of the main repo's Django route and shows
+  linking errors. A light RTL pass replaced physical utilities (`text-left/right`,
+  `ml/mr`, `pl/pr`, `left/right`, `border-l/r`, `space-x`) in 14 web files; decorative
+  and cursor coordinates stay physical.
+- Verified: 163 Deno tests (18 new for Telegram), `deno check` on all nine function entrypoints,
+  web lint, 19 web unit tests and a production build.
+- Blocked on H3: no `TELEGRAM_BOT_TOKEN`, so the webhook is not registered and no live message
+  round trip has run. `TELEGRAM_WEBHOOK_SECRET` is required before enabling the function.
