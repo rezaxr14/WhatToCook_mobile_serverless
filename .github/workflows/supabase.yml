@@ -82,19 +82,13 @@ jobs:
         # explicit; name the project instead of relying on a local link.
         run: supabase db push --remote "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD" --yes
 
-      - name: Deploy maintenance functions
+      - name: Deploy Edge Functions
         if: steps.gate.outputs.configured == 'true'
-        run: >-
-          supabase functions deploy cache-ingredient-images recache-images
-          --project-ref "$SUPABASE_PROJECT_ID" --use-api --yes
-          --import-map supabase/functions/import_map.json
-
-      - name: Deploy Telegram functions
-        if: steps.gate.outputs.configured == 'true'
-        run: >-
-          supabase functions deploy telegram-webhook telegram-link
-          --project-ref "$SUPABASE_PROJECT_ID" --use-api --yes
-          --import-map supabase/functions/import_map.json
+        # Deploy every function, not just the maintenance/Telegram ones: the AI
+        # gateway used to be deployed by hand, so `main` and production drifted.
+        # Use the default Docker bundler: `--use-api` ignores deno.json's import
+        # map, so any function that reaches `packages/shared` fails to bundle.
+        run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID" --yes
 
       - name: Upload catalog images (add-only)
         if: steps.gate.outputs.configured == 'true'
