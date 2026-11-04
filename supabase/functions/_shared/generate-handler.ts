@@ -9,6 +9,7 @@ import { checkCors } from './cors.ts';
 import { attachDetailImage, attachSuggestionImages } from './dish-images.ts';
 import { badRequest, invalidModelOutput } from './errors.ts';
 import {
+  applyServicePrincipal,
   buildProviderRequest,
   cacheKeyFor,
   ensureNotIdempotentDuplicate,
@@ -83,6 +84,7 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
     cors = contextCors;
 
     const body = await readJsonBody(request, AI_LIMITS.maxJsonBodyBytes);
+    applyServicePrincipal(auth, body);
     const parsed = generateRecipeRequestSchema.safeParse(body);
     if (!parsed.success) {
       throw badRequest('Invalid generate-recipe request.', parsed.error.issues);
@@ -183,6 +185,7 @@ export async function handleGenerateRecipe(request: Request, deps: GatewayDeps):
       provider: providerId,
       model,
       rateLimits: config.rateLimits,
+      config,
     });
     ensureNotIdempotentDuplicate(reserve);
     let initialRemaining: UsageSnapshot;

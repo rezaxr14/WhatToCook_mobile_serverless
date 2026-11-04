@@ -7,6 +7,7 @@ import {
 import { checkCors } from './cors.ts';
 import { badRequest } from './errors.ts';
 import {
+  applyServicePrincipal,
   assertFeature,
   buildProviderRequest,
   cacheKeyFor,
@@ -52,6 +53,7 @@ export async function handleSuggestSubstitution(
     cors = contextCors;
 
     const body = await readJsonBody(request, AI_LIMITS.maxJsonBodyBytes);
+    applyServicePrincipal(auth, body);
     const parsed = substitutionRequestSchema.safeParse(body);
     if (!parsed.success) {
       throw badRequest('Invalid suggest-substitution request.', parsed.error.issues);
@@ -162,6 +164,7 @@ export async function handleSuggestSubstitution(
       provider: providerId,
       model,
       rateLimits: config.rateLimits,
+      config,
     });
     ensureNotIdempotentDuplicate(reserve);
     let initialRemaining: UsageSnapshot;

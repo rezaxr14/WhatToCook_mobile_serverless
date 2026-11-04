@@ -36,6 +36,12 @@ export interface AuthContext {
   token: string;
   profile: ProfileInfo;
   plan: PlanInfo;
+  /** Set for main's service-principal calls; per-user quota/challenge do not apply. */
+  service?: {
+    name: string;
+    principalClass: 'anonymous' | 'registered';
+    endUserRefHash?: string;
+  };
 }
 
 export interface RateLimits {
@@ -53,7 +59,8 @@ export interface RateLimits {
 
 export interface RateLimitInput extends RateLimits {
   now: Date;
-  userId: string;
+  /** null for service-principal calls (no per-user guard). */
+  userId: string | null;
   planId: string;
   /** SHA-256 of the client IP, or null when the proxy did not expose one. */
   ipKey: string | null;
@@ -77,6 +84,20 @@ export interface RuntimeConfig {
     vision: string[];
   };
   allowedOrigins: string[];
+  /** Adaptive challenge gate (plan 4.1). */
+  challenge: {
+    everyNCalls: number;
+    mobileEnforce: boolean;
+    turnstileAction: string;
+    unattestedDailyCap: number;
+  };
+  /** Daily request pools (plan 4.2). */
+  pools: {
+    anonymousPct: number;
+    registeredPct: number;
+  };
+  /** 95 % of the provider's configured daily limit; null disables the guard. */
+  providerDailyGuard: number | null;
 }
 
 export interface ModelPrice {
@@ -124,6 +145,11 @@ export interface AIProvider {
   visionExtract(request: ProviderRequest): Promise<ProviderResult>;
 }
 
+/** Hooks the gateway injects so every provider HTTP attempt is counted. */
+export interface ProviderHooks {
+  onAttempt?: (providerId: string) => Promise<void>;
+}
+
 export interface ReserveInput {
   userId: string;
   requestId: string;
@@ -131,6 +157,24 @@ export interface ReserveInput {
   reservedMicroUsd: number;
   provider: string;
   model: string;
+  /** Pool the request belongs to (plan 4.2). */
+  pool?: 'anonymous' | 'registered' | 'service';
+  /** Precomputed share of the guarded daily limit; null disables the check. */
+  poolLimit?: number | null;
+  /** Service principal name; when set, no auth.users row is used. */
+  service?: string;
+  /** Lower per-user daily cap (unattested mobile devices), when applicable. */
+  dailyCap?: number | null;
+}
+
+export interface ChallengeDecision {
+  allowed: boolean;
+  callsSinceVerified: number;
+}
+
+export interface ChallengeNonce {
+  nonce: string;
+  expiresAt: string;
 }
 
 export interface ReserveResult {
@@ -172,7 +216,16 @@ export interface QuotaGateway {
     provider: string;
     model: string;
     latencyMs: number;
+    /** Service principal, so a cache hit is stored without a user row. */
+    service?: string;
   }): Promise<void>;
+  /** Adaptive challenge gate; call only on a request that will reach a provider. */
+  consumeChallenge(userId: string, everyNCalls: number): Promise<ChallengeDecision>;
+  resetChallenge(userId: string, kind: 'turnstile' | 'play_integrity'): Promise<void>;
+  createChallengeNonce(userId: string, ttlSeconds: number): Promise<ChallengeNonce>;
+  consumeChallengeNonce(userId: string, nonce: string): Promise<boolean>;
+  /** Counts one provider HTTP attempt (including fallbacks/retries). */
+  recordProviderAttempt(provider: string, guardLimit: number | null): Promise<void>;
 }
 
 export interface CacheGateway {
@@ -185,12 +238,14 @@ export interface CacheGateway {
 export interface GatewayDeps {
   allowedOrigins(): string[];
   auth(request: Request): Promise<AuthContext>;
+  /** `X-Service-Key` auth for main's server-to-server adapter (plan 4.3). */
+  serviceAuth(request: Request): Promise<AuthContext>;
   loadConfig(): Promise<RuntimeConfig>;
   getPrice(provider: string, model: string): Promise<ModelPrice | null>;
   quota: QuotaGateway;
   cache: CacheGateway;
   loadCatalog(): Promise<CatalogIngredient[]>;
-  provider(providerId: string, config: RuntimeConfig): AIProvider;
+  provider(providerId: string, config: RuntimeConfig, hooks?: ProviderHooks): AIProvider;
   /** Public URL for a file in the `recipe-images` Storage bucket. */
   imageUrl(file: string): string;
   now(): Date;

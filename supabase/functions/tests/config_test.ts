@@ -226,6 +226,46 @@ Deno.test('config: supports flat routing keys and defaults missing rows safely',
   assertEquals(defaults.allowedOrigins, []);
 });
 
+Deno.test('config: reads the challenge, pool, and provider guard knobs', () => {
+  const config = parseRuntimeConfig(
+    {
+      ...baseRow,
+      challenge_every_n_calls: 5,
+      challenge_mobile_enforce: true,
+      challenge_turnstile_action: 'login_gate',
+      anonymous_unattested_daily_cap: 3,
+      pool_anonymous_pct: 70,
+      pool_registered_pct: 30,
+    },
+    { AI_RPD_LIMIT: '1000' },
+  );
+
+  assertEquals(config.challenge, {
+    everyNCalls: 5,
+    mobileEnforce: true,
+    turnstileAction: 'login_gate',
+    unattestedDailyCap: 3,
+  });
+  assertEquals(config.pools, { anonymousPct: 70, registeredPct: 30 });
+  assertEquals(config.providerDailyGuard, 950);
+});
+
+Deno.test('config: challenge defaults are off for mobile and the guard is optional', () => {
+  const config = parseRuntimeConfig(null, {});
+
+  assertEquals(config.challenge, {
+    everyNCalls: 3,
+    mobileEnforce: false,
+    turnstileAction: 'ai_gate',
+    unattestedDailyCap: 10,
+  });
+  assertEquals(config.pools, { anonymousPct: 60, registeredPct: 40 });
+  assertEquals(config.providerDailyGuard, null);
+
+  const zeroRpd = parseRuntimeConfig(baseRow, { AI_RPD_LIMIT: '0' });
+  assertEquals(zeroRpd.providerDailyGuard, null);
+});
+
 Deno.test('cors: accepts comma- or whitespace-separated origins', () => {
   assertEquals(parseAllowedOrigins('http://localhost:5173, http://127.0.0.1:5173/'), [
     'http://localhost:5173',

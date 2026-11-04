@@ -54,6 +54,8 @@ export interface OpenRouterProviderOptions {
   timeoutMs?: number;
   streamTimeoutMs?: number;
   fetchImpl?: typeof fetch;
+  /** Called once per HTTP attempt (including model fallbacks). */
+  onAttempt?: () => Promise<void>;
 }
 
 /**
@@ -73,6 +75,7 @@ export class OpenRouterProvider implements AIProvider {
   private readonly timeoutMs: number;
   private readonly streamTimeoutMs: number;
   private readonly fetchImpl: typeof fetch;
+  private readonly onAttempt?: () => Promise<void>;
 
   constructor(options: OpenRouterProviderOptions) {
     const providerId = options.providerId ?? 'openrouter';
@@ -91,6 +94,7 @@ export class OpenRouterProvider implements AIProvider {
     this.timeoutMs = options.timeoutMs ?? 30_000;
     this.streamTimeoutMs = options.streamTimeoutMs ?? 60_000;
     this.fetchImpl = options.fetchImpl ?? fetch;
+    this.onAttempt = options.onAttempt;
   }
 
   async generateText(request: ProviderRequest): Promise<ProviderResult> {
@@ -121,6 +125,7 @@ export class OpenRouterProvider implements AIProvider {
     let lastError: unknown = null;
 
     for (const model of candidates) {
+      await this.onAttempt?.();
       try {
         const response = await this.fetchImpl(this.endpoint, {
           method: 'POST',
@@ -172,6 +177,7 @@ export class OpenRouterProvider implements AIProvider {
     for (const model of candidates) {
       let yielded = false;
       let streamError: unknown = null;
+      await this.onAttempt?.();
       try {
         const response = await this.fetchImpl(this.endpoint, {
           method: 'POST',
