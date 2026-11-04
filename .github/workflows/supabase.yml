@@ -26,9 +26,9 @@ jobs:
     name: Local schema and pgTAP
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: latest
 
@@ -56,9 +56,9 @@ jobs:
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: latest
 
@@ -85,7 +85,7 @@ jobs:
       - name: Deploy maintenance functions
         if: steps.gate.outputs.configured == 'true'
         run: >-
-          supabase functions deploy cache-ingredient-images
+          supabase functions deploy cache-ingredient-images recache-images
           --project-ref "$SUPABASE_PROJECT_ID" --use-api
 
       - name: Deploy Telegram functions
@@ -94,26 +94,37 @@ jobs:
           supabase functions deploy telegram-webhook telegram-link
           --project-ref "$SUPABASE_PROJECT_ID" --use-api
 
-      - name: Upload catalog images
+      - name: Upload catalog images (add-only)
         if: steps.gate.outputs.configured == 'true'
         run: |
-          for file in supabase/seed-images/recipes/*.jpg; do
-            name="$(basename "$file")"
-            # storage cp does not upsert; remove first so redeploys are idempotent.
-            supabase storage rm "ss:///recipe-images/recipes/$name" \
-              --project-ref "$SUPABASE_PROJECT_ID" --experimental --yes >/dev/null 2>&1 || true
-            supabase storage cp "$file" "ss:///recipe-images/recipes/$name" \
+          # Add-only: never remove an object. Installed apps may still reference
+          # a superseded path, and a content-hashed name means changed bytes get
+          # a new URL. Re-uploading the same bytes only refreshes metadata.
+          upload() {
+            local source="$1" object="$2"
+            supabase storage cp "$source" "ss:///recipe-images/$object" \
               --project-ref "$SUPABASE_PROJECT_ID" \
-              --cache-control "public, max-age=31536000, immutable" \
+              --cache-control "public, max-age=315360000, immutable" \
               --experimental --yes
-          done
-          # Extra dish photos used for AI suggestions that have no catalog recipe.
-          for file in supabase/seed-images/dishes/*.webp; do
-            name="$(basename "$file")"
-            supabase storage rm "ss:///recipe-images/dishes/$name" \
-              --project-ref "$SUPABASE_PROJECT_ID" --experimental --yes >/dev/null 2>&1 || true
-            supabase storage cp "$file" "ss:///recipe-images/dishes/$name" \
+          }
+
+          list_names() {
+            supabase storage ls "ss:///recipe-images/$1/" \
               --project-ref "$SUPABASE_PROJECT_ID" \
-              --cache-control "public, max-age=31536000, immutable" \
-              --experimental --yes
+              --experimental --output-format json 2>/dev/null |
+              jq -r '.paths[]?' || true
+          }
+
+          for dir in recipes dishes ingredients; do
+            [ -d "supabase/seed-images/$dir" ] || continue
+            existing="$(list_names "$dir")"
+            for file in "supabase/seed-images/$dir"/*; do
+              [ -f "$file" ] || continue
+              name="$(basename "$file")"
+              if printf '%s\n' "$existing" | grep -Fxq "$name"; then
+                echo "keep $dir/$name"
+                continue
+              fi
+              upload "$file" "$dir/$name"
+            done
           done

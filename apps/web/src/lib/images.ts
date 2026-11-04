@@ -7,6 +7,8 @@
  * Supabase Storage instead.
  */
 
+import { resolveImagePath } from '@whattocook/shared';
+
 const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL ?? '').trim().replace(/\/+$/, '');
 
 export const DEFAULT_RECIPE_IMAGE =
@@ -39,11 +41,16 @@ export function recipeImageUrl(pathOrUrl?: string | null): string {
   if (!pathOrUrl) return DEFAULT_RECIPE_IMAGE;
   if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
   if (pathOrUrl.startsWith('/media/recipes/')) {
-    return storagePublicUrl('recipe-images', `recipes/${pathOrUrl.split('/').pop()}`);
+    return storagePublicUrl(
+      'recipe-images',
+      resolveImagePath(`recipes/${pathOrUrl.split('/').pop()}`),
+    );
   }
   if (pathOrUrl.startsWith('/media/')) {
-    return storagePublicUrl('recipe-images', pathOrUrl.replace(/^\/media\//, ''));
+    return storagePublicUrl('recipe-images', resolveImagePath(pathOrUrl.replace(/^\/media\//, '')));
   }
   if (pathOrUrl.startsWith('/')) return pathOrUrl;
-  return storagePublicUrl('recipe-images', pathOrUrl);
+  // Seed images are uploaded under a content-hashed name; the manifest maps
+  // the stable legacy path to it and falls back to the path itself.
+  return storagePublicUrl('recipe-images', resolveImagePath(pathOrUrl));
 }

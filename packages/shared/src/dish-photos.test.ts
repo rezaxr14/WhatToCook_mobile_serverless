@@ -37,6 +37,36 @@ describe('matchDishPhoto', () => {
   it('returns null for an unknown dish with no cuisine', () => {
     expect(matchDishPhoto({ name: 'Zorp Surprise' })).toBeNull();
   });
+
+  it('matches the catalog and keeps food groups sane', () => {
+    const eggplant = matchDishPhoto({ name: 'Eggplant Parmigiana' });
+    expect(eggplant).not.toBe('recipes/omelette.jpg');
+    expect(DISH_PHOTOS.find((entry) => entry.file === eggplant)?.group).toBe('veg');
+
+    expect(matchDishPhoto({ name: 'Menemen' })).toBe('recipes/shakshuka.jpg');
+    expect(matchDishPhoto({ name: 'Creamy Shrimp Pasta' })).toBe('dishes/shrimp_alfredo.webp');
+    expect(matchDishPhoto({ name: 'Tomato Pasta' })).toBe('recipes/penne_pomodoro.jpg');
+  });
+
+  it('uses the hint before a localized name', () => {
+    const hinted = matchDishPhoto({ name: 'Zorp Surprise', image_hint: 'stew' });
+    expect(DISH_PHOTOS.find((entry) => entry.file === hinted)?.group).toBe('soup');
+
+    const grilled = matchDishPhoto({ name: 'طبق غريب', image_hint: 'grilled chicken' });
+    expect(DISH_PHOTOS.find((entry) => entry.file === grilled)?.group).toBe('grill');
+  });
+
+  it('matches Persian and Arabic names written with variant letters', () => {
+    const persian = matchDishPhoto({ name: 'قرمه سبزی' });
+    const arabicYeh = matchDishPhoto({ name: 'قرمه سبزي' });
+    expect(persian).not.toBeNull();
+    expect(arabicYeh).toBe(persian);
+
+    const arabic = matchDishPhoto({ name: 'قورمة سبزي' });
+    const persianKaf = matchDishPhoto({ name: 'قورمة سبزی' });
+    expect(arabic).not.toBeNull();
+    expect(persianKaf).toBe(arabic);
+  });
 });
 
 describe('pickDishPhoto', () => {

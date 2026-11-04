@@ -15,8 +15,9 @@
  *     -d '{"force":true}'
  *
  * Cached rows are skipped unless `force` is true. Object names are content
- * hashed and uploaded with a one-year immutable cache, so a forced refresh that
- * returns different bytes produces a new URL and old objects are deleted.
+ * hashed and uploaded with a ten-year immutable cache. Superseded objects are
+ * never deleted: an installed app may still reference the old path, and
+ * `image_sources` can rebuild anything that goes missing.
  */
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -293,16 +294,6 @@ export async function handleCacheIngredientImages(request: Request, env: Env): P
         .update({ image_path: objectPath })
         .eq('id', row.id);
       if (updateError) throw new Error(`database update failed: ${updateError.message}`);
-
-      if (
-        row.image_path &&
-        row.image_path !== objectPath &&
-        isManagedIngredientPath(row.image_path)
-      ) {
-        // Best effort: the row already points at the new object, so a failed
-        // cleanup only leaves an orphan behind.
-        await storage.remove([row.image_path]).catch(() => undefined);
-      }
 
       cached += 1;
     } catch (error) {

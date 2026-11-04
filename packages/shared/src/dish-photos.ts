@@ -1,16 +1,21 @@
 /**
- * Dish photography shared by the web and mobile clients.
+ * Dish photography shared by the web, mobile and Edge Function code.
  *
- * AI suggestions have no reliable photo of their own, and public stock hosts
- * are blocked on some networks. Every entry below points at a photo in the
- * public `recipe-images` Storage bucket, next to the catalog recipes, so the
- * clients only depend on the Supabase origin they already use.
+ * Two layers:
+ *  - `DISH_CATALOG` (generated from `dish-catalog.json`) names about 400 dishes
+ *    in five languages, with a photo when one was verified.
+ *  - `BASE_DISH_PHOTOS` is the small hand-written pool of broad food photos
+ *    (plus their generic keywords) that gives every unknown dish something
+ *    plausible to show.
  *
- * Order matters: specific dish words must come before generic ones
- * ("carbonara" before "pasta", "shrimp alfredo" before "shrimp").
+ * Matching is precedence-first, then longest-phrase: the provider hint wins
+ * over the dish name, which wins over the cuisine; inside a field the longest
+ * whole-word keyword wins, and ties keep table order. A whole-word, Unicode
+ * boundary stops "egg" from matching "eggplant".
  */
 
-/** Broad food family; collisions prefer another photo from the same family. */
+import { DISH_CATALOG, type CatalogDish } from './dish-catalog.ts';
+
 export type DishPhotoGroup =
   | 'pasta'
   | 'seafood'
@@ -26,7 +31,7 @@ export type DishPhotoGroup =
   | 'dessert';
 
 export interface DishPhotoEntry {
-  /** Path inside the `recipe-images` bucket. */
+  /** Logical path inside the `recipe-images` bucket (mapped by `image-manifest`). */
   file: string;
   /** Lower-case words or phrases that describe the photo. */
   keywords: string[];
@@ -34,7 +39,8 @@ export interface DishPhotoEntry {
   group: DishPhotoGroup;
 }
 
-export const DISH_PHOTOS: readonly DishPhotoEntry[] = [
+/** Broad photos kept for unknown dishes and group collisions. */
+const BASE_DISH_PHOTOS: readonly DishPhotoEntry[] = [
   // Pasta and noodles
   { file: 'recipes/carbonara.jpg', keywords: ['carbonara'], group: 'pasta' },
   {
@@ -71,11 +77,7 @@ export const DISH_PHOTOS: readonly DishPhotoEntry[] = [
   },
 
   // Seafood, meat and grills
-  {
-    file: 'recipes/garlic_shrimp.jpg',
-    keywords: ['shrimp', 'prawn', 'prawns'],
-    group: 'seafood',
-  },
+  { file: 'recipes/garlic_shrimp.jpg', keywords: ['shrimp', 'prawn', 'prawns'], group: 'seafood' },
   {
     file: 'dishes/fish_tacos.webp',
     keywords: ['fish taco', 'fish tacos', 'taco', 'tacos', 'burrito', 'wrap', 'salsa'],
@@ -207,6 +209,65 @@ export const DISH_PHOTOS: readonly DishPhotoEntry[] = [
   },
 ];
 
+/**
+ * Dishes whose catalog entry deliberately has no photo: the base pool's
+ * generic keyword already points at the intended photo (for example Menemen
+ * uses the shakshuka photo). The catalog still names these dishes in five
+ * languages, so localized matching works, but the legacy photo wins.
+ */
+const USE_BASE_PHOTO = new Set([
+  'menemen',
+  'shakshuka',
+  'spaghetti-carbonara',
+  'shrimp-alfredo',
+  'caesar-salad',
+  'greek-salad',
+]);
+
+const STOP_WORDS = new Set(['and', 'with', 'the', 'a', 'al', 'la', 'de', 'of', 'in']);
+
+function nameTokens(name: string): string[] {
+  return normalizeText(name)
+    .split(' ')
+    .filter((token) => token.length >= 3 && !STOP_WORDS.has(token));
+}
+
+/**
+ * Keep catalog keywords that actually describe the dish. Translation
+ * subagents also emitted broad descriptors ("beef stew", "one pot"), which
+ * would otherwise hijack every generic request; the base pool owns those.
+ */
+function specificKeywords(dish: CatalogDish): string[] {
+  const tokens = new Set(nameTokens(dish.names.en));
+  const minimum = Math.max(1, tokens.size);
+  return dish.keywords
+    .map(normalizeText)
+    .filter((keyword) => keyword.length >= 3)
+    .filter((keyword) => keyword.split(' ').length >= minimum)
+    .filter((keyword) => keyword.split(' ').some((part) => tokens.has(part)));
+}
+
+const CATALOG_PHOTOS: readonly DishPhotoEntry[] = DISH_CATALOG.filter(
+  (dish): dish is CatalogDish & { photo: string } =>
+    Boolean(dish.photo) && !USE_BASE_PHOTO.has(dish.key),
+).map((dish) => ({
+  // The dish's own names are specific phrases in every language; only the
+  // dish-scoped extras are added. `DISH_GROUP_KEYWORDS` is exported for
+  // tooling, never used for matching.
+  file: dish.photo,
+  keywords: [...Object.values(dish.names), ...specificKeywords(dish)]
+    .map(normalizeText)
+    .filter((value) => value.length >= 3),
+  group: dish.group as DishPhotoGroup,
+}));
+
+/** Specific catalog photos first, then the broad pool. */
+export const DISH_PHOTOS: readonly DishPhotoEntry[] = [...CATALOG_PHOTOS, ...BASE_DISH_PHOTOS];
+
+export const DISH_PHOTO_FILES: readonly string[] = [
+  ...new Set(DISH_PHOTOS.map((entry) => entry.file)),
+];
+
 /** Fallback chosen when only the cuisine is recognisable. */
 const CUISINE_PHOTOS: Record<string, string> = {
   persian: 'dishes/lentil_soup.webp',
@@ -225,20 +286,59 @@ const CUISINE_PHOTOS: Record<string, string> = {
   japanese: 'dishes/stir_fry.webp',
   korean: 'dishes/stir_fry.webp',
   asian: 'dishes/stir_fry.webp',
+  'east-asian': 'dishes/stir_fry.webp',
+  'southeast-asian': 'dishes/stir_fry.webp',
   mexican: 'dishes/fish_tacos.webp',
   spanish: 'dishes/shrimp_alfredo.webp',
   american: 'dishes/beef.webp',
   british: 'dishes/potatoes.webp',
   german: 'dishes/potatoes.webp',
+  breakfast: 'recipes/pancakes.jpg',
+  dessert: 'dishes/chocolate.webp',
 };
 
-export const DISH_PHOTO_FILES: readonly string[] = DISH_PHOTOS.map((entry) => entry.file);
+/**
+ * Lower-case, strip diacritics and unify Persian/Arabic variants so `ي/ی` and
+ * `ك/ک` match the same entry. ZWNJ becomes a space, not nothing, so
+ * "قرمه‌سبزی" still contains the phrase "قرمه سبزی".
+ */
+export function normalizeText(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[\u064a\u0649]/g, '\u06cc')
+    .replace(/\u0643/g, '\u06a9')
+    .replace(/[\u0623\u0625\u0622]/g, '\u0627')
+    .replace(/[\u064b-\u065f\u0670\u0640]/g, '')
+    .replace(/\u200c/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
-function matches(haystack: string, keyword: string): boolean {
-  // Word boundaries keep "egg" from matching "eggplant" while still allowing
-  // hyphens and plurals that are listed explicitly in `keywords`.
-  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|[^a-z0-9])${escaped}($|[^a-z0-9])`, 'i').test(haystack);
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function containsPhrase(haystack: string, keyword: string): boolean {
+  const escaped = escapeRegExp(keyword);
+  // Unicode-aware whole-word boundaries: `egg` must not match `eggplant`.
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').test(haystack);
+}
+
+function bestMatch(field: string): string | null {
+  const haystack = normalizeText(field);
+  if (!haystack) return null;
+  let best: { length: number; file: string } | null = null;
+  for (const entry of DISH_PHOTOS) {
+    for (const keyword of entry.keywords) {
+      if (keyword.length < 3) continue;
+      if (!containsPhrase(haystack, keyword)) continue;
+      if (!best || keyword.length > best.length)
+        best = { length: keyword.length, file: entry.file };
+    }
+  }
+  return best?.file ?? null;
 }
 
 function hash(seed: string): number {
@@ -264,20 +364,23 @@ export interface DishPhotoSubject {
  * back to {@link pickDishPhoto} so the card still shows food.
  */
 export function matchDishPhoto(subject: DishPhotoSubject): string | null {
-  const haystack = [subject.image_hint, subject.name, subject.cuisine]
-    .filter((value): value is string => !!value && value.trim().length > 0)
-    .join(' ')
-    .toLowerCase();
-
-  if (!haystack) return null;
-
-  for (const entry of DISH_PHOTOS) {
-    if (entry.keywords.some((keyword) => matches(haystack, keyword))) return entry.file;
+  const hint = subject.image_hint?.trim();
+  if (hint) {
+    const match = bestMatch(hint);
+    if (match) return match;
   }
 
-  const cuisine = subject.cuisine?.trim().toLowerCase();
+  const name = subject.name?.trim();
+  if (name) {
+    const match = bestMatch(name);
+    if (match) return match;
+  }
+
+  const cuisine = subject.cuisine?.trim();
   if (cuisine) {
-    const key = Object.keys(CUISINE_PHOTOS).find((name) => cuisine.includes(name));
+    const fromCuisine = bestMatch(cuisine);
+    if (fromCuisine) return fromCuisine;
+    const key = Object.keys(CUISINE_PHOTOS).find((entry) => normalizeText(cuisine).includes(entry));
     if (key) return CUISINE_PHOTOS[key]!;
   }
 

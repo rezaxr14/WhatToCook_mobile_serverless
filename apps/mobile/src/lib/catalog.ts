@@ -1,3 +1,5 @@
+import { resolveImagePath } from '@whattocook/shared';
+
 import { supabaseUrl } from './env';
 
 export { localizeJson } from '@whattocook/shared';
@@ -18,13 +20,16 @@ export function recipeImageUrl(pathOrUrl?: string | null): string {
   if (!pathOrUrl) return DEFAULT_RECIPE_IMAGE;
   if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
   if (pathOrUrl.startsWith('/media/recipes/')) {
-    return storagePublicUrl('recipe-images', `recipes/${pathOrUrl.split('/').pop()}`);
+    return storagePublicUrl(
+      'recipe-images',
+      resolveImagePath(`recipes/${pathOrUrl.split('/').pop()}`),
+    );
   }
   if (pathOrUrl.startsWith('/media/')) {
-    return storagePublicUrl('recipe-images', pathOrUrl.replace(/^\/media\//, ''));
+    return storagePublicUrl('recipe-images', resolveImagePath(pathOrUrl.replace(/^\/media\//, '')));
   }
   if (pathOrUrl.startsWith('/')) return pathOrUrl;
-  return storagePublicUrl('recipe-images', pathOrUrl);
+  return storagePublicUrl('recipe-images', resolveImagePath(pathOrUrl));
 }
 
 /**

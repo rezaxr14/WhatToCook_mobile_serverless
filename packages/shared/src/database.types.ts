@@ -313,6 +313,54 @@ export type Database = {
           },
         ];
       };
+      image_sources: {
+        Row: {
+          attribution: string | null;
+          created_at: string;
+          id: number;
+          key: string;
+          kind: string;
+          license: string | null;
+          sha256: string | null;
+          source_page: string | null;
+          source_url: string;
+          storage_bucket: string;
+          storage_path: string | null;
+          updated_at: string;
+          verified: boolean;
+        };
+        Insert: {
+          attribution?: string | null;
+          created_at?: string;
+          id?: never;
+          key: string;
+          kind: string;
+          license?: string | null;
+          sha256?: string | null;
+          source_page?: string | null;
+          source_url: string;
+          storage_bucket?: string;
+          storage_path?: string | null;
+          updated_at?: string;
+          verified?: boolean;
+        };
+        Update: {
+          attribution?: string | null;
+          created_at?: string;
+          id?: never;
+          key?: string;
+          kind?: string;
+          license?: string | null;
+          sha256?: string | null;
+          source_page?: string | null;
+          source_url?: string;
+          storage_bucket?: string;
+          storage_path?: string | null;
+          updated_at?: string;
+          verified?: boolean;
+        };
+        Relationships: [];
+      };
       ingredients: {
         Row: {
           calories_per_100g: number | null;
@@ -529,6 +577,7 @@ export type Database = {
           id: number;
           image_path: string | null;
           instructions: Json;
+          instructions_i18n: Json;
           macros: Json;
           owner_id: string | null;
           servings: number | null;
@@ -546,6 +595,7 @@ export type Database = {
           id?: number;
           image_path?: string | null;
           instructions?: Json;
+          instructions_i18n?: Json;
           macros?: Json;
           owner_id?: string | null;
           servings?: number | null;
@@ -563,6 +613,7 @@ export type Database = {
           id?: number;
           image_path?: string | null;
           instructions?: Json;
+          instructions_i18n?: Json;
           macros?: Json;
           owner_id?: string | null;
           servings?: number | null;
