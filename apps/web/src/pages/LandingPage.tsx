@@ -652,7 +652,7 @@ export const LandingPage: React.FC = () => {
         register={registerChapter}
         className="items-center justify-center sm:justify-end"
       >
-        <div className="max-w-md px-6 text-center sm:text-right sm:pr-24 lg:pr-32">
+        <div className="max-w-md px-6 text-center sm:text-end sm:pe-24 lg:pe-32">
           <div
             className="text-[10px] font-black tracking-[0.4em] text-amber-300/90"
             style={DISPLAY_FONT}
@@ -665,7 +665,7 @@ export const LandingPage: React.FC = () => {
           >
             {t('story.aiTitle')}
           </h2>
-          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-stone-300/90 mx-auto sm:ml-auto sm:mr-0">
+          <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-stone-300/90 mx-auto sm:ms-auto sm:me-0">
             {t('story.aiSub')}
           </p>
         </div>
@@ -991,7 +991,7 @@ export const LandingPage: React.FC = () => {
           {/* Bottom control pill */}
           {(tourStatus === 'playing' || tourStatus === 'paused' || tourStatus === 'ended') && (
             <div className="fixed inset-x-0 bottom-5 z-30 flex justify-center px-4">
-              <div className="pointer-events-auto flex items-center gap-3 rounded-full border bg-stone-950/70 py-1.5 pl-2 pr-4 shadow-[0_10px_40px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+              <div className="pointer-events-auto flex items-center gap-3 rounded-full border bg-stone-950/70 py-1.5 ps-2 pe-4 shadow-[0_10px_40px_rgba(0,0,0,0.55)] backdrop-blur-xl">
                 {tourStatus === 'ended' ? (
                   <button
                     onClick={startTour}
@@ -1011,7 +1011,7 @@ export const LandingPage: React.FC = () => {
                     {tourStatus === 'playing' ? (
                       <Pause className="h-4 w-4 fill-stone-950" />
                     ) : (
-                      <Play className="ml-0.5 h-4 w-4 fill-stone-950" />
+                      <Play className="ms-0.5 h-4 w-4 fill-stone-950" />
                     )}
                   </button>
                 )}
@@ -1023,7 +1023,7 @@ export const LandingPage: React.FC = () => {
                   {stopLabel.toUpperCase()}
                 </span>
                 {tourStatus !== 'ended' && (
-                  <span className="hidden items-center gap-1.5 pl-2 text-[10px] font-semibold text-stone-500 sm:flex">
+                  <span className="hidden items-center gap-1.5 ps-2 text-[10px] font-semibold text-stone-500 sm:flex">
                     <span className="h-3 w-px bg-stone-700" />
                     {tourStatus === 'playing' ? t('tour.hintPause') : t('tour.hintResume')}
                   </span>

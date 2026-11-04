@@ -1,6 +1,6 @@
 # AI Gateway API
 
-The AI features run as four Supabase Edge Functions behind one shared gateway
+The AI features run as Supabase Edge Functions behind one shared gateway
 module. The web and mobile clients call them directly; there is no custom
 server. The wire schemas live in
 [`packages/shared/src/ai-contracts.ts`](../packages/shared/src/ai-contracts.ts),
@@ -13,6 +13,8 @@ NDJSON events.
 | `scan-pantry`          | `scan`                                    | `scan`           | `/functions/v1/scan-pantry`          |
 | `suggest-substitution` | `substitution`                            | `substitution`   | `/functions/v1/suggest-substitution` |
 | `ai-models`            | none (metadata only)                      | none             | `/functions/v1/ai-models`            |
+| `challenge-nonce`      | none (any signed-in caller)               | none             | `/functions/v1/challenge-nonce`      |
+| `verify-challenge`     | none (any signed-in caller)               | none             | `/functions/v1/verify-challenge`     |
 
 The provider (`gemini`, `openrouter`, `lmstudio`, or `fake`) and model are
 selected server-side from `app_config.model_routing`, with `AI_PROVIDER`,
@@ -49,25 +51,47 @@ fallbacks, and local models are priced at zero.
 
 ## Authentication and CORS
 
-Every non-`OPTIONS` request needs a Supabase user access token:
+Every non-`OPTIONS` request needs either a Supabase user access token or the
+service key used by main's Django adapter:
 
 ```http
 Authorization: Bearer <user-access-token>
 Content-Type: application/json
 Idempotency-Key: <optional, 8-128 characters>
+X-Client-Platform: <optional, `android`; defaults to `web`>
 ```
+
+Service-to-service calls replace the bearer token with:
+
+```http
+X-Service-Key: <MAIN_SERVICE_KEY>
+Content-Type: application/json
+```
+
+`X-Service-Key` is validated before the body is read. The key is compared to
+`MAIN_SERVICE_KEY` as SHA-256 digests (constant time) and must be at least 32
+characters; an unset or short configured key fails closed with
+`401 unauthorized`. A valid service request may then include `principal_class`
+(`"anonymous"` or `"registered"`, default `"registered"`) and an optional
+`end_user_ref` in the JSON body. Only a short hash of `end_user_ref` is stored.
+See [Service principal](#service-principal) below.
 
 `OPTIONS` preflight is answered without a token. Browser requests must have
 their `Origin` in `ALLOWED_ORIGINS`; otherwise the gateway returns
 `403 origin_not_allowed`. Native mobile requests do not send `Origin` and are
 allowed. `verify_jwt = false` is set for these functions so preflight reaches
 the shared layer; `_shared/auth.ts` still rejects every non-preflight request
-without a valid token.
+without a valid token or service key.
+
+`X-Client-Platform: android` lets the gateway apply the unattested-device cap
+and request Play Integrity instead of Turnstile. It is a hint, not a security
+boundary: a browser can send it, but doing so only lowers that caller's
+anonymous daily cap and changes which challenge is offered.
 
 Preflight responses allow the headers the browser clients actually send:
 
 ```http
-Access-Control-Allow-Headers: apikey, authorization, content-type, idempotency-key, x-application-name, x-client-info, x-client-type
+Access-Control-Allow-Headers: apikey, authorization, content-type, idempotency-key, x-application-name, x-client-info, x-client-type, x-client-platform
 Access-Control-Allow-Methods: GET, POST, OPTIONS
 Access-Control-Expose-Headers: retry-after, x-request-id
 Access-Control-Max-Age: 86400
@@ -373,6 +397,163 @@ Staging (Gemini primary with the single OpenRouter free model):
 }
 ```
 
+## Challenge gate
+
+AI calls that would reach a provider are adaptively challenged. Cache hits and
+idempotent replays never trigger a challenge, so a repeat of an already-answered
+request costs nothing.
+
+1. The gateway calls `consume_ai_challenge(user_id, challenge_every_n_calls)`.
+   Every account starts at the threshold, so the first provider-bound call must
+   verify. After a verification, the next `challenge_every_n_calls` calls pass.
+2. When the counter has reached the threshold, the request fails with
+   `403 challenge_required` **before** quota is reserved or charged:
+
+   ```json
+   {
+     "error": "challenge_required",
+     "code": "challenge_required",
+     "message": "Verify that you are human to keep using AI.",
+     "details": { "kinds": ["turnstile"] },
+     "kinds": ["turnstile"]
+   }
+   ```
+
+   `kinds` is also exposed at the top level for clients that only read `code`.
+3. The client verifies through `verify-challenge`; success resets the counter.
+
+Which kind is offered depends on `X-Client-Platform` and
+`app_config.challenge_mobile_enforce`:
+
+| Caller                   | `challenge_mobile_enforce` | Kinds                          |
+| ------------------------ | -------------------------- | ------------------------------ |
+| Web / no platform header | `false` (default)          | `["turnstile"]`                |
+| Web / no platform header | `true`                     | `["turnstile", "play_integrity"]` |
+| `android`                | `false`                    | skipped (no challenge)         |
+| `android`                | `true`                     | `["play_integrity"]`           |
+
+Android never falls back to Turnstile. While mobile enforcement is off, an
+Android request that draws from the anonymous pool is capped at
+`anonymous_unattested_daily_cap` (default 10) instead of the plan's larger
+allowance, so unattested clients cannot drain the demo share. Service calls are
+never challenged.
+
+### `challenge-nonce`
+
+`GET /functions/v1/challenge-nonce` (signed-in user; `OPTIONS` allowed) returns a
+server-issued, single-use nonce for Play Integrity. The client must not choose
+the nonce.
+
+```json
+{
+  "nonce": "0f1e2d...64 hex characters...",
+  "expires_at": "2026-11-03T12:05:00.000Z",
+  "platforms": ["turnstile"]
+}
+```
+
+Nonces are valid for 300 seconds, are deleted on use, and only bind to the
+calling user.
+
+### `verify-challenge`
+
+`POST /functions/v1/verify-challenge`
+
+```json
+{ "kind": "turnstile", "token": "<turnstile response token>" }
+```
+
+```json
+{ "kind": "play_integrity", "token": "<integrity token>", "nonce": "<from challenge-nonce>" }
+```
+
+Success:
+
+```json
+{ "verified": true, "kind": "turnstile", "verified_at": "2026-11-03T12:00:00.000Z" }
+```
+
+- Turnstile is checked server-side against Cloudflare `siteverify` using
+  `TURNSTILE_SECRET_KEY`, the configured action (default `ai_gate`), and the
+  optional `TURNSTILE_ALLOWED_HOSTNAMES` allowlist. Tokens are single use.
+- Play Integrity decodes the token with `PLAY_INTEGRITY_SERVICE_ACCOUNT`, checks
+  the nonce, package name (`PLAY_INTEGRITY_PACKAGE_NAME`, default
+  `com.whattocook.app`), and device/app verdicts. Consuming the nonce is atomic,
+  so a replayed token is rejected.
+- A failed or expired verification keeps the counter and returns
+  `403 challenge_required` with the acceptable `kinds`.
+- Missing server configuration fails closed: a missing Turnstile secret or Play
+  Integrity service account returns `502 provider_error` and verifies nothing.
+  This is the current state until prerequisites H1/H2 are supplied.
+
+## Pools and the provider guard
+
+Provider capacity is split into daily pools so demo traffic cannot starve
+signed-in users:
+
+| Pool         | Share of `AI_RPD_LIMIT` | Used by                                             |
+| ------------ | ----------------------- | --------------------------------------------------- |
+| `anonymous`  | 60 % (`pool_anonymous_pct`) | Anonymous accounts and service calls labelled `anonymous` |
+| `registered` | 40 % (`pool_registered_pct`) | Signed-in accounts and unlabelled service calls       |
+
+`AI_RPD_LIMIT` is the provider's real daily limit; the gateway uses 95 % of it as
+the hard guard. Pool limits are computed server-side and enforced atomically in
+`reserve_ai_quota`. When a pool is full the response is `429 ai_pool_exhausted`
+with `details.pool` and `resets_at` at the next UTC midnight:
+
+```json
+{
+  "error": "ai_pool_exhausted",
+  "code": "ai_pool_exhausted",
+  "message": "Demo capacity is reached for today. Sign in or try again tomorrow.",
+  "details": { "pool": "anonymous" },
+  "resets_at": "2026-11-04T00:00:00.000Z"
+}
+```
+
+In addition, every provider HTTP attempt — primary call, model fallback, and the
+schema-repair retry — increments `ai_provider_attempts` before the request is
+made. Exceeding the 95 % guard fails with `503 ai_budget_exhausted` and refunds
+the reservation, so a retry storm cannot hide behind one reservation.
+
+Per-user daily caps from the plan remain in force on top of the pools:
+
+| Plan        | AI requests (`suggestions`/`recipe`/`chat`/`stream`) | Pantry scans |
+| ----------- | ---------------------------------------------------- | ------------ |
+| `anonymous` | 20                                                   | 5            |
+| `free`      | 60                                                   | 15           |
+
+An unattested Android caller in the anonymous pool is further capped at
+`anonymous_unattested_daily_cap` (default 10 AI requests).
+
+## Service principal
+
+Main's Django adapter calls the gateway as the service principal
+`main-app-service`. There is deliberately no `auth.users` row: service events
+store `service_principal` and a null `user_id`, and a check constraint requires
+one of the two. The service principal is created by the gateway, not by data.
+
+Request shape:
+
+```json
+{
+  "mode": "suggestions",
+  "ingredients": ["eggs"],
+  "principal_class": "anonymous",
+  "end_user_ref": "optional-stable-session-id"
+}
+```
+
+- `principal_class` selects the pool: `"anonymous"` or `"registered"`
+  (default). It cannot grant more capacity than that pool has.
+- `end_user_ref` is optional; only an 8-character hash is stored, never the raw
+  value.
+- Service calls skip the adaptive challenge and per-user plan caps, but they
+  still consume the pool and are subject to the global provider guard.
+- `Idempotency-Key` works per service principal.
+- The service usage snapshot comes from `get_service_usage` and reports
+  `plan_id: "service"` with unlimited per-user limits and the month-to-date cost.
+
 ## Errors
 
 Non-stream failures use:
@@ -393,11 +574,13 @@ Non-stream failures use:
 | `unauthorized`         | 401  | Missing, invalid, or expired bearer token.                              |
 | `bad_request`          | 400  | Body/schema/type/size validation failed.                                |
 | `origin_not_allowed`   | 403  | Browser origin is not in `ALLOWED_ORIGINS`.                             |
+| `challenge_required`   | 403  | Adaptive verification needed; see top-level `kinds`. No quota charged.  |
 | `payload_too_large`    | 413  | Image or JSON body exceeds the limit.                                   |
 | `quota_exceeded`       | 429  | Daily feature limit or monthly budget reached.                          |
+| `ai_pool_exhausted`    | 429  | The anonymous/registered daily pool is full; see `details.pool`.        |
 | `rate_limited`         | 429  | Provider asked us to slow down; see `retry_after`.                      |
 | `ai_disabled`          | 503  | Kill switch or feature flag is off.                                     |
-| `ai_budget_exhausted`  | 503  | Global daily circuit breaker is open.                                   |
+| `ai_budget_exhausted`  | 503  | Global daily circuit breaker or 95 % provider guard is exhausted.       |
 | `provider_error`       | 502  | Provider failed, timed out, or pricing is missing.                      |
 | `invalid_model_output` | 502  | Output failed validation after one repair attempt.                      |
 | `duplicate_request`    | 409  | Idempotency key already completed and the response is no longer cached. |
@@ -409,8 +592,11 @@ it is not a normal API response.
 ## Quota and usage
 
 The gateway calls `reserve_ai_quota`, `settle_ai_usage`, and `refund_ai_usage`
-with the service role. Clients cannot call them. `remaining` is the caller's
-`get_my_usage()` snapshot after the request:
+with the service role. Clients cannot call them. `reserve_ai_quota` takes the
+principal (`p_user_id` or `p_service`), the feature, the estimate, the provider
+and model, and the optional `p_pool`, `p_pool_limit`, and `p_daily_cap`.
+`remaining` is the caller's `get_my_usage()` snapshot after the request (service
+callers get `get_service_usage` instead):
 
 ```json
 {
@@ -428,21 +614,28 @@ with the service role. Clients cannot call them. `remaining` is the caller's
 ```
 
 - A cache hit writes a zero-cost `ai_usage_events` row with `cache_hit=true`;
-  it is visible to admins but excluded from daily/monthly quota checks.
+  it is visible to admins but excluded from daily/monthly quota checks. Cache
+  hits also skip the challenge gate and the pool counter.
 - A successful provider call is settled with actual token counts and
   micro-USD cost.
 - A provider/validation failure refunds the reservation once.
+- A challenge failure (`challenge_required`) happens before reservation, so
+  there is nothing to refund.
 - A stream cancelled after partial output settles the partial usage instead of
   refunding.
 - Optional `AI_RPM_LIMIT` / `AI_RPD_LIMIT` env guards apply globally before a
   reservation. RPM overflow returns `429 rate_limited`; RPD overflow returns
   `429 quota_exceeded` with `resets_at` at the next UTC midnight. Cache hits and
-  idempotent replays do not count against either guard.
+  idempotent replays do not count against either guard. `AI_RPD_LIMIT` also
+  defines the pool and provider-guard sizes (95 % of it).
+- Providers are guarded per attempt, not per reservation: fallbacks and schema
+  retries each count, and overflow returns `503 ai_budget_exhausted`.
 - Per-client guards run in the same place: `AI_USER_RPM_LIMIT` (default 20/min),
   `AI_ANON_RPM_LIMIT` (default 8/min) and `AI_IP_RPM_LIMIT` (default 40/min per
   hashed client IP). Overflow returns `429 rate_limited` with `Retry-After` at
   the end of the current one-minute window. An env var that is present but blank
-  disables that guard; an absent client IP skips the IP guard.
+  disables that guard; an absent client IP skips the IP guard. Service calls
+  skip the per-user and per-IP guards and are metered by pool instead.
 - `AI_PROVIDER=fake` uses deterministic output and zero price; it is the
   supported staging/test configuration.
 

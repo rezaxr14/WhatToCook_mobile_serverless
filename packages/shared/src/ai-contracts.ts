@@ -33,6 +33,8 @@ export const AI_ERROR_CODES = [
   'rate_limited',
   'ai_disabled',
   'ai_budget_exhausted',
+  'challenge_required',
+  'ai_pool_exhausted',
   'provider_error',
   'invalid_model_output',
   'duplicate_request',

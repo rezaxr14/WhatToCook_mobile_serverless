@@ -12,6 +12,12 @@ export interface AppConfigRow {
   global_daily_cap_micro_usd: number;
   feature_flags: Record<string, unknown> | null;
   model_routing: Record<string, unknown> | null;
+  challenge_every_n_calls?: number | null;
+  challenge_mobile_enforce?: boolean | null;
+  challenge_turnstile_action?: string | null;
+  anonymous_unattested_daily_cap?: number | null;
+  pool_anonymous_pct?: number | null;
+  pool_registered_pct?: number | null;
 }
 
 const TEXT_FEATURES: AIFeature[] = ['suggestions', 'recipe', 'chat', 'stream', 'substitution'];
@@ -45,6 +51,9 @@ export function parseRuntimeConfig(row: AppConfigRow | null, env: Env): RuntimeC
   const providerId = normalizeProvider(
     env.AI_PROVIDER?.trim() || stringValue(routing.provider) || 'gemini',
   );
+
+  const rpm = parseRequestLimit(env.AI_RPM_LIMIT, 'AI_RPM_LIMIT');
+  const rpd = parseRequestLimit(env.AI_RPD_LIMIT, 'AI_RPD_LIMIT');
 
   let textFallbacks = stringArray(fallbacks.text).length
     ? stringArray(fallbacks.text)
@@ -124,8 +133,8 @@ export function parseRuntimeConfig(row: AppConfigRow | null, env: Env): RuntimeC
     featureFlags: parseFeatureFlags(row?.feature_flags),
     globalDailyCapMicroUsd: Number(row?.global_daily_cap_micro_usd ?? 5_000_000),
     rateLimits: {
-      rpm: parseRequestLimit(env.AI_RPM_LIMIT, 'AI_RPM_LIMIT'),
-      rpd: parseRequestLimit(env.AI_RPD_LIMIT, 'AI_RPD_LIMIT'),
+      rpm,
+      rpd,
       // Per-client guards are on by default so a new deployment cannot be
       // hammered before anyone tunes the environment. An explicitly blank value
       // (set but empty) disables the guard.
@@ -140,13 +149,29 @@ export function parseRuntimeConfig(row: AppConfigRow | null, env: Env): RuntimeC
       vision: visionFallbacks,
     },
     allowedOrigins: parseAllowedOrigins(env.ALLOWED_ORIGINS),
+    challenge: {
+      everyNCalls: positiveInt(row?.challenge_every_n_calls, 3),
+      // Plan H2 is missing, so mobile stays opt-in until the service account
+      // exists. Web/Turnstile is enforced independently.
+      mobileEnforce: row?.challenge_mobile_enforce === true,
+      turnstileAction: stringValue(row?.challenge_turnstile_action) ?? 'ai_gate',
+      unattestedDailyCap: nonNegativeInt(row?.anonymous_unattested_daily_cap, 10),
+    },
+    pools: {
+      anonymousPct: percent(row?.pool_anonymous_pct, 60),
+      registeredPct: percent(row?.pool_registered_pct, 40),
+    },
+    providerDailyGuard:
+      rpd === null || rpd === 0 ? null : Math.max(1, Math.floor(rpd * PROVIDER_SAFETY_MARGIN)),
   };
 }
 
 export async function loadRuntimeConfig(db: DbClient, env: Env): Promise<RuntimeConfig> {
   const { data, error } = await db
     .from('app_config')
-    .select('ai_kill_switch, global_daily_cap_micro_usd, feature_flags, model_routing')
+    .select(
+      'ai_kill_switch, global_daily_cap_micro_usd, feature_flags, model_routing, challenge_every_n_calls, challenge_mobile_enforce, challenge_turnstile_action, anonymous_unattested_daily_cap, pool_anonymous_pct, pool_registered_pct',
+    )
     .eq('id', 1)
     .maybeSingle();
   if (error) throw mapDatabaseError(error.message, error);
@@ -228,6 +253,23 @@ function parseRequestLimit(value: string | undefined, name: string): number | nu
 const DEFAULT_USER_RPM = 20;
 const DEFAULT_ANON_RPM = 8;
 const DEFAULT_IP_RPM = 40;
+
+/** Stop at 95 % of the provider's configured daily request limit (plan 4.2). */
+export const PROVIDER_SAFETY_MARGIN = 0.95;
+
+function positiveInt(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 ? value : fallback;
+}
+
+function nonNegativeInt(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : fallback;
+}
+
+function percent(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 100
+    ? value
+    : fallback;
+}
 
 /**
  * Unset env keeps the secure default; an env var that is present but blank

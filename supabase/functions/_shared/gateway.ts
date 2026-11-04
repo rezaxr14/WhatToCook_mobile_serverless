@@ -6,6 +6,7 @@ import {
 import { isFreeOpenRouterModel } from '../../../packages/shared/src/ai-models.ts';
 import { assertAllowedOrigin, preflightResponse } from './cors.ts';
 import { buildCacheKey, buildIdempotencyCacheKey } from './cache.ts';
+import { enforceChallenge, type ClientPlatform } from './challenge.ts';
 import { clientIpHash } from './client-ip.ts';
 import {
   aiDisabled,
@@ -48,8 +49,40 @@ export async function loadRequestContext(
   const config = await deps.loadConfig();
   const allowed = config.allowedOrigins.length > 0 ? config.allowedOrigins : deps.allowedOrigins();
   const cors = assertAllowedOrigin(request, allowed);
-  const auth = await deps.auth(request);
+  const serviceKey = request.headers.get('x-service-key');
+  const auth = serviceKey ? await deps.serviceAuth(request) : await deps.auth(request);
   return { auth, config, cors };
+}
+
+/**
+ * Service calls carry `principal_class` in the body (plan 4.3). The key is
+ * validated before the body is read, so this only refines an already-trusted
+ * service context; it never grants service mode on its own.
+ */
+export function applyServicePrincipal(auth: AuthContext, body: unknown): void {
+  if (!auth.service) return;
+  const value = (body ?? {}) as { principal_class?: unknown; end_user_ref?: unknown };
+  auth.service.principalClass =
+    value.principal_class === 'anonymous' ? 'anonymous' : 'registered';
+  if (typeof value.end_user_ref === 'string' && value.end_user_ref.trim()) {
+    auth.service.endUserRefHash = hashEndUserRef(value.end_user_ref.trim());
+  }
+}
+
+/** Opaque end-user reference: only a short hash is ever logged or stored. */
+export function hashEndUserRef(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+export function platformOf(request: Request): 'android' | 'web' {
+  return request.headers.get('x-client-platform')?.toLowerCase() === 'android'
+    ? 'android'
+    : 'web';
 }
 
 export function assertFeature(config: RuntimeConfig, feature: AIFeature): void {
@@ -76,12 +109,19 @@ export function providerFor(
     throw providerError('The configured AI provider is not supported.');
   }
 
+  // Every provider instance counts its own HTTP attempts (including model
+  // fallbacks and schema retries) against the 95 % daily guard.
+  const hooks = {
+    onAttempt: (providerId: string) =>
+      deps.quota.recordProviderAttempt(providerId, config.providerDailyGuard),
+  };
+
   // A photo scan always uses the deployment's primary provider. The free
   // OpenRouter router does not reliably satisfy the scan schema, so choosing an
   // OpenRouter text model must not silently break the fridge scanner.
   if (requested?.feature === 'scan') {
     const providerId = config.providerId;
-    return { id: providerId, provider: deps.provider(providerId, config) };
+    return { id: providerId, provider: deps.provider(providerId, config, hooks) };
   }
 
   const requestedProvider = requested?.provider?.trim().toLowerCase();
@@ -107,7 +147,7 @@ export function providerFor(
   if (providerId !== config.providerId && !config.allowedProviders.includes(providerId)) {
     throw providerError('The selected AI provider is not enabled on the server.');
   }
-  return { id: providerId, provider: deps.provider(providerId, config) };
+  return { id: providerId, provider: deps.provider(providerId, config, hooks) };
 }
 
 export function modelFor(
@@ -287,22 +327,65 @@ export async function reserveUsage(
     provider: string;
     model: string;
     rateLimits: RateLimits;
+    config: RuntimeConfig;
   },
 ): Promise<ReserveResult> {
+  const platform: ClientPlatform = platformOf(input.request);
+
+  // The adaptive gate runs before any counter so a challenged request costs
+  // nothing. Cache hits never reach this function.
+  await enforceChallenge({ auth, config: input.config, platform, quota: deps.quota });
+
+  // Service traffic is metered against the end user's pool so a service call
+  // consumes the same anonymous/registered share as the equivalent first-party
+  // request. `principal_class` defaults to `registered` in
+  // `applyServicePrincipal`, so an unlabelled service call still draws from the
+  // registered pool rather than an uncapped bucket.
+  const pool: 'anonymous' | 'registered' = auth.service
+    ? auth.service.principalClass === 'anonymous'
+      ? 'anonymous'
+      : 'registered'
+    : auth.plan.id === 'anonymous'
+      ? 'anonymous'
+      : 'registered';
+
+  // Service traffic shares the registered share; the provider-attempt guard is
+  // still the hard 95 % ceiling for everything.
+  const pct =
+    pool === 'anonymous'
+      ? input.config.pools.anonymousPct
+      : input.config.pools.registeredPct;
+  const guard = input.config.providerDailyGuard;
+  const poolLimit = guard === null ? null : Math.max(1, Math.floor((guard * pct) / 100));
+
+  // Unattested Android (Play Integrity not enforced yet) gets the lower
+  // anonymous cap instead of the plan's larger number.
+  const dailyCap =
+    pool === 'anonymous' &&
+    platform === 'android' &&
+    !input.config.challenge.mobileEnforce
+      ? input.config.challenge.unattestedDailyCap
+      : null;
+
   await deps.quota.checkRateLimit({
     ...input.rateLimits,
     now: deps.now(),
-    userId: auth.userId,
+    userId: auth.service ? null : auth.userId,
     planId: auth.plan.id,
-    ipKey: await clientIpHash(input.request),
+    ipKey: auth.service ? null : await clientIpHash(input.request),
   });
+
   return deps.quota.reserve({
     userId: auth.userId,
+    service: auth.service?.name,
     requestId: input.requestId,
     feature: input.feature,
     reservedMicroUsd: input.estimateMicroUsd,
     provider: input.provider,
     model: input.model,
+    pool,
+    poolLimit,
+    dailyCap,
   });
 }
 
@@ -324,6 +407,7 @@ export async function recordCacheHit(
   try {
     await deps.quota.recordCacheHit({
       userId: auth.userId,
+      service: auth.service?.name,
       requestId: input.requestId,
       feature: input.feature,
       provider: input.provider,
@@ -392,12 +476,19 @@ export function errorResponse(error: unknown, cors: Headers): Response {
   if (appError.status === 499) return new Response(null, { status: 499, headers: cors });
   const extras: Record<string, string> = {};
   if (appError.retryAfter !== undefined) extras['Retry-After'] = String(appError.retryAfter);
+  const kinds =
+    appError.code === 'challenge_required'
+      ? (appError.details as { kinds?: string[] } | undefined)?.kinds
+      : undefined;
   return jsonResponse(
     {
       error: appError.code,
       code: appError.code,
       message: appError.message,
       details: appError.details,
+      // The plan's challenge response puts `kinds` at the top level so clients
+      // do not have to know about `details`.
+      ...(kinds ? { kinds } : {}),
       resets_at: appError.resetsAt,
       retry_after: appError.retryAfter,
     },

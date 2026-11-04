@@ -393,6 +393,8 @@
       "remaining": "{{count}} AI requests left today",
       "notConnected": "AI is not connected on this server yet.",
       "noQuota": "Your daily AI limit is reached. Try again tomorrow.",
+      "challengeRequired": "Complete the quick verification to keep using AI.",
+      "poolExhausted": "Demo capacity is reached today. Sign in or try again tomorrow.",
       "cached": "Cached",
       "engine": "Engine",
       "free": "Free",

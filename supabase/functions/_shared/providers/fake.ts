@@ -167,6 +167,8 @@ function outputFor(request: ProviderRequest): string {
 export class FakeProvider implements AIProvider {
   readonly id = 'fake';
   readonly calls: Array<{ method: string; feature: string; model: string }> = [];
+  /** Set by the gateway so the fake also exercises the attempt guard. */
+  onAttempt?: () => Promise<void>;
   private readonly counts = new Map<string, number>();
 
   constructor(private readonly options: FakeProviderOptions = {}) {}
@@ -178,6 +180,7 @@ export class FakeProvider implements AIProvider {
   ): Promise<ProviderResult> {
     const started = performance.now();
     const feature = request.metadata?.feature ?? 'recipe';
+    await this.onAttempt?.();
     this.calls.push({ method, feature, model: request.model });
     this.counts.set(feature, (this.counts.get(feature) ?? 0) + 1);
 

@@ -2,6 +2,8 @@ import type {
   CacheGateway,
   CacheHit,
   CacheSetInput,
+  ChallengeDecision,
+  ChallengeNonce,
   GatewayDeps,
   ModelPrice,
   QuotaGateway,
@@ -15,11 +17,17 @@ import type {
   RuntimeConfig,
 } from '../_shared/types.ts';
 import { FakeProvider, type FakeProviderOptions } from '../_shared/providers/fake.ts';
-import { budgetExhausted, quotaExceeded, unauthorized } from '../_shared/errors.ts';
+import {
+  budgetExhausted,
+  poolExhausted,
+  quotaExceeded,
+  unauthorized,
+} from '../_shared/errors.ts';
 import type { CatalogIngredient } from '../_shared/catalog.ts';
 
 export const TEST_USER_ID = '11111111-1111-4111-8111-111111111111';
 export const TEST_TOKEN = 'test-token';
+export const TEST_SERVICE_KEY = 'test-service-key-0123456789abcdef0123456789';
 
 export interface QuotaOptions {
   dailyLimit?: number;
@@ -30,6 +38,12 @@ export interface QuotaOptions {
   globalUsed?: number;
   failUsageSnapshot?: boolean;
   rateLimitError?: Error;
+  /** Default true; set false to force `challenge_required`. */
+  challengeAllowed?: boolean;
+  /** Throw `ai_pool_exhausted` for this pool. */
+  exhaustedPool?: 'anonymous' | 'registered' | 'service';
+  /** Throw budgetExhausted after this many recorded provider attempts. */
+  attemptGuard?: number;
 }
 
 export class MemoryQuota implements QuotaGateway {
@@ -48,6 +62,11 @@ export class MemoryQuota implements QuotaGateway {
   readonly settled: SettleInput[] = [];
   readonly refunded: string[] = [];
   readonly rateLimitChecks: RateLimitInput[] = [];
+  readonly challengeCalls: string[] = [];
+  readonly challengeResets: Array<{ userId: string; kind: string }> = [];
+  readonly createdNonces: string[] = [];
+  readonly consumedNonces: string[] = [];
+  readonly providerAttempts: string[] = [];
   cacheHitRecords = 0;
   dailyUsed: number;
   monthlyUsed: number;
@@ -70,6 +89,9 @@ export class MemoryQuota implements QuotaGateway {
 
   async reserve(input: ReserveInput): Promise<ReserveResult> {
     this.reservations.push(input);
+    if (this.options.exhaustedPool && input.pool === this.options.exhaustedPool) {
+      throw poolExhausted(input.pool);
+    }
     const existing = this.events.get(input.requestId);
     if (existing) {
       return {
@@ -80,7 +102,27 @@ export class MemoryQuota implements QuotaGateway {
       };
     }
 
-    const dailyLimit = this.options.dailyLimit ?? this.features[input.feature] ?? 0;
+    // The service principal has its own pool and no per-user plan.
+    if (input.service) {
+      const eventId = crypto.randomUUID();
+      this.events.set(input.requestId, {
+        eventId,
+        requestId: input.requestId,
+        feature: input.feature,
+        status: 'reserved',
+        reserved: input.reservedMicroUsd,
+        cost: 0,
+      });
+      return {
+        eventId,
+        status: 'reserved',
+        idempotent: false,
+        reservedMicroUsd: input.reservedMicroUsd,
+      };
+    }
+
+    const dailyLimit =
+      input.dailyCap ?? this.options.dailyLimit ?? this.features[input.feature] ?? 0;
     if (this.dailyUsed >= dailyLimit) {
       throw quotaExceeded('Your daily AI request limit has been reached.');
     }
@@ -134,9 +176,17 @@ export class MemoryQuota implements QuotaGateway {
     }
   }
 
-  async getUsage(_auth: AuthContext): Promise<UsageSnapshot> {
+  async getUsage(auth: AuthContext): Promise<UsageSnapshot> {
     if (this.options.failUsageSnapshot) {
       throw new Error('usage snapshot unavailable');
+    }
+    if (auth.service) {
+      return {
+        plan_id: 'service',
+        daily: { ai: { limit: -1, used: this.reservations.length, remaining: null } },
+        monthly: { budget_micro_usd: -1, used_micro_usd: this.monthlyUsed, remaining_micro_usd: null },
+        resets_at: '2026-10-23T00:00:00.000Z',
+      };
     }
     const daily: UsageSnapshot['daily'] = {};
     for (const [feature, limit] of Object.entries(this.features)) {
@@ -160,6 +210,15 @@ export class MemoryQuota implements QuotaGateway {
     };
   }
 
+  async getUsageForUser(_userId: string): Promise<UsageSnapshot> {
+    return this.getUsage({
+      userId: _userId,
+      token: '',
+      profile: { id: _userId, username: 'linked', locale: 'en', plan_id: 'free' },
+      plan: { id: 'free', features: this.features, monthly_budget_micro_usd: this.monthlyBudget, max_image_bytes: 0 },
+    });
+  }
+
   async recordCacheHit(_input: {
     userId: string;
     requestId: string;
@@ -167,8 +226,41 @@ export class MemoryQuota implements QuotaGateway {
     provider: string;
     model: string;
     latencyMs: number;
+    service?: string;
   }): Promise<void> {
     this.cacheHitRecords += 1;
+  }
+
+  async consumeChallenge(userId: string, _everyNCalls: number): Promise<ChallengeDecision> {
+    this.challengeCalls.push(userId);
+    return {
+      allowed: this.options.challengeAllowed ?? true,
+      callsSinceVerified: this.challengeCalls.length,
+    };
+  }
+
+  async resetChallenge(userId: string, kind: 'turnstile' | 'play_integrity'): Promise<void> {
+    this.challengeResets.push({ userId, kind });
+  }
+
+  async createChallengeNonce(_userId: string, _ttlSeconds: number): Promise<ChallengeNonce> {
+    const nonce = crypto.randomUUID().replace(/-/g, '');
+    this.createdNonces.push(nonce);
+    return { nonce, expiresAt: '2026-10-22T12:05:00.000Z' };
+  }
+
+  async consumeChallengeNonce(userId: string, nonce: string): Promise<boolean> {
+    this.consumedNonces.push(`${userId}:${nonce}`);
+    return this.createdNonces.includes(nonce);
+  }
+
+  async recordProviderAttempt(provider: string, guardLimit: number | null): Promise<void> {
+    this.providerAttempts.push(provider);
+    const guard = this.options.attemptGuard;
+    if (guard !== undefined && this.providerAttempts.length > guard) {
+      throw budgetExhausted();
+    }
+    void guardLimit;
   }
 }
 
@@ -245,19 +337,24 @@ export interface TestHarness {
   auth: AuthContext;
 }
 
-export function createHarness(
-  options: {
-    provider?: FakeProviderOptions;
-    quota?: QuotaOptions;
-    monthlyBudget?: number;
-    planFeatures?: Record<string, number>;
-    maxImageBytes?: number;
-    killSwitch?: boolean;
-    providerId?: 'fake' | 'gemini' | 'openrouter' | 'lmstudio';
-    rateLimits?: RateLimits;
-    price?: ModelPrice | null;
-  } = {},
-): TestHarness {
+export interface HarnessOptions {
+  provider?: FakeProviderOptions;
+  quota?: QuotaOptions;
+  monthlyBudget?: number;
+  planFeatures?: Record<string, number>;
+  maxImageBytes?: number;
+  killSwitch?: boolean;
+  providerId?: 'fake' | 'gemini' | 'openrouter' | 'lmstudio';
+  rateLimits?: RateLimits;
+  price?: ModelPrice | null;
+  challenge?: Partial<RuntimeConfig['challenge']>;
+  pools?: Partial<RuntimeConfig['pools']>;
+  providerDailyGuard?: number | null;
+  serviceKey?: string;
+  serviceAuth?: (request: Request) => Promise<AuthContext>;
+}
+
+export function createHarness(options: HarnessOptions = {}): TestHarness {
   const features = options.planFeatures ?? {
     suggestions: 30,
     recipe: 30,
@@ -299,6 +396,15 @@ export function createHarness(
     allowedModels: [],
     fallbacks: { text: [], vision: [] },
     allowedOrigins: ['http://localhost:5173'],
+    challenge: {
+      everyNCalls: 3,
+      mobileEnforce: false,
+      turnstileAction: 'ai_gate',
+      unattestedDailyCap: 10,
+      ...options.challenge,
+    },
+    pools: { anonymousPct: 60, registeredPct: 40, ...options.pools },
+    providerDailyGuard: options.providerDailyGuard ?? null,
   };
   const auth: AuthContext = {
     userId: TEST_USER_ID,
@@ -338,12 +444,38 @@ export function createHarness(
       }
       return auth;
     },
+    serviceAuth:
+      options.serviceAuth ??
+      (async (request) => {
+        const provided = request.headers.get('x-service-key') ?? '';
+        if (provided !== (options.serviceKey ?? TEST_SERVICE_KEY)) throw unauthorized();
+        return {
+          userId: 'service:main-app-service',
+          token: '',
+          profile: {
+            id: 'main-app-service',
+            username: 'main-app-service',
+            locale: 'en',
+            plan_id: 'service',
+          },
+          plan: {
+            id: 'service',
+            features: {},
+            monthly_budget_micro_usd: -1,
+            max_image_bytes: options.maxImageBytes ?? 5 * 1024 * 1024,
+          },
+          service: { name: 'main-app-service', principalClass: 'registered' },
+        };
+      }),
     loadConfig: async () => config,
     getPrice: async () => price,
     quota,
     cache,
     loadCatalog: async () => TEST_CATALOG,
-    provider: () => provider,
+    provider: (_providerId, _config, hooks) => {
+      provider.onAttempt = hooks?.onAttempt ? () => hooks.onAttempt!('fake') : undefined;
+      return provider;
+    },
     imageUrl: (file) =>
       `https://example.supabase.co/storage/v1/object/public/recipe-images/${file}`,
     now,
@@ -359,16 +491,24 @@ export function jsonRequest(
     origin?: string | null;
     idempotencyKey?: string;
     signal?: AbortSignal;
+    platform?: 'android' | 'web';
+    serviceKey?: string;
+    method?: string;
   } = {},
 ): Request {
   const headers = new Headers({ 'content-type': 'application/json' });
   if (options.auth !== false) headers.set('authorization', `Bearer ${TEST_TOKEN}`);
   if (options.origin !== null) headers.set('origin', options.origin ?? 'http://localhost:5173');
   if (options.idempotencyKey) headers.set('idempotency-key', options.idempotencyKey);
+  if (options.platform) headers.set('x-client-platform', options.platform);
+  if (options.serviceKey) {
+    headers.delete('authorization');
+    headers.set('x-service-key', options.serviceKey);
+  }
   return new Request('http://localhost/function', {
-    method: 'POST',
+    method: options.method ?? 'POST',
     headers,
-    body: JSON.stringify(body),
+    body: options.method === 'GET' ? undefined : JSON.stringify(body),
     signal: options.signal,
   });
 }

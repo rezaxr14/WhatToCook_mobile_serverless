@@ -5,6 +5,8 @@ import {
 } from '../../../packages/shared/src/ai-contracts.ts';
 import type {
   AuthContext,
+  ChallengeDecision,
+  ChallengeNonce,
   QuotaGateway,
   RateLimitInput,
   ReserveInput,
@@ -103,12 +105,16 @@ export function createQuotaGateway(
 
     async reserve(input: ReserveInput): Promise<ReserveResult> {
       const { data, error } = await serviceDb.rpc('reserve_ai_quota', {
-        p_user_id: input.userId,
+        p_user_id: input.service ? null : input.userId,
         p_request_id: input.requestId,
         p_feature: input.feature,
         p_reserved_micro_usd: input.reservedMicroUsd,
         p_provider: input.provider,
         p_model: input.model,
+        p_pool: input.pool ?? null,
+        p_pool_limit: input.poolLimit ?? null,
+        p_service: input.service ?? null,
+        p_daily_cap: input.dailyCap ?? null,
       });
       if (error) throw mapDatabaseError(error.message, error);
       return parseReserve(data);
@@ -133,12 +139,46 @@ export function createQuotaGateway(
     },
 
     async getUsage(auth: AuthContext): Promise<UsageSnapshot> {
+      if (auth.service) {
+        const { data, error } = await serviceDb.rpc('get_service_usage', {
+          p_service: auth.service.name,
+        });
+        if (error) throw mapDatabaseError(error.message, error);
+        const parsed = usageSnapshotSchema.safeParse(data);
+        if (!parsed.success) {
+          throw new Error('get_service_usage returned an unexpected payload');
+        }
+        return parsed.data;
+      }
+      if (auth.internal) {
+        const { data, error } = await serviceDb.rpc('get_user_usage_for_service', {
+          p_user_id: auth.userId,
+        });
+        if (error) throw mapDatabaseError(error.message, error);
+        const parsed = usageSnapshotSchema.safeParse(data);
+        if (!parsed.success) {
+          throw new Error('get_user_usage_for_service returned an unexpected payload');
+        }
+        return parsed.data;
+      }
       const userDb = userClientFor(auth);
       const { data, error } = await userDb.rpc('get_my_usage');
       if (error) throw mapDatabaseError(error.message, error);
       const parsed = usageSnapshotSchema.safeParse(data);
       if (!parsed.success) {
         throw new Error('get_my_usage returned an unexpected payload');
+      }
+      return parsed.data;
+    },
+
+    async getUsageForUser(userId: string): Promise<UsageSnapshot> {
+      const { data, error } = await serviceDb.rpc('get_user_usage_for_service', {
+        p_user_id: userId,
+      });
+      if (error) throw mapDatabaseError(error.message, error);
+      const parsed = usageSnapshotSchema.safeParse(data);
+      if (!parsed.success) {
+        throw new Error('get_user_usage_for_service returned an unexpected payload');
       }
       return parsed.data;
     },
@@ -150,9 +190,11 @@ export function createQuotaGateway(
       provider: string;
       model: string;
       latencyMs: number;
+      service?: string;
     }): Promise<void> {
       const { error } = await serviceDb.from('ai_usage_events').insert({
-        user_id: input.userId,
+        user_id: input.service ? null : input.userId,
+        service_principal: input.service ?? null,
         request_id: input.requestId,
         feature: input.feature,
         provider: input.provider,
@@ -169,6 +211,60 @@ export function createQuotaGateway(
       if (error && !isDuplicate(error.message, error.code)) {
         throw mapDatabaseError(error.message, error);
       }
+    },
+
+    async consumeChallenge(userId: string, everyNCalls: number): Promise<ChallengeDecision> {
+      const { data, error } = await serviceDb.rpc('consume_ai_challenge', {
+        p_user_id: userId,
+        p_every_n: everyNCalls,
+      });
+      if (error) throw mapDatabaseError(error.message, error);
+      const row = (data ?? {}) as { allowed?: boolean; calls_since_verified?: number };
+      if (typeof row.allowed !== 'boolean') {
+        throw new Error('consume_ai_challenge returned an unexpected payload');
+      }
+      return {
+        allowed: row.allowed,
+        callsSinceVerified: Number(row.calls_since_verified ?? 0),
+      };
+    },
+
+    async resetChallenge(userId: string, kind: 'turnstile' | 'play_integrity'): Promise<void> {
+      const { error } = await serviceDb.rpc('reset_ai_challenge', {
+        p_user_id: userId,
+        p_kind: kind,
+      });
+      if (error) throw mapDatabaseError(error.message, error);
+    },
+
+    async createChallengeNonce(userId: string, ttlSeconds: number): Promise<ChallengeNonce> {
+      const { data, error } = await serviceDb.rpc('create_ai_challenge_nonce', {
+        p_user_id: userId,
+        p_ttl_seconds: ttlSeconds,
+      });
+      if (error) throw mapDatabaseError(error.message, error);
+      const row = (data ?? {}) as { nonce?: string; expires_at?: string };
+      if (!row.nonce || !row.expires_at) {
+        throw new Error('create_ai_challenge_nonce returned an unexpected payload');
+      }
+      return { nonce: row.nonce, expiresAt: row.expires_at };
+    },
+
+    async consumeChallengeNonce(userId: string, nonce: string): Promise<boolean> {
+      const { data, error } = await serviceDb.rpc('consume_ai_challenge_nonce', {
+        p_user_id: userId,
+        p_nonce: nonce,
+      });
+      if (error) throw mapDatabaseError(error.message, error);
+      return data === true;
+    },
+
+    async recordProviderAttempt(provider: string, guardLimit: number | null): Promise<void> {
+      const { error } = await serviceDb.rpc('record_provider_attempt', {
+        p_provider: provider,
+        p_guard_limit: guardLimit,
+      });
+      if (error) throw mapDatabaseError(error.message, error);
     },
   };
 }
