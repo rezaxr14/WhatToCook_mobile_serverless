@@ -316,14 +316,56 @@ export function normalizeText(value: string): string {
     .trim();
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function containsPhrase(haystack: string, keyword: string): boolean {
+  // Unicode-aware whole-word boundaries: `egg` must not match `eggplant`.
+  // Plain indexOf + a one-character check is orders of magnitude cheaper than
+  // compiling `(?<![\p{L}\p{N}])…(?![\p{L}\p{N}])` for every keyword of every
+  // catalog dish on every request (that alone exceeded the Edge Function CPU
+  // budget).
+  let from = 0;
+  for (;;) {
+    const index = haystack.indexOf(keyword, from);
+    if (index < 0) return false;
+    const afterIndex = index + keyword.length;
+    if (
+      !isWordCharacter(characterBefore(haystack, index)) &&
+      !isWordCharacter(characterAt(haystack, afterIndex))
+    ) {
+      return true;
+    }
+    from = index + 1;
+  }
 }
 
-function containsPhrase(haystack: string, keyword: string): boolean {
-  const escaped = escapeRegExp(keyword);
-  // Unicode-aware whole-word boundaries: `egg` must not match `eggplant`.
-  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').test(haystack);
+const WORD_CHARACTER = /\p{L}|\p{N}/u;
+
+function isWordCharacter(value: string): boolean {
+  return value.length > 0 && WORD_CHARACTER.test(value);
+}
+
+/** The full code point before `index`, including a surrogate pair. */
+function characterBefore(value: string, index: number): string {
+  if (index <= 0) return '';
+  const code = value.charCodeAt(index - 1);
+  if (isLowSurrogate(code) && index >= 2) return value.slice(index - 2, index);
+  return value.charAt(index - 1);
+}
+
+/** The full code point at `index`, including a surrogate pair. */
+function characterAt(value: string, index: number): string {
+  if (index >= value.length) return '';
+  const code = value.charCodeAt(index);
+  return isHighSurrogate(code) && index + 1 < value.length
+    ? value.slice(index, index + 2)
+    : value.charAt(index);
+}
+
+function isHighSurrogate(code: number): boolean {
+  return code >= 0xd800 && code <= 0xdbff;
+}
+
+function isLowSurrogate(code: number): boolean {
+  return code >= 0xdc00 && code <= 0xdfff;
 }
 
 function bestMatch(field: string): string | null {
