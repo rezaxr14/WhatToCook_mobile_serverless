@@ -58,7 +58,9 @@
     "a2": "Görü modeli yaygın sebze, süt ürünleri, et ve ambalajlı ürünleri madde başına güven puanıyla algılar. Kilerine girmeden önce her zaman teyit edersin.",
     "q3": "Sıfır atık eşleştirme nedir?",
     "a3": "Yemekleri elinde olanlara göre sıralarız: %100 eşleşmeler hiç alışveriş gerektirmez, kısmi eşleşmeler tam olarak neyin eksik olduğunu listeler.",
+    "q4": "Hesap açmam gerekiyor mu?",
     "a4": "Hayır. Anında Demo'ya dokun, hazır dolu bir demo kilerin hemen açılsın — e-posta yok, kart yok.",
+    "q5": "Çevrimdışı kullanabilir miyim?",
     "a5": "Uygulama PWA olarak kurulur ve kilerin çevrimdışı görüntülenir. Üretken özellikler Gemini'den veya yerel LM Studio'dan akar."
   },
   "cta": {

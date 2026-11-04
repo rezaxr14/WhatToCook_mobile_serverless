@@ -1,4 +1,4 @@
-import { localizeJson, type Database, type Json } from '@whattocook/shared';
+import { localizeInstructions, localizeJson, type Database, type Json } from '@whattocook/shared';
 import { useQuery } from '@tanstack/react-query';
 
 import { recipeImageUrl } from '@/lib/catalog';
@@ -54,6 +54,7 @@ export const RECIPE_SELECT = `
   title_en,
   description,
   instructions,
+  instructions_i18n,
   cooking_time_minutes,
   image_path,
   servings,
@@ -110,8 +111,12 @@ function mapSummary(row: RecipeRowWithIngredients, locale: string): RecipeSummar
   };
 }
 
-export function parseInstructions(value: Json | null | undefined, locale: string): string[] {
-  return localizeJson(value, locale)
+export function parseInstructions(
+  value: Json | null | undefined,
+  instructionsI18n: Json | null | undefined,
+  locale: string,
+): string[] {
+  return localizeInstructions(value, instructionsI18n, locale)
     .split(/\r?\n/)
     .map((line) => line.replace(/^\s*(?:\d+[.)]|[-•])\s*/, '').trim())
     .filter(Boolean);
@@ -121,7 +126,7 @@ function mapDetail(row: RecipeRowWithIngredients, locale: string): RecipeDetail 
   const summary = mapSummary(row, locale);
   return {
     ...summary,
-    instructions: parseInstructions(row.instructions, locale),
+    instructions: parseInstructions(row.instructions, row.instructions_i18n, locale),
     recipeIngredients: sortedJoins(row).map((join) => ({
       id: join.ingredients.id,
       recipeIngredientId: join.id,

@@ -1,4 +1,4 @@
-import type { Database, Json } from '@whattocook/shared';
+import { localizeInstructions, type Database, type Json } from '@whattocook/shared';
 import type { Ingredient, RecipeIngredient } from '../types/ingredient';
 import type { CanCookResponse, MatchedRecipe, Recipe } from '../types/recipe';
 import { ingredientStorageUrl, recipeImageUrl } from './images';
@@ -82,7 +82,7 @@ export function mapRecipe(row: RecipeWithIngredients, locale = 'en'): Recipe {
     name: localized(row.title, locale) || row.title_en || `Recipe ${row.id}`,
     description: localized(row.description, locale),
     cooking_time: row.cooking_time_minutes,
-    instructions: localized(row.instructions, locale),
+    instructions: localizeInstructions(row.instructions, row.instructions_i18n, locale),
     image: row.image_path,
     image_url: recipeImageUrl(row.image_path),
     ingredients: recipeIngredients.map((entry) => entry.ingredient),
