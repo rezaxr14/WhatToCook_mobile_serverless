@@ -105,4 +105,16 @@ jobs:
               --prerelease
           fi
 
-          gh release upload "$tag" "$asset" --clobber
+          # `--clobber` deletes the old asset before uploading. GitHub returns a
+          # transient 500 on that delete often enough to fail a whole build, so
+          # retry the upload instead of leaving the rolling release stale.
+          for attempt in 1 2 3; do
+            if gh release upload "$tag" "$asset" --clobber; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "rolling release upload failed (attempt $attempt); retrying in $((attempt * 10))s" >&2
+            sleep $((attempt * 10))
+          done
