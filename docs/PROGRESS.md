@@ -34,7 +34,7 @@ into the local env files.
 - [x] `docs/DECISIONS.md`
 - [x] CI skeleton + gitleaks
 - [x] GitHub repo created (public), `main` pushed, CI green on `main`
-- [x] Branch protection on `main` + Dependabot
+- [x] Branch protection on `main`
 - [x] First green CI run on a PR
 - [x] `CLAUDE.md` (reviewed; keeps the plan untracked and points at project skills)
 

@@ -27,7 +27,7 @@ jobs:
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "Web build secrets are unavailable (Dependabot or fork PR); skipping screenshots."
+            echo "Web build secrets are unavailable (fork PR); skipping screenshots."
           fi
 
   web:
