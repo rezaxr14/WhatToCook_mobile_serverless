@@ -212,37 +212,3 @@ pnpm gen:types:remote
 pnpm exec supabase link --project-ref <project-ref>
 pnpm exec supabase db push --dry-run
 ```
-
-## Status
-
-M2 - mobile shell complete: the Expo SDK 58 Android app has SecureStore-backed Supabase auth,
-five shared locales with RTL handling, a Pantry search/CRUD screen, `can_cook()` match results,
-a synced grocery list and Settings. Mobile typecheck, lint, Expo config validation and the
-Android Metro export are green; the on-device dev-client build and UI tests are the remaining
-M2 items. M5 - mobile AI: an AI Chef tab (pantry ingredients, diet, servings, surprise, free
-model selector, quota badge), AI recipe detail with ingredient steps, chef tips, grocery
-export, inline substitutions and chat, plus a camera/gallery pantry scanner. These screens
-call the Edge Functions directly with the same quota and error semantics; missing functions
-degrade to a translated "not connected" state, and `ai-models` falls back to the shared free
-catalog. Staging API smoke and the Android bundle pass; mobile helper tests cover the dish
-photography helper. A debug-signed release APK is now built by
-`.github/workflows/android-device.yml` and installed on a physical Android 14 device; the
-on-device AI/scanner walkthrough and the refreshed device screenshots are verified.
-M6 - mobile recipe catalog: a searchable `/recipes` screen with quick, vegetarian and sweet
-filters, plus a `/recipe/[id]` detail screen with serving scaling, pantry-aware ingredient
-checklists, inline substitutions, missing-only grocery export, step completion, an in-app
-step timer and chat. The Cook tab links to the catalog and its matched cards open the detail
-screen. The shared chat, timer and substitute panels are reused by the AI recipe detail;
-typecheck, lint, 21 mobile helper tests, 12 shared tests, the Android export and a
-headless-browser catalog/detail smoke are green. The on-device catalog walkthrough and
-RNTL/Maestro coverage remain.
-M4 - AI gateway complete and deployed to staging with the
-deterministic `fake` provider. The M0/M1 Supabase foundation (RLS, quota RPCs, matcher,
-80-ingredient / 12-recipe catalog, Storage) and the WM1 web parity port are done. The four AI
-Edge Functions cover suggestions, recipe detail, chat, streaming, pantry scans, substitutions,
-and the client model catalog with a service-role quota/cache path. Gemini, OpenRouter, and
-local LM Studio are available as server-side providers; OpenRouter uses `OPENROUTER_API_KEY` /
-`OPENROUTER_MODEL` and LM Studio uses `LMSTUDIO_MODEL`, and neither needs a migration. Real
-provider traffic is enabled only after the key and model/pricing are verified. The web AI
-client calls the gateway and degrades to `ai_not_ready` only if a function is missing. Local
-checks currently cover 120 pgTAP tests and 70 Deno tests.
