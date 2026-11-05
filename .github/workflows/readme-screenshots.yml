@@ -11,8 +11,29 @@ permissions:
   contents: read
 
 jobs:
+  config:
+    name: Check screenshot secrets
+    runs-on: ubuntu-24.04
+    outputs:
+      available: ${{ steps.check.outputs.available }}
+    steps:
+      - name: Check
+        id: check
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Web build secrets are unavailable (Dependabot or fork PR); skipping screenshots."
+          fi
+
   web:
     name: Capture web demo screenshots
+    needs: config
+    if: needs.config.outputs.available == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
