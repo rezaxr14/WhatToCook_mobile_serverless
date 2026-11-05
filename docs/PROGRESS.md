@@ -699,3 +699,20 @@ Expo SDK 58 supplies these defaults in `ExpoRootProjectPlugin`.
 - Live project runs with web enforcement off until H1 (`TURNSTILE_SECRET_KEY` and
   `VITE_TURNSTILE_SITE_KEY`) exists; turning it back on is a config update plus a web rebuild.
 - Verified: 171 Deno tests, 23 web unit tests, web lint, typecheck and production build.
+
+## Final verification and remaining flags (2026-11-05)
+
+- The Android device workflow now retries the rolling-release upload three times because
+  `gh release upload --clobber` occasionally gets a transient HTTP 500 from GitHub. Run
+  [41988774713](https://github.com/rezaxr14/WhatToCook_mobile_serverless/actions/runs/41988774713)
+  built and published `74c0e09`; the release body and APK match that commit.
+- The M2 service-principal route is verified live: `MAIN_SERVICE_KEY` is set in the function
+  secrets and in main's untracked `.env` together with `SUPABASE_GATEWAY_URL`. A request with
+  the key returned `200` (5 recipes) and settled an `ai_usage_events` row with
+  `service_principal = 'main-app-service'` and a null `user_id`; a wrong key returns `401`.
+- Live web AI still returns `200` with no challenge because `challenge_web_enforce` is `false`.
+  The migration default is `true`, so a new environment enforces it. The Android flag stays
+  `false` until H2; the web flag stays off until H1.
+- Remaining human inputs: H1 Turnstile keys, H2 Play Integrity service account, H3 Telegram bot
+  token plus webhook secret, and optionally H4 image-search keys. The Telegram webhook is deployed
+  but unregistered and fails closed until H3.
